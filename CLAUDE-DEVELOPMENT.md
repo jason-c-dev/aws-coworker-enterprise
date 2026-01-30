@@ -1,6 +1,21 @@
-# CLAUDE.md - AWS Coworker Project Instructions
+# CLAUDE-DEVELOPMENT.md - AWS Coworker Development Context
 
-This file provides context for Claude when working on the AWS Coworker project. It ensures consistency across sessions, especially after conversation compression.
+This file provides context for Claude when **developing or maintaining** AWS Coworker itself. It ensures consistency across sessions, especially after conversation compression.
+
+**Important:** This file is for *development* of AWS Coworker. For *using* AWS Coworker to interact with AWS, see [CLAUDE.md](CLAUDE.md).
+
+---
+
+## Two-File Context Structure
+
+AWS Coworker uses two context files for different purposes:
+
+| File | Purpose | When Loaded |
+|------|---------|-------------|
+| `CLAUDE.md` | **Usage context** — Intercepts all AWS requests and routes them through AWS Coworker commands. Enforces safety model. | When using AWS Coworker to interact with AWS |
+| `CLAUDE-DEVELOPMENT.md` | **Development context** — Directory conventions, naming patterns, design decisions for maintainers. | When developing/maintaining AWS Coworker itself |
+
+The `CLAUDE.md` file is **mandatory** for safe AWS operations. Without it, free-form AWS requests would bypass the command system and safety model.
 
 ---
 
@@ -196,7 +211,11 @@ AWS Coworker uses three layers with clear precedence:
 
 If you need to understand AWS Coworker deeply after compression:
 
-1. **This file** — `CLAUDE.md` (you're here)
+**For using AWS Coworker (interacting with AWS):**
+1. **Usage context** — `CLAUDE.md` (mandatory — routes all AWS requests through commands)
+
+**For developing/maintaining AWS Coworker:**
+1. **This file** — `CLAUDE-DEVELOPMENT.md` (you're here)
 2. **Architecture** — `docs/DESIGN.md`
 3. **Contributing** — `CONTRIBUTING.md`
 4. **Customization** — `docs/customization/README.md`

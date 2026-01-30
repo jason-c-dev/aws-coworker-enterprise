@@ -42,6 +42,8 @@ AWS Coworker uses a layered architecture:
 | `skills/meta/` | Meta-design patterns | ❌ Avoid |
 | `.claude/agents/` | Agent definitions | ⚠️ Add new only |
 | `.claude/commands/` | Slash commands | ⚠️ Add new only |
+| `CLAUDE.md` | Usage context (safety enforcement) | ❌ Avoid |
+| `CLAUDE-DEVELOPMENT.md` | Development context | ⚠️ Extend only |
 
 ### What to Customize
 

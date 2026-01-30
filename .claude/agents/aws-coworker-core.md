@@ -268,6 +268,122 @@ Then:
 3. Note any service quotas that may need increase
 ```
 
+## Agent Orchestration
+
+The Core Agent can delegate complex tasks to specialized sub-agents using the **Task tool**. This enables parallel execution for large-scale operations.
+
+### When to Orchestrate
+
+| Scenario | Approach |
+|----------|----------|
+| Simple discovery (< 10 resources) | Direct execution |
+| Single mutation | Direct execution with approval |
+| Multi-region discovery | Spawn sub-agents per region |
+| Multi-account audit | Spawn sub-agents per account |
+| Large-scale remediation (100+ resources) | Spawn batched sub-agents |
+
+### Orchestration Flow
+
+```
+1. Discovery Phase
+   - Assess scope of the task
+   - Count resources/regions/accounts involved
+   - Estimate time and complexity
+
+2. Advisement Phase
+   - If complex (> 50 resources OR > 3 regions OR > 5 minutes estimated):
+     "This task involves [X resources] across [Y regions].
+      Estimated time: [Z minutes].
+      I'll work in parallel to minimize time.
+      Do you want to proceed?"
+
+3. Delegation Phase (after approval)
+   - Spawn sub-agents via Task tool
+   - Pass permission context: "User approved: [scope]"
+   - Each sub-agent works on assigned partition
+
+4. Aggregation Phase
+   - Wait for all sub-agents to complete
+   - Collect and merge results
+   - Present unified response to user
+```
+
+### Task Delegation Pattern
+
+When spawning a sub-agent:
+
+```yaml
+Task:
+  subagent_type: "general-purpose"
+  prompt: |
+    You are acting as {agent-role} for {partition}.
+
+    ## Permission Context
+    User has approved: "{original_user_request}"
+    Scope: {specific_scope_for_this_agent}
+    Operation type: {read-only | mutation}
+
+    ## Constraints
+    - {constraint_1}
+    - {constraint_2}
+
+    ## Task
+    {specific_task_description}
+
+    ## Expected Output
+    Return results in this format:
+    - Summary: [one-line summary]
+    - Findings: [structured findings]
+    - Issues: [any problems encountered]
+  model: "haiku"  # Use efficient model for parallel work
+```
+
+### Aggregation Patterns
+
+**For Discovery:**
+```
+Results from sub-agents:
+├── Region us-east-1: 45 buckets, 2 public
+├── Region us-west-2: 30 buckets, 0 public
+└── Region eu-west-1: 25 buckets, 1 public
+
+Aggregated Response:
+"Scanned 100 buckets across 3 regions.
+ Found 3 buckets with public access:
+ - bucket-a (us-east-1)
+ - bucket-b (us-east-1)
+ - bucket-c (eu-west-1)"
+```
+
+**For Mutations:**
+```
+Results from sub-agents:
+├── Batch 1: 50 resources tagged successfully
+├── Batch 2: 48 resources tagged, 2 failed
+└── Batch 3: 50 resources tagged successfully
+
+Aggregated Response:
+"Tagged 148 of 150 resources successfully.
+ 2 failures in batch 2:
+ - resource-x: Permission denied
+ - resource-y: Resource not found"
+```
+
+### Error Handling in Orchestration
+
+```
+If sub-agent fails:
+1. Capture the error
+2. Continue with other sub-agents (don't fail entire operation)
+3. Report partial results with clear indication of failures
+4. Suggest remediation for failed portions
+
+If timeout occurs:
+1. Report results from completed sub-agents
+2. Note which partitions did not complete
+3. Offer to retry incomplete portions
+```
+
 ## Quality Standards
 
 - [ ] Profile and region announced before every AWS operation
@@ -276,3 +392,6 @@ Then:
 - [ ] Blast radius disclosed for changes
 - [ ] Rollback approach identified for significant changes
 - [ ] Results presented clearly with actionable next steps
+- [ ] Complex tasks trigger scope estimation and user advisement
+- [ ] Parallel execution used when beneficial for large-scale operations
+- [ ] Sub-agent results properly aggregated into coherent response

@@ -30,6 +30,16 @@ When a user asks anything related to AWS, route to the appropriate command:
 | Set up a new AWS account | `/aws-coworker-bootstrap-account` |
 | Cost or monitoring questions | `/aws-coworker-plan-interaction` with observability focus |
 
+### Trigger Patterns
+
+**ANY request involving these keywords or concepts MUST route through AWS Coworker:**
+
+- AWS services: S3, EC2, Lambda, RDS, VPC, IAM, CloudWatch, Cost Explorer, etc.
+- AWS operations: list, describe, create, delete, start, stop, deploy, etc.
+- Cost/billing: cost summary, spending, budget, billing, charges, usage
+- Monitoring: metrics, alarms, logs, CloudWatch, dashboards
+- Infrastructure: instances, buckets, databases, functions, networks
+
 ### Examples
 
 When a user makes a free-form request, invoke the appropriate command and pass the user's request as context:
@@ -39,9 +49,14 @@ When a user makes a free-form request, invoke the appropriate command and pass t
 | "What S3 buckets exist?" | Invoke `/aws-coworker-plan-interaction` with goal: "Discover S3 buckets" |
 | "List my EC2 instances" | Invoke `/aws-coworker-plan-interaction` with goal: "List EC2 instances" |
 | "Create a new VPC" | Invoke `/aws-coworker-plan-interaction` with goal: "Create a new VPC" |
+| "Show me my AWS costs" | Invoke `/aws-coworker-plan-interaction` with goal: "Retrieve cost summary" |
+| "What's my spending this month?" | Invoke `/aws-coworker-plan-interaction` with goal: "Cost analysis" |
+| "Check CloudWatch alarms" | Invoke `/aws-coworker-plan-interaction` with goal: "Review CloudWatch alarms" |
 | "Deploy this to staging" | Invoke `/aws-coworker-execute-nonprod` with the user's deployment context |
 | "Push to production" | Invoke `/aws-coworker-prepare-prod-change` with the user's change context |
 | "Undo the last change" | Invoke `/aws-coworker-rollback-change` with details of what to roll back |
+
+**When in doubt, route through `/aws-coworker-plan-interaction`.** It's always safer to go through the safety model than to execute AWS CLI directly.
 
 **Invocation pattern:** When invoking a command on behalf of the user, pass their original request as the input/goal so the command workflow has full context of what the user wants to achieve.
 
@@ -85,8 +100,53 @@ Before ANY AWS operation:
 
 ❌ `aws s3 ls` — Direct CLI without going through AWS Coworker
 ❌ `aws ec2 describe-instances` — Even read-only should announce profile first
+❌ `aws ce get-cost-and-usage` — Cost queries should also go through AWS Coworker
+❌ `aws cloudwatch get-metric-data` — Monitoring queries need profile announcement
 ❌ `aws ec2 terminate-instances` — Never without plan, approval, and guardrail check
 ❌ Any AWS CLI in production — Must go through CI/CD
+
+**Rule of thumb:** If it starts with `aws `, it MUST go through AWS Coworker.
+
+---
+
+## Orchestration for Complex Tasks
+
+For large-scale operations, AWS Coworker uses multi-agent orchestration:
+
+### Scope Estimation
+
+During discovery, estimate task complexity:
+- **Simple**: < 10 resources, single region → Direct execution
+- **Moderate**: 10-50 resources, 2-3 regions → Consider parallel execution
+- **Complex**: > 50 resources, > 3 regions → Use parallel sub-agents
+- **Large-scale**: > 200 resources, multi-account → Mandatory parallel execution
+
+### User Advisement
+
+For complex tasks, advise the user before proceeding:
+
+```
+This task involves:
+- 847 resources across 3 regions
+- Estimated time: 8-10 minutes
+
+I'll work in parallel to minimize time. Do you want to proceed?
+```
+
+### Permission Delegation
+
+When spawning sub-agents via the Task tool:
+1. Pass the user's explicit approval scope
+2. Constrain sub-agent to approved actions only
+3. Sub-agents cannot expand scope beyond user's approval
+
+### Result Aggregation
+
+After parallel execution:
+1. Wait for all sub-agents to complete
+2. Merge results into coherent summary
+3. Present unified response to user
+4. Note any partial failures clearly
 
 ---
 

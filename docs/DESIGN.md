@@ -162,13 +162,48 @@ All agents, skills, and workflows align with the six pillars:
 ### 3.2 Interaction Flow
 
 ```
-User Request
+User Request (free-form or explicit command)
+     │
+     ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     CLAUDE.md Interception                      │
+│        (All AWS requests routed through commands)               │
+└─────────────────────────────────────────────────────────────────┘
      │
      ▼
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│  Slash Command  │────▶│     Agent       │────▶│     Skills      │
+│  Slash Command  │────▶│   Core Agent    │────▶│     Skills      │
 │   (Workflow)    │     │  (Orchestrator) │     │(Policy/Patterns)│
 └─────────────────┘     └─────────────────┘     └─────────────────┘
+                               │
+                               ▼
+                        ┌─────────────────┐
+                        │    Discovery    │
+                        │ + Scope Estimate│
+                        └─────────────────┘
+                               │
+              ┌────────────────┴────────────────┐
+              │                                 │
+              ▼                                 ▼
+     ┌─────────────────┐               ┌─────────────────┐
+     │  Simple Task    │               │  Complex Task   │
+     │  (< 50 resources│               │  (> 50 resources│
+     │   single region)│               │   multi-region) │
+     └────────┬────────┘               └────────┬────────┘
+              │                                 │
+              │                                 ▼
+              │                        ┌─────────────────┐
+              │                        │ User Advisement │
+              │                        │ (time estimate) │
+              │                        └────────┬────────┘
+              │                                 │
+              │                                 ▼
+              │                        ┌─────────────────┐
+              │                        │ Parallel Agents │
+              │                        │ (see §3.3)      │
+              │                        └────────┬────────┘
+              │                                 │
+              └────────────────┬────────────────┘
                                │
                                ▼
                         ┌─────────────────┐
@@ -179,7 +214,7 @@ User Request
                                ▼
                         ┌─────────────────┐
                         │  Human Approval │
-                        │   (if required) │
+                        │  (if mutation)  │
                         └─────────────────┘
                                │
                                ▼
@@ -187,6 +222,161 @@ User Request
                         │   Execution     │
                         │ (AWS CLI / IaC) │
                         └─────────────────┘
+                               │
+                               ▼
+                        ┌─────────────────┐
+                        │   Aggregation   │
+                        │ (if parallel)   │
+                        └─────────────────┘
+```
+
+### 3.3 Agent Orchestration Architecture
+
+AWS Coworker supports multi-agent orchestration for complex, long-running tasks. The primary Claude instance (Core Agent) acts as the gatekeeper and orchestrator, delegating work to specialized sub-agents when appropriate.
+
+#### Orchestration Model
+
+```
+User Request
+     │
+     ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     PRIMARY CLAUDE (Core Agent)                             │
+│                         [Gatekeeper & Orchestrator]                         │
+│                                                                             │
+│  • Intercepts all requests via CLAUDE.md                                    │
+│  • Routes through commands                                                  │
+│  • Performs discovery to assess scope                                       │
+│  • Estimates complexity and time                                            │
+│  • Requests explicit user approval                                          │
+│  • Delegates to sub-agents when beneficial                                  │
+│  • Aggregates results into coherent response                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+     │                                    │
+     │ (Simple tasks)                     │ (Complex tasks - after approval)
+     │                                    │
+     ▼                                    ▼
+┌──────────────────┐     ┌────────────────────────────────────────────────────┐
+│ Direct Execution │     │              TASK DELEGATION                       │
+│  (single-thread) │     │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐   │
+└──────────────────┘     │  │ Sub-Agent 1 │ │ Sub-Agent 2 │ │ Sub-Agent N │   │
+                         │  │ (Region A)  │ │ (Region B)  │ │ (Account X) │   │
+                         │  └─────────────┘ └─────────────┘ └─────────────┘   │
+                         │         │               │               │          │
+                         │         └───────────────┴───────────────┘          │
+                         │                         │                          │
+                         │                         ▼                          │
+                         │              ┌─────────────────────┐               │
+                         │              │  Result Aggregation │               │
+                         │              └─────────────────────┘               │
+                         └────────────────────────────────────────────────────┘
+```
+
+#### When to Use Multi-Agent Orchestration
+
+| Scenario | Single Agent | Multi-Agent Swarm |
+|----------|--------------|-------------------|
+| List S3 buckets (1 region) | ✅ Appropriate | Overkill |
+| Start/stop single instance | ✅ Appropriate | Overkill |
+| Audit compliance across 10+ accounts | Slow | ✅ Parallel per account |
+| Cost analysis across all regions | Sequential | ✅ Parallel per region |
+| Security group audit across VPCs | Sequential | ✅ Parallel per VPC |
+| Tagging remediation (100s of resources) | Very slow | ✅ Batched parallel |
+
+#### Scope Estimation and User Advisement
+
+During discovery, the Core Agent estimates task complexity:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         SCOPE ESTIMATION                                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  Discovery reveals:                                                         │
+│  • 847 S3 buckets across 3 regions                                          │
+│  • Estimated audit time: 8-10 minutes                                       │
+│                                                                             │
+│  ┌────────────────────────────────────────────────────────────────────────┐ │
+│  │ This audit will take approximately 8-10 minutes due to the number      │ │
+│  │ of resources. I'll work in parallel across regions to minimize time.   │ │
+│  │                                                                        │ │
+│  │ Do you want to proceed? (yes/no)                                       │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Permission Delegation Model
+
+When sub-agents are spawned, the Core Agent delegates permission context:
+
+```yaml
+delegation_context:
+  approved_by: user          # User explicitly approved this operation
+  approval_scope: "Audit all S3 buckets for public access"
+  operation_type: read-only  # or: mutation (with constraints)
+  constraints:
+    - No modifications permitted
+    - Report findings only
+  timeout: 600s              # Maximum execution time
+
+# Sub-agent receives:
+"User has approved: Audit all S3 buckets for public access.
+ You have permission to perform read-only discovery on S3.
+ Report your findings; do not modify any resources."
+```
+
+#### Aggregation and Response
+
+After all sub-agents complete, the Core Agent:
+
+1. **Waits** for all parallel tasks to complete
+2. **Collates** results from all sub-agents
+3. **Deduplicates** overlapping findings
+4. **Synthesizes** a coherent summary
+5. **Presents** unified results to the user
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         AGGREGATED RESULTS                                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  Audit complete across 3 regions in 8 minutes 23 seconds.                   │
+│                                                                             │
+│  Summary:                                                                   │
+│  • 847 buckets scanned                                                      │
+│  • 12 have public access (see details)                                      │
+│  • 3 have misconfigured policies                                            │
+│  • 832 are properly secured                                                 │
+│                                                                             │
+│  [Detailed findings by region...]                                           │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Technical Implementation
+
+Sub-agents are spawned using the **Task tool** with specific parameters:
+
+```yaml
+task_invocation:
+  subagent_type: "general-purpose"  # or specialized type
+  prompt: |
+    You are acting as aws-coworker-planner for region us-east-1.
+
+    Context:
+    - User approved: "Audit S3 buckets for public access"
+    - Profile: dev-admin
+    - Region: us-east-1
+    - Permission: Read-only discovery
+
+    Task:
+    1. List all S3 buckets in this region
+    2. Check each bucket's public access configuration
+    3. Report any buckets with public access
+
+    Return your findings in structured format.
+  model: "haiku"  # Use efficient model for parallel tasks
 ```
 
 ---
@@ -867,6 +1057,23 @@ manual_triggers:
 - BU-level overlays
 - Isolation patterns
 ```
+
+### 9.4 Context Files (CLAUDE.md)
+
+AWS Coworker uses two context files to provide Claude with appropriate instructions based on the interaction mode:
+
+| File | Purpose | Critical |
+|------|---------|----------|
+| `CLAUDE.md` | **Usage context** — Intercepts all AWS-related requests and routes them through AWS Coworker commands. Enforces the safety model regardless of how users phrase their requests. | **Mandatory** |
+| `CLAUDE-DEVELOPMENT.md` | **Development context** — Directory conventions, naming patterns, design decisions for maintainers working on AWS Coworker itself. | Recommended |
+
+**Why two files?**
+
+1. **Usage context** (`CLAUDE.md`): When users interact with AWS through Claude, all requests must go through AWS Coworker commands to ensure the safety model is enforced. This file intercepts free-form requests like "list my S3 buckets" and routes them to `/aws-coworker-plan-interaction` with the user's goal as context.
+
+2. **Development context** (`CLAUDE-DEVELOPMENT.md`): When developers are maintaining or extending AWS Coworker itself, they need different context — directory conventions, naming patterns, how components relate to each other.
+
+**The `CLAUDE.md` file is mandatory** because without it, free-form AWS requests bypass the command system entirely, and the safety model (profile announcement, approval gates, production protection) would not be enforced.
 
 ---
 

@@ -104,10 +104,13 @@ Start with a read-only discovery:
 User: What EC2 instances are running in my account?
 
 AWS Coworker will:
-1. State the profile and region it will use
-2. Run read-only discovery commands
-3. Present findings without modifying anything
+1. Route the request through /aws-coworker-plan-interaction
+2. State the profile and region it will use
+3. Run read-only discovery commands
+4. Present findings without modifying anything
 ```
+
+> **Note:** All AWS-related requests—whether commands like `/aws-coworker-plan-interaction` or free-form prompts like the one above—are automatically routed through AWS Coworker commands. The [CLAUDE.md](../../CLAUDE.md) configuration enforces this safety model.
 
 ### Plan an Interaction
 

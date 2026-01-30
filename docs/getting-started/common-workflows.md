@@ -2,6 +2,8 @@
 
 This guide covers common AWS Coworker workflows with detailed examples.
 
+> **Note:** All examples in this guide—whether explicit commands (starting with `/aws-coworker-`) or free-form prompts—are automatically routed through AWS Coworker commands. The [CLAUDE.md](../../CLAUDE.md) configuration enforces this safety model regardless of how you phrase your request.
+
 ---
 
 ## Discovery Workflows
@@ -287,6 +289,77 @@ AWS Coworker will:
    - Coverage gaps
 4. Generate audit report
 5. Recommend improvements
+```
+
+---
+
+## Large-Scale Workflows (Orchestration)
+
+For complex operations involving many resources, multiple regions, or multiple accounts, AWS Coworker uses multi-agent orchestration.
+
+### Multi-Region Audit
+
+```
+User: "Audit all S3 buckets for public access across all regions"
+
+AWS Coworker will:
+1. Discover S3 buckets across all regions
+2. Estimate scope:
+   "Found 847 buckets across 8 regions.
+    Estimated audit time: 10-12 minutes.
+    I'll work in parallel across regions. Proceed?"
+3. After approval, spawn parallel sub-agents
+4. Aggregate results into unified report
+5. Present findings with regional breakdown
+```
+
+### Multi-Account Compliance Check
+
+```
+User: "Check compliance across all our AWS accounts"
+
+AWS Coworker will:
+1. Identify accounts in scope
+2. Estimate complexity:
+   "This spans 12 accounts across 3 regions.
+    Estimated time: 15-20 minutes.
+    Proceed?"
+3. After approval, spawn sub-agents per account
+4. Run compliance checks in parallel
+5. Aggregate into organization-wide report
+```
+
+### Bulk Remediation
+
+```
+User: "Tag all untagged EC2 instances with Owner=platform-team"
+
+AWS Coworker will:
+1. Discover untagged instances
+2. Estimate scope:
+   "Found 234 untagged instances across 4 regions.
+    This is a mutation requiring your approval."
+3. Show plan with full list
+4. After approval, execute in batches
+5. Report success/failure per resource
+```
+
+### Progress During Long Operations
+
+For long-running tasks, AWS Coworker provides progress updates:
+
+```
+Starting compliance audit across 12 accounts...
+
+Progress:
+├── account-a (us-east-1): Scanning 45 resources... ✓
+├── account-b (us-east-1): Scanning 120 resources... ✓
+├── account-c (us-west-2): Scanning 89 resources... [in progress]
+├── account-d (eu-west-1): Scanning 67 resources... [queued]
+...
+
+Completed: 8/12 accounts (67%)
+Estimated remaining: 4 minutes
 ```
 
 ---

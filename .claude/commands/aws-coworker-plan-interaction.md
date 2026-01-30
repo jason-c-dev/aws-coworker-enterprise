@@ -62,9 +62,11 @@ I will use:
 This is a planning session - I will only run read-only discovery commands.
 ```
 
-### Step 3: Discovery
+### Step 3: Discovery and Scope Estimation
 
-Run read-only AWS CLI commands to understand current state:
+Run read-only AWS CLI commands to understand current state and estimate task complexity:
+
+#### 3a: Initial Discovery
 
 ```bash
 # Identity check
@@ -80,6 +82,51 @@ Load relevant information from:
 - `aws-cli-playbook` skill for command patterns
 - `aws-org-strategy` skill for account/OU context
 - Existing infrastructure state
+
+#### 3b: Scope Estimation
+
+After discovery, estimate the complexity of the task:
+
+```markdown
+## Scope Assessment
+
+### Resources Involved
+- Resource count: {number}
+- Regions: {list}
+- Accounts: {list if multi-account}
+
+### Complexity Classification
+| Factor | Value | Score |
+|--------|-------|-------|
+| Resource count | < 10 | Simple |
+| Resource count | 10-50 | Moderate |
+| Resource count | 50-200 | Complex |
+| Resource count | > 200 | Large-scale |
+| Regions | 1 | Simple |
+| Regions | 2-5 | Moderate |
+| Regions | > 5 | Complex |
+| Accounts | 1 | Simple |
+| Accounts | 2-5 | Moderate |
+| Accounts | > 5 | Complex |
+
+### Time Estimate
+- Estimated duration: {time}
+- Parallelization benefit: {yes/no}
+
+### User Advisement (if complex)
+```
+
+If the task is complex (> 50 resources, > 3 regions, or estimated > 5 minutes):
+
+```
+This task involves:
+- {X} resources across {Y} regions
+- Estimated time: {Z} minutes
+
+I'll work in parallel to minimize time. Do you want to proceed?
+```
+
+Wait for user confirmation before continuing with large-scale operations.
 
 ### Step 4: Design the Plan
 
@@ -226,6 +273,54 @@ After plan approval:
 
 - **For non-prod**: Run `/aws-coworker-execute-nonprod` to execute
 - **For production**: Run `/aws-coworker-prepare-prod-change` to generate CI/CD changes
+
+---
+
+## Orchestration (For Complex Tasks)
+
+When the scope estimation indicates a complex task, consider parallel execution:
+
+### When to Use Multi-Agent Orchestration
+
+| Condition | Action |
+|-----------|--------|
+| > 50 resources | Consider parallel processing by batch |
+| > 3 regions | Spawn sub-agent per region |
+| > 3 accounts | Spawn sub-agent per account |
+| > 5 minute estimate | Advise user and confirm |
+
+### Parallel Execution Pattern
+
+For large-scale operations, delegate to sub-agents:
+
+```yaml
+# Example: Multi-region audit
+partitions:
+  - region: us-east-1
+    task: "Audit S3 buckets for public access"
+  - region: us-west-2
+    task: "Audit S3 buckets for public access"
+  - region: eu-west-1
+    task: "Audit S3 buckets for public access"
+
+# Each partition runs as a sub-agent via Task tool
+# Results are aggregated by the Core Agent
+```
+
+### User Communication During Long Operations
+
+```
+Starting audit across 3 regions in parallel...
+
+Progress:
+- us-east-1: Scanning 45 buckets...
+- us-west-2: Scanning 30 buckets...
+- eu-west-1: Scanning 25 buckets...
+
+[Updates as sub-agents complete]
+
+Audit complete. Aggregating results...
+```
 
 ---
 

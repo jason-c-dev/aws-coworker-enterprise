@@ -373,6 +373,108 @@ echo "Branch 'feature/production-change-name' ready for PR"
 echo "Run: gh pr create --title '...' --body '...'"
 ```
 
+## Task Invocation Specification
+
+When the Core Agent spawns this agent via the Task tool for parallel execution:
+
+### Invocation Parameters
+
+```yaml
+Task:
+  subagent_type: "general-purpose"
+  model: "sonnet"  # Use capable model for mutations
+  prompt: |
+    You are acting as aws-coworker-executor.
+
+    ## Permission Context
+    User has approved: "{approved_scope}"
+    This permission has been explicitly granted by the user.
+    You may proceed with the mutations described below.
+
+    ## Target
+    - Profile: {profile}
+    - Region: {region}
+    - Environment: {sandbox|development} (non-prod only via Task)
+    - Account: {account_id}
+
+    ## Approved Actions
+    {list_of_approved_mutations}
+
+    ## Constraints
+    - Execute ONLY the approved actions listed above
+    - Validate each step before proceeding
+    - Stop and report if any step fails
+    - Do NOT expand scope beyond approved actions
+
+    ## Expected Output
+    Return execution results in this format:
+    ```
+    ## Execution Summary
+    - Partition: {region/account}
+    - Status: {complete|partial|failed}
+    - Steps completed: X/Y
+
+    ## Results
+    - Step 1: {status} - {details}
+    - Step 2: {status} - {details}
+
+    ## Resources Created/Modified
+    - {resource-id}: {action taken}
+
+    ## Errors (if any)
+    - {error details}
+    ```
+```
+
+### Partition Strategies for Parallel Execution
+
+| Partition By | Use Case |
+|--------------|----------|
+| Region | Multi-region deployments |
+| Resource batch | Large-scale tagging, updates |
+| Account | Multi-account standardization |
+
+### Safety Constraints for Sub-Agent Execution
+
+```yaml
+constraints:
+  # Sub-agents MUST NOT:
+  - Exceed the scope approved by user
+  - Execute in production environments
+  - Create resources outside target region/account
+  - Skip validation steps
+
+  # Sub-agents MUST:
+  - Validate pre-conditions before each step
+  - Report all outcomes (success and failure)
+  - Stop on critical failures
+  - Return structured results for aggregation
+```
+
+### Return Format
+
+```yaml
+result:
+  partition: "us-east-1"
+  status: "complete"  # or "partial", "failed"
+  steps_total: 5
+  steps_completed: 5
+  resources:
+    created:
+      - id: "sg-abc123"
+        type: "security-group"
+        name: "web-sg"
+    modified:
+      - id: "vpc-xyz789"
+        type: "vpc"
+        change: "enabled dns hostnames"
+    deleted: []
+  errors: []
+  rollback_info:
+    - step: 1
+      rollback_command: "aws ec2 delete-security-group --group-id sg-abc123"
+```
+
 ## Quality Standards
 
 - [ ] Pre-execution checklist completed
@@ -382,3 +484,5 @@ echo "Run: gh pr create --title '...' --body '...'"
 - [ ] Partial failures handled gracefully
 - [ ] Outcomes reported clearly
 - [ ] Production changes via Git/CI/CD only
+- [ ] When invoked as sub-agent, return structured format for aggregation
+- [ ] Sub-agent scope never exceeds user's explicit approval

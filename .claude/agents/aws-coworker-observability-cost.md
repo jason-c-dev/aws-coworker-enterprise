@@ -369,6 +369,149 @@ aws budgets create-budget ...
 - **Cost savings:** $3,000/month after full implementation
 ```
 
+## Task Invocation Specification
+
+When the Core Agent spawns this agent via the Task tool for parallel analysis:
+
+### Invocation Parameters
+
+```yaml
+Task:
+  subagent_type: "general-purpose"
+  model: "haiku"  # Cost/observability queries can use efficient model
+  prompt: |
+    You are acting as aws-coworker-observability-cost.
+
+    ## Permission Context
+    User has approved: "{approved_scope}"
+    Operation type: read-only (analysis only)
+
+    ## Target
+    - Profile: {profile}
+    - Region: {region}
+    - Account: {account_id}
+    - Analysis type: {observability | cost | both}
+
+    ## Task
+    {specific_analysis_task}
+
+    ## Time Range (for cost)
+    - Start: {start_date}
+    - End: {end_date}
+
+    ## Constraints
+    - Do NOT execute any mutations
+    - Use only read-only AWS CLI commands
+    - Return structured analysis format
+
+    ## Expected Output
+    Return analysis results in this format:
+    ```
+    ## Analysis Summary
+    - Partition: {region/account}
+    - Analysis type: {observability|cost|both}
+    - Status: complete
+
+    ## Observability Findings (if applicable)
+    - Alarms configured: {count}
+    - Log groups: {count}
+    - Gaps identified: {list}
+
+    ## Cost Findings (if applicable)
+    - Period analyzed: {dates}
+    - Total spend: ${amount}
+    - Top services: {list}
+    - Savings opportunities: ${amount}
+
+    ## Recommendations
+    [Prioritized list]
+    ```
+```
+
+### Partition Strategies for Parallel Analysis
+
+| Partition By | Use Case |
+|--------------|----------|
+| Region | Multi-region cost breakdown |
+| Account | Multi-account cost allocation |
+| Service | Deep service-specific analysis |
+| Time period | Historical trend analysis |
+
+### Return Format
+
+```yaml
+result:
+  partition: "us-east-1"  # or account ID, service name
+  analysis_type: "cost"
+  status: "complete"
+  period:
+    start: "2026-01-01"
+    end: "2026-01-31"
+  cost_summary:
+    total: 12450.00
+    currency: "USD"
+    by_service:
+      - service: "EC2"
+        amount: 5200.00
+      - service: "RDS"
+        amount: 3100.00
+      - service: "S3"
+        amount: 1800.00
+  observability_summary:
+    alarms_total: 25
+    alarms_triggered: 3
+    log_groups: 45
+    coverage_gaps:
+      - "Lambda functions missing error alarms"
+      - "VPC flow logs not enabled for vpc-xyz"
+  savings_opportunities:
+    total_monthly: 3000.00
+    items:
+      - category: "right-sizing"
+        amount: 350.00
+        details: "3 oversized EC2 instances"
+      - category: "idle-resources"
+        amount: 45.00
+        details: "2 unattached EIPs, 1 idle volume"
+  recommendations:
+    - priority: "high"
+      action: "Right-size EC2 instances"
+      impact: "$350/month"
+    - priority: "medium"
+      action: "Enable Lambda error alarms"
+      impact: "Improved reliability"
+  errors: []
+```
+
+### Aggregation Pattern
+
+When multiple cost/observability sub-agents run in parallel:
+
+```yaml
+aggregated_report:
+  total_analyzed:
+    accounts: 5
+    regions: 12
+  cost_summary:
+    total_monthly: 45000.00
+    by_account:
+      - account: "prod-a"
+        amount: 25000.00
+      - account: "dev-a"
+        amount: 8000.00
+    by_region:
+      - region: "us-east-1"
+        amount: 30000.00
+      - region: "eu-west-1"
+        amount: 10000.00
+  total_savings_opportunities: 8500.00
+  observability_score: 75  # Average across accounts
+  priority_recommendations:
+    - "Right-size 12 EC2 instances across 3 accounts"
+    - "Enable VPC flow logs in 4 VPCs"
+    - "Configure Lambda error alarms for 15 functions"
+```
+
 ## Quality Standards
 
 - [ ] Observability assessment covers all AWS services in use
@@ -377,3 +520,4 @@ aws budgets create-budget ...
 - [ ] Savings estimates are conservative and realistic
 - [ ] Compliance requirements (logging, retention) addressed
 - [ ] No mutations performed, read-only analysis only
+- [ ] When invoked as sub-agent, return structured format for aggregation

@@ -51,6 +51,17 @@ Thank you for your interest in contributing to AWS Coworker! This document provi
 
 ## Development Workflow
 
+### Context Files
+
+AWS Coworker uses two context files:
+
+| File | Purpose |
+|------|---------|
+| `CLAUDE.md` | **Usage context** — Intercepts all AWS requests and routes through commands. **Do not modify** unless changing the safety model. |
+| `CLAUDE-DEVELOPMENT.md` | **Development context** — Provides directory conventions and development guidance when working on AWS Coworker itself. |
+
+When contributing, be aware that `CLAUDE.md` is critical for safety enforcement. Changes to this file require careful review.
+
 ### Branch Naming
 
 ```

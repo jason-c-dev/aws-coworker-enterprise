@@ -56,12 +56,19 @@ See [Getting Started Guide](docs/getting-started/README.md) for detailed instruc
 ## Architecture
 
 ```
+               User Request (free-form or /command)
+                            │
+                            ▼
 ┌─────────────────────────────────────────────────────────────┐
+│              CLAUDE.md (Request Interception)               │
+├─────────────────────────────────────────────────────────────┤
 │                      SLASH COMMANDS                         │
 │                   (Workflow Orchestration)                  │
 ├─────────────────────────────────────────────────────────────┤
 │                         AGENTS                              │
 │    Core │ Planner │ Executor │ Guardrail │ Obs/Cost │ Meta  │
+│                   ↓ (parallel for complex tasks)            │
+│              [Sub-Agent] [Sub-Agent] [Sub-Agent]            │
 ├─────────────────────────────────────────────────────────────┤
 │                         SKILLS                              │
 │         aws/ │ org/ │ meta/ │ core/                         │
@@ -121,6 +128,62 @@ See [Getting Started Guide](docs/getting-started/README.md) for detailed instruc
 3. **Explicit approval** — Mutations require human confirmation
 4. **Production via CI/CD** — No direct CLI mutations to production
 5. **Rollback ready** — Every plan includes rollback procedures
+
+### How Safety is Enforced
+
+The `CLAUDE.md` file at the repository root **intercepts all AWS-related requests** and routes them through AWS Coworker commands. This means:
+
+- **Explicit commands** like `/aws-coworker-plan-interaction` invoke the safety model directly
+- **Free-form requests** like "list my S3 buckets" are automatically routed through the appropriate command
+
+This ensures the safety model is enforced regardless of how you phrase your request. You can use natural language — AWS Coworker will handle the routing.
+
+For development/maintenance of AWS Coworker itself, see `CLAUDE-DEVELOPMENT.md`.
+
+---
+
+## Orchestration for Complex Tasks
+
+AWS Coworker supports **multi-agent orchestration** for large-scale operations:
+
+| Scenario | Approach |
+|----------|----------|
+| Simple (< 10 resources) | Direct execution |
+| Moderate (10-50 resources) | Standard execution with progress |
+| Complex (> 50 resources, multi-region) | Parallel sub-agents |
+| Large-scale (multi-account audit) | Distributed agent swarm |
+
+### How It Works
+
+1. **Discovery** — Assess scope of the task
+2. **Estimation** — Calculate time and complexity
+3. **Advisement** — Inform user if task will take significant time
+4. **Delegation** — Spawn specialized sub-agents for parallel work (after user approval)
+5. **Aggregation** — Collect and merge results into coherent response
+
+### Example
+
+```
+User: "Audit all S3 buckets for public access"
+
+AWS Coworker:
+  Discovery reveals 847 buckets across 3 regions.
+  Estimated audit time: 8-10 minutes.
+
+  I'll work in parallel across regions. Proceed? (yes/no)
+
+User: yes
+
+AWS Coworker:
+  Starting audit...
+  - us-east-1: Scanning 400 buckets... ✓
+  - us-west-2: Scanning 300 buckets... ✓
+  - eu-west-1: Scanning 147 buckets... ✓
+
+  Audit complete (7m 23s). Found 12 buckets with public access.
+```
+
+The primary agent (Core Agent) remains the gatekeeper — all approvals flow through the user, and sub-agents only receive permission for the specific scope the user approved.
 
 ---
 

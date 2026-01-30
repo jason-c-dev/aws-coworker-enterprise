@@ -400,6 +400,116 @@ resource "aws_flow_log" "vpc_flow_log" {
 - [ ] Requires exception approval
 ```
 
+## Task Invocation Specification
+
+When the Core Agent spawns this agent via the Task tool for parallel validation:
+
+### Invocation Parameters
+
+```yaml
+Task:
+  subagent_type: "general-purpose"
+  model: "haiku"  # Validation can use efficient model
+  prompt: |
+    You are acting as aws-coworker-guardrail.
+
+    ## Permission Context
+    User is requesting validation of a plan/resource.
+    Operation type: read-only (validation only)
+
+    ## Validation Scope
+    - Resource/Plan: {description}
+    - Policies to check: {list}
+    - Region/Account: {if applicable}
+
+    ## Task
+    Validate the following against governance policies:
+    {content_to_validate}
+
+    ## Constraints
+    - Do NOT execute any mutations
+    - Do NOT approve or deny - only report findings
+    - Return structured validation report
+
+    ## Expected Output
+    Return validation results in this format:
+    ```
+    ## Validation Summary
+    - Partition: {scope validated}
+    - Status: PASS | WARN | FAIL
+    - Critical: {count}
+    - High: {count}
+    - Medium: {count}
+    - Low: {count}
+
+    ## Findings
+    [List each finding with severity, policy, and remediation]
+
+    ## Blocking Issues
+    [List any issues that must be resolved before execution]
+    ```
+```
+
+### Partition Strategies for Parallel Validation
+
+| Partition By | Use Case |
+|--------------|----------|
+| Account | Multi-account compliance audit |
+| Policy domain | Parallel checks (tagging, IAM, network) |
+| Resource type | Service-specific deep validation |
+| Region | Regional configuration validation |
+
+### Return Format
+
+```yaml
+result:
+  partition: "account-123456789012"  # or "iam-policies", "us-east-1", etc.
+  status: "warn"  # pass, warn, fail
+  counts:
+    critical: 0
+    high: 2
+    medium: 5
+    low: 3
+  findings:
+    - severity: "high"
+      policy: "network-security"
+      title: "SSH open to internet"
+      location: "sg-abc123"
+      remediation: "Restrict to known IPs"
+    - severity: "medium"
+      policy: "tagging"
+      title: "Missing CostCenter tag"
+      location: "ec2-i-xyz789"
+      remediation: "Add CostCenter tag"
+  blocking_issues:
+    - "SSH open to internet must be resolved"
+  errors: []
+```
+
+### Aggregation Pattern
+
+When multiple guardrail sub-agents run in parallel:
+
+```yaml
+aggregated_report:
+  overall_status: "fail"  # Worst status from all partitions
+  total_findings:
+    critical: 2
+    high: 8
+    medium: 15
+    low: 12
+  partitions:
+    - name: "account-a"
+      status: "warn"
+    - name: "account-b"
+      status: "fail"
+    - name: "account-c"
+      status: "pass"
+  blocking_issues:
+    - from: "account-b"
+      issue: "Production data in dev account"
+```
+
 ## Quality Standards
 
 - [ ] All policies in governance skill checked
@@ -408,3 +518,4 @@ resource "aws_flow_log" "vpc_flow_log" {
 - [ ] Security issues identified and flagged
 - [ ] Exception process followed when needed
 - [ ] Report is actionable and clear
+- [ ] When invoked as sub-agent, return structured format for aggregation

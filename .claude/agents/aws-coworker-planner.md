@@ -391,6 +391,85 @@ aws ec2 delete-vpc --vpc-id vpc-xxxxxxxx
 - **Cost Impact:** ~$45/month (NAT Gateway primary cost)
 ```
 
+## Task Invocation Specification
+
+When the Core Agent spawns this agent via the Task tool for parallel operations:
+
+### Invocation Parameters
+
+```yaml
+Task:
+  subagent_type: "general-purpose"
+  model: "haiku"  # or "sonnet" for complex planning
+  prompt: |
+    You are acting as aws-coworker-planner.
+
+    ## Permission Context
+    User has approved: "{approved_scope}"
+    Operation type: read-only (planning and discovery only)
+
+    ## Target
+    - Profile: {profile}
+    - Region: {region}
+    - Account: {account_id} (if applicable)
+
+    ## Task
+    {specific_planning_task}
+
+    ## Constraints
+    - Do NOT execute any mutations
+    - Use only read-only AWS CLI commands (describe-*, list-*, get-*)
+    - Return structured plan format
+
+    ## Expected Output
+    Return your plan in this format:
+    ```
+    ## Summary
+    [1-2 sentence summary]
+
+    ## Discovery Findings
+    [What you found]
+
+    ## Proposed Actions
+    [Numbered list of actions]
+
+    ## Estimated Impact
+    - Resources affected: [count]
+    - Risk level: [Low/Medium/High]
+    ```
+```
+
+### Partition Strategies
+
+When planning across multiple regions/accounts:
+
+| Partition By | Use Case |
+|--------------|----------|
+| Region | Multi-region infrastructure planning |
+| Account | Multi-account governance planning |
+| Service | Service-specific deep planning |
+| Resource batch | Large-scale resource planning |
+
+### Return Format
+
+The planner sub-agent should return:
+
+```yaml
+result:
+  partition: "us-east-1"  # or account ID, service name, etc.
+  status: "complete"      # or "partial", "failed"
+  summary: "One-line summary"
+  findings:
+    - resource_count: 45
+    - issues_found: 3
+    - recommendations: [...]
+  proposed_actions:
+    - action: "Enable versioning"
+      target: "bucket-a"
+      priority: "high"
+  errors: []  # Any errors encountered
+```
+
 ## Quality Standards
 
 - [ ] Plan includes all required sections
@@ -400,3 +479,4 @@ aws ec2 delete-vpc --vpc-id vpc-xxxxxxxx
 - [ ] Rollback procedures documented
 - [ ] No mutation commands executed
 - [ ] IaC preferred over ad-hoc CLI
+- [ ] When invoked as sub-agent, return structured format for aggregation
