@@ -109,40 +109,57 @@ Before ANY AWS operation:
 
 ---
 
-## Orchestration for Complex Tasks
+## Always-Agent Mode
 
-For large-scale operations, AWS Coworker uses multi-agent orchestration:
+AWS Coworker operates in **Always-Agent Mode**: every request spawns at least one agent via the Task tool. This ensures consistent execution paths, comprehensive audit trails, and efficient handling of enterprise workloads.
 
-### Scope Estimation
+### Why Always-Agent Mode?
 
-During discovery, estimate task complexity:
-- **Simple**: < 10 resources, single region → Direct execution
-- **Moderate**: 10-50 resources, 2-3 regions → Consider parallel execution
-- **Complex**: > 50 resources, > 3 regions → Use parallel sub-agents
-- **Large-scale**: > 200 resources, multi-account → Mandatory parallel execution
+| Benefit | Explanation |
+|---------|-------------|
+| **Consistency** | Same execution path regardless of task complexity |
+| **Auditability** | Every operation tracked through agent invocation |
+| **Scalability** | Seamless transition from simple to complex tasks |
+| **Enterprise-ready** | Designed for environments where complex tasks are common |
+
+Simple tasks like "list my S3 buckets" work perfectly fine — they use a single agent rather than spawning parallel workers. The overhead is minimal; the consistency benefits are significant.
+
+### Configurable Thresholds
+
+Thresholds determine **how many agents** to spawn, not **whether** to spawn agents.
+
+**Configuration:** `.claude/config/orchestration-config.md`
+
+| Factor | Single Agent | Parallel Agents |
+|--------|--------------|-----------------|
+| Resources | < 50 | >= 50 |
+| Regions | <= 3 | > 3 |
+| Accounts | <= 3 | > 3 |
+| Est. Time | < 5 min | > 5 min (advise user) |
 
 ### User Advisement
 
-For complex tasks, advise the user before proceeding:
+For tasks above thresholds, advise the user before proceeding:
 
 ```
 This task involves:
-- 847 resources across 3 regions
+- 847 resources across 8 regions
 - Estimated time: 8-10 minutes
 
-I'll work in parallel to minimize time. Do you want to proceed?
+I'll work in parallel (8 agents) to minimize time. Do you want to proceed?
 ```
 
 ### Permission Delegation
 
 When spawning sub-agents via the Task tool:
-1. Pass the user's explicit approval scope
-2. Constrain sub-agent to approved actions only
-3. Sub-agents cannot expand scope beyond user's approval
+1. Read thresholds from `.claude/config/orchestration-config.md`
+2. Pass the user's explicit approval scope
+3. Constrain sub-agent to approved actions only
+4. Sub-agents cannot expand scope beyond user's approval
 
 ### Result Aggregation
 
-After parallel execution:
+After execution (single or parallel):
 1. Wait for all sub-agents to complete
 2. Merge results into coherent summary
 3. Present unified response to user

@@ -62,7 +62,9 @@ I will use:
 This is a planning session - I will only run read-only discovery commands.
 ```
 
-### Step 3: Discovery and Scope Estimation
+### Step 3: Discovery and Scope Estimation (Always-Agent Mode)
+
+**Configuration:** Read thresholds from `.claude/config/orchestration-config.md`
 
 Run read-only AWS CLI commands to understand current state and estimate task complexity:
 
@@ -81,11 +83,12 @@ aws s3 ls --profile {profile}
 Load relevant information from:
 - `aws-cli-playbook` skill for command patterns
 - `aws-org-strategy` skill for account/OU context
+- `.claude/config/orchestration-config.md` for thresholds
 - Existing infrastructure state
 
-#### 3b: Scope Estimation
+#### 3b: Scope Estimation Against Thresholds
 
-After discovery, estimate the complexity of the task:
+After discovery, compare scope against configurable thresholds:
 
 ```markdown
 ## Scope Assessment
@@ -95,38 +98,35 @@ After discovery, estimate the complexity of the task:
 - Regions: {list}
 - Accounts: {list if multi-account}
 
-### Complexity Classification
-| Factor | Value | Score |
-|--------|-------|-------|
-| Resource count | < 10 | Simple |
-| Resource count | 10-50 | Moderate |
-| Resource count | 50-200 | Complex |
-| Resource count | > 200 | Large-scale |
-| Regions | 1 | Simple |
-| Regions | 2-5 | Moderate |
-| Regions | > 5 | Complex |
-| Accounts | 1 | Simple |
-| Accounts | 2-5 | Moderate |
-| Accounts | > 5 | Complex |
+### Threshold Evaluation (from orchestration-config.md)
+| Factor | Value | Threshold | Result |
+|--------|-------|-----------|--------|
+| Resources | {count} | single: <50, parallel: >=50 | {single/parallel} |
+| Regions | {count} | single: <=3, parallel: >3 | {single/parallel} |
+| Accounts | {count} | single: <=3, parallel: >3 | {single/parallel} |
+| Est. Time | {minutes} | advise: >5min, approve: >10min | {advise/approve/none} |
 
-### Time Estimate
-- Estimated duration: {time}
-- Parallelization benefit: {yes/no}
+### Execution Decision
+- Mode: {single_agent | parallel_agents}
+- Agent count: {N}
+- Partitioning: {by_region | by_account | by_batch | none}
 
-### User Advisement (if complex)
+### User Advisement (if above thresholds)
 ```
 
-If the task is complex (> 50 resources, > 3 regions, or estimated > 5 minutes):
+**Always-Agent Mode Note:** Every request spawns at least one agent. Thresholds determine whether to use a single agent (sequential) or multiple agents (parallel).
+
+If above thresholds (resources >= 50, regions > 3, or estimated > 5 minutes):
 
 ```
 This task involves:
 - {X} resources across {Y} regions
 - Estimated time: {Z} minutes
 
-I'll work in parallel to minimize time. Do you want to proceed?
+I'll work in parallel ({N} agents). Do you want to proceed?
 ```
 
-Wait for user confirmation before continuing with large-scale operations.
+Wait for user confirmation before continuing with parallel operations.
 
 ### Step 4: Design the Plan
 
@@ -276,25 +276,36 @@ After plan approval:
 
 ---
 
-## Orchestration (For Complex Tasks)
+## Always-Agent Mode Orchestration
 
-When the scope estimation indicates a complex task, consider parallel execution:
+**Configuration:** `.claude/config/orchestration-config.md`
 
-### When to Use Multi-Agent Orchestration
+AWS Coworker operates in Always-Agent Mode: every request spawns at least one agent. Thresholds determine whether to use single or parallel execution.
 
-| Condition | Action |
-|-----------|--------|
-| > 50 resources | Consider parallel processing by batch |
-| > 3 regions | Spawn sub-agent per region |
-| > 3 accounts | Spawn sub-agent per account |
-| > 5 minute estimate | Advise user and confirm |
+### Threshold Reference (from config)
+
+| Factor | Single Agent | Parallel Agents |
+|--------|--------------|-----------------|
+| Resources | < 50 | >= 50 |
+| Regions | <= 3 | > 3 |
+| Accounts | <= 3 | > 3 |
+| Est. Time | < 5 min | > 5 min (advise), > 10 min (require approval) |
+
+### Partitioning Strategies
+
+| Strategy | Use When |
+|----------|----------|
+| `by_region` | Multi-region operations |
+| `by_account` | Multi-account operations |
+| `by_batch` | Large homogeneous resource sets |
+| `hybrid` | Complex cross-cutting operations |
 
 ### Parallel Execution Pattern
 
-For large-scale operations, delegate to sub-agents:
+For operations above thresholds, delegate to sub-agents:
 
 ```yaml
-# Example: Multi-region audit
+# Example: Multi-region audit (8 regions, above threshold)
 partitions:
   - region: us-east-1
     task: "Audit S3 buckets for public access"
@@ -302,24 +313,42 @@ partitions:
     task: "Audit S3 buckets for public access"
   - region: eu-west-1
     task: "Audit S3 buckets for public access"
+  # ... (5 more regions)
 
-# Each partition runs as a sub-agent via Task tool
-# Results are aggregated by the Core Agent
+# Model selection (from config):
+# - read_only operations: haiku (fast)
+# - mutations: sonnet (thorough)
 ```
 
-### User Communication During Long Operations
+### User Communication During Operations
 
 ```
-Starting audit across 3 regions in parallel...
+Starting audit with 8 parallel agents (one per region)...
 
 Progress:
-- us-east-1: Scanning 45 buckets...
-- us-west-2: Scanning 30 buckets...
-- eu-west-1: Scanning 25 buckets...
+├── us-east-1: Scanning 150 buckets... ✓
+├── us-west-2: Scanning 120 buckets... ✓
+├── eu-west-1: Scanning 100 buckets... [in progress]
+├── ap-southeast-1: Scanning 95 buckets... [queued]
+...
 
-[Updates as sub-agents complete]
+Completed: 4/8 regions (50%)
+Estimated remaining: 2 minutes
+```
 
-Audit complete. Aggregating results...
+### Single Agent Execution (Below Thresholds)
+
+For simple tasks (below all thresholds), a single agent handles the request sequentially:
+
+```
+[Single agent executing]
+
+Listing EC2 instances in us-east-1...
+
+Found 4 instances:
+- i-abc123 (running) - web-server
+- i-def456 (running) - api-server
+...
 ```
 
 ---

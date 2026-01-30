@@ -142,45 +142,69 @@ For development/maintenance of AWS Coworker itself, see `CLAUDE-DEVELOPMENT.md`.
 
 ---
 
-## Orchestration for Complex Tasks
+## Always-Agent Mode
 
-AWS Coworker supports **multi-agent orchestration** for large-scale operations:
+AWS Coworker operates in **Always-Agent Mode**: every request spawns at least one agent via the Task tool. This ensures consistent execution paths, comprehensive audit trails, and efficient handling of enterprise workloads.
 
-| Scenario | Approach |
-|----------|----------|
-| Simple (< 10 resources) | Direct execution |
-| Moderate (10-50 resources) | Standard execution with progress |
-| Complex (> 50 resources, multi-region) | Parallel sub-agents |
-| Large-scale (multi-account audit) | Distributed agent swarm |
+### Why Always-Agent Mode?
 
-### How It Works
+| Benefit | Explanation |
+|---------|-------------|
+| **Consistency** | Same execution path regardless of task complexity |
+| **Auditability** | Every operation tracked through agent invocation |
+| **Scalability** | Seamless transition from simple to complex tasks |
+| **Enterprise-ready** | Designed for environments where complex tasks are common |
 
-1. **Discovery** — Assess scope of the task
-2. **Estimation** — Calculate time and complexity
-3. **Advisement** — Inform user if task will take significant time
-4. **Delegation** — Spawn specialized sub-agents for parallel work (after user approval)
-5. **Aggregation** — Collect and merge results into coherent response
+Simple tasks like "list my S3 buckets" work perfectly fine — they use a single agent. The overhead is minimal; the consistency benefits are significant.
 
-### Example
+### Configurable Thresholds
+
+Thresholds determine **how many agents** to spawn, not **whether** to spawn agents.
+
+| Factor | Single Agent | Parallel Agents |
+|--------|--------------|-----------------|
+| Resources | < 50 | >= 50 |
+| Regions | <= 3 | > 3 |
+| Accounts | <= 3 | > 3 |
+
+**Configuration:** `.claude/config/orchestration-config.md`
+
+### Example: Large-Scale Audit
 
 ```
 User: "Audit all S3 buckets for public access"
 
 AWS Coworker:
-  Discovery reveals 847 buckets across 3 regions.
+  Discovery reveals 847 buckets across 8 regions.
   Estimated audit time: 8-10 minutes.
 
-  I'll work in parallel across regions. Proceed? (yes/no)
+  I'll work in parallel (8 agents, one per region). Proceed? (yes/no)
 
 User: yes
 
 AWS Coworker:
-  Starting audit...
-  - us-east-1: Scanning 400 buckets... ✓
-  - us-west-2: Scanning 300 buckets... ✓
-  - eu-west-1: Scanning 147 buckets... ✓
+  Starting audit with 8 parallel agents...
+  - us-east-1: Scanning 150 buckets... ✓
+  - us-west-2: Scanning 120 buckets... ✓
+  - eu-west-1: Scanning 100 buckets... ✓
+  - ap-southeast-1: Scanning 95 buckets... ✓
+  ... (4 more regions)
 
-  Audit complete (7m 23s). Found 12 buckets with public access.
+  Audit complete (3m 45s). Found 12 buckets with public access.
+```
+
+### Example: Simple Query
+
+```
+User: "List my EC2 instances"
+
+AWS Coworker:
+  [Single agent executes]
+
+  Found 4 instances in us-east-1:
+  - i-abc123 (running) - t3.medium - web-server
+  - i-def456 (running) - t3.large - api-server
+  ...
 ```
 
 The primary agent (Core Agent) remains the gatekeeper — all approvals flow through the user, and sub-agents only receive permission for the specific scope the user approved.
@@ -212,7 +236,9 @@ See [Customization Guide](docs/customization/README.md) for:
 aws-coworker/
 ├── .claude/
 │   ├── agents/          # Agent definitions
-│   └── commands/        # Slash command definitions
+│   ├── commands/        # Slash command definitions
+│   └── config/          # Orchestration configuration
+│       └── orchestration-config.md  # Thresholds and settings
 ├── skills/
 │   ├── aws/             # AWS-focused skills
 │   ├── org/             # Organization-specific

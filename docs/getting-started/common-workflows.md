@@ -293,63 +293,96 @@ AWS Coworker will:
 
 ---
 
-## Large-Scale Workflows (Orchestration)
+## Always-Agent Mode Workflows
 
-For complex operations involving many resources, multiple regions, or multiple accounts, AWS Coworker uses multi-agent orchestration.
+AWS Coworker operates in **Always-Agent Mode**: every request spawns at least one agent. Thresholds (configurable in `.claude/config/orchestration-config.md`) determine whether to use single or parallel agents.
 
-### Multi-Region Audit
+### Simple Workflow (Below Thresholds)
+
+```
+User: "List my S3 buckets"
+
+AWS Coworker:
+  [Single agent executes]
+
+  Found 12 buckets in us-east-1:
+  - my-app-data (private)
+  - my-logs (private)
+  - my-static-assets (public-read)
+  ...
+```
+
+Even simple tasks use the same agent-based execution path — just with a single agent.
+
+### Complex Workflow (Above Thresholds)
+
+When scope exceeds configured thresholds, AWS Coworker spawns parallel agents.
+
+#### Multi-Region Audit
 
 ```
 User: "Audit all S3 buckets for public access across all regions"
 
-AWS Coworker will:
-1. Discover S3 buckets across all regions
-2. Estimate scope:
-   "Found 847 buckets across 8 regions.
-    Estimated audit time: 10-12 minutes.
-    I'll work in parallel across regions. Proceed?"
-3. After approval, spawn parallel sub-agents
-4. Aggregate results into unified report
-5. Present findings with regional breakdown
+AWS Coworker:
+1. [Single agent performs discovery]
+   "Found 847 buckets across 8 regions."
+
+2. [Threshold evaluation]
+   - Resources: 847 >= 50 (parallel threshold) ✓
+   - Regions: 8 > 3 (parallel threshold) ✓
+
+3. [User advisement]
+   "Estimated audit time: 8-10 minutes.
+    I'll use 8 parallel agents (one per region). Proceed?"
+
+4. [After approval: parallel execution]
+   Starting audit with 8 parallel agents...
+   ├── us-east-1: Scanning 150 buckets... ✓
+   ├── us-west-2: Scanning 120 buckets... ✓
+   ├── eu-west-1: Scanning 100 buckets... ✓
+   ... (5 more regions)
+
+5. [Aggregation]
+   Audit complete (3m 45s). Found 12 buckets with public access.
 ```
 
-### Multi-Account Compliance Check
+#### Multi-Account Compliance Check
 
 ```
 User: "Check compliance across all our AWS accounts"
 
-AWS Coworker will:
-1. Identify accounts in scope
-2. Estimate complexity:
-   "This spans 12 accounts across 3 regions.
-    Estimated time: 15-20 minutes.
-    Proceed?"
-3. After approval, spawn sub-agents per account
-4. Run compliance checks in parallel
-5. Aggregate into organization-wide report
+AWS Coworker:
+1. [Discovery] Identifies 12 accounts in scope
+2. [Threshold evaluation]
+   - Accounts: 12 >= 10 (parallel_required) ✓
+3. [User advisement]
+   "This spans 12 accounts. Estimated time: 12-15 minutes.
+    I'll use 10 parallel agents. Proceed?"
+4. [Parallel execution] Sub-agents per account
+5. [Aggregation] Organization-wide report
 ```
 
-### Bulk Remediation
+#### Bulk Remediation
 
 ```
 User: "Tag all untagged EC2 instances with Owner=platform-team"
 
-AWS Coworker will:
-1. Discover untagged instances
-2. Estimate scope:
-   "Found 234 untagged instances across 4 regions.
-    This is a mutation requiring your approval."
-3. Show plan with full list
-4. After approval, execute in batches
-5. Report success/failure per resource
+AWS Coworker:
+1. [Discovery] Found 234 untagged instances across 4 regions
+2. [Threshold evaluation]
+   - Resources: 234 >= 200 (parallel_required) ✓
+3. [User advisement]
+   "This is a mutation affecting 234 instances.
+    I'll use 5 parallel agents (batches of 50). Proceed?"
+4. [Mutation approval] Explicit confirmation required
+5. [Parallel execution] Batched tagging
+6. [Report] Success/failure per resource
 ```
 
-### Progress During Long Operations
-
-For long-running tasks, AWS Coworker provides progress updates:
+### Progress During Parallel Operations
 
 ```
-Starting compliance audit across 12 accounts...
+Starting compliance audit with 10 parallel agents...
 
 Progress:
 ├── account-a (us-east-1): Scanning 45 resources... ✓
@@ -359,8 +392,21 @@ Progress:
 ...
 
 Completed: 8/12 accounts (67%)
-Estimated remaining: 4 minutes
+Estimated remaining: 3 minutes
 ```
+
+### Configuring Thresholds
+
+Edit `.claude/config/orchestration-config.md` to adjust:
+
+| Setting | Default | Effect |
+|---------|---------|--------|
+| `resources.single_agent` | 50 | Below this: single agent |
+| `regions.single_agent` | 3 | At or below this: single agent |
+| `limits.max_parallel_agents` | 10 | Cap on concurrent agents |
+
+Lower thresholds = more parallelization (faster but more overhead)
+Higher thresholds = less parallelization (simpler but slower for large tasks)
 
 ---
 

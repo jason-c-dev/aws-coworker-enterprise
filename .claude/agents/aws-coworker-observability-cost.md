@@ -369,18 +369,23 @@ aws budgets create-budget ...
 - **Cost savings:** $3,000/month after full implementation
 ```
 
-## Task Invocation Specification
+## Task Invocation Specification (Always-Agent Mode)
 
-When the Core Agent spawns this agent via the Task tool for parallel analysis:
+**Configuration:** Read thresholds and model selection from `.claude/config/orchestration-config.md`
+
+When the Core Agent spawns this agent via the Task tool:
 
 ### Invocation Parameters
 
 ```yaml
 Task:
   subagent_type: "general-purpose"
-  model: "haiku"  # Cost/observability queries can use efficient model
+  model: "haiku"  # From config: models.read_only = haiku (cost analysis is read-only)
   prompt: |
     You are acting as aws-coworker-observability-cost.
+
+    ## Configuration Reference
+    Read settings from: .claude/config/orchestration-config.md
 
     ## Permission Context
     User has approved: "{approved_scope}"

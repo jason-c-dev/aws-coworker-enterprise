@@ -268,47 +268,71 @@ Then:
 3. Note any service quotas that may need increase
 ```
 
-## Agent Orchestration
+## Agent Orchestration (Always-Agent Mode)
 
-The Core Agent can delegate complex tasks to specialized sub-agents using the **Task tool**. This enables parallel execution for large-scale operations.
+AWS Coworker operates in **Always-Agent Mode**: every request spawns at least one agent via the Task tool. This ensures consistent execution paths, comprehensive audit trails, and efficient handling of enterprise workloads.
 
-### When to Orchestrate
+**Configuration:** See `.claude/config/orchestration-config.md` for thresholds and settings.
 
-| Scenario | Approach |
-|----------|----------|
-| Simple discovery (< 10 resources) | Direct execution |
-| Single mutation | Direct execution with approval |
-| Multi-region discovery | Spawn sub-agents per region |
-| Multi-account audit | Spawn sub-agents per account |
-| Large-scale remediation (100+ resources) | Spawn batched sub-agents |
+### Why Always-Agent Mode?
+
+| Benefit | Explanation |
+|---------|-------------|
+| **Consistency** | Same execution path regardless of task complexity |
+| **Auditability** | Every operation tracked through agent invocation |
+| **Scalability** | Seamless transition from simple to complex tasks |
+| **Enterprise-ready** | Designed for environments where complex tasks are common |
+
+Simple tasks like "list my S3 buckets" work perfectly fine — they use a single agent rather than spawning parallel workers. The overhead is minimal; the consistency benefits are significant.
 
 ### Orchestration Flow
 
 ```
-1. Discovery Phase
+1. Agent Invocation (ALWAYS)
+   - Every request spawns Core Agent via Task tool
+   - Core Agent reads orchestration-config.md
+
+2. Discovery Phase
    - Assess scope of the task
    - Count resources/regions/accounts involved
    - Estimate time and complexity
 
-2. Advisement Phase
-   - If complex (> 50 resources OR > 3 regions OR > 5 minutes estimated):
+3. Threshold Evaluation
+   - Compare scope against configurable thresholds
+   - Determine: single agent OR parallel agents
+
+4. Advisement Phase (if complex)
+   - If above thresholds:
      "This task involves [X resources] across [Y regions].
       Estimated time: [Z minutes].
       I'll work in parallel to minimize time.
       Do you want to proceed?"
 
-3. Delegation Phase (after approval)
-   - Spawn sub-agents via Task tool
+5. Execution Phase
+   - Simple tasks: Single agent executes sequentially
+   - Complex tasks: Spawn parallel sub-agents
    - Pass permission context: "User approved: [scope]"
-   - Each sub-agent works on assigned partition
 
-4. Aggregation Phase
+6. Aggregation Phase
    - Wait for all sub-agents to complete
    - Collect and merge results
    - Present unified response to user
 ```
 
+### Threshold Reference (from config)
+
+| Factor | Single Agent | Consider Parallel | Require Parallel |
+|--------|--------------|-------------------|------------------|
+| Resources | < 50 | 50-200 | > 200 |
+| Regions | <= 3 | 4-7 | >= 8 |
+| Accounts | <= 3 | 4-9 | >= 10 |
+| Est. Time | < 5 min | 5-10 min (advise) | > 10 min (approval) |
+
+These thresholds are configurable in `.claude/config/orchestration-config.md`.
+
 ### Task Delegation Pattern
+
+**Always read** `.claude/config/orchestration-config.md` before spawning sub-agents to get current thresholds and model selection.
 
 When spawning a sub-agent:
 
@@ -317,6 +341,9 @@ Task:
   subagent_type: "general-purpose"
   prompt: |
     You are acting as {agent-role} for {partition}.
+
+    ## Configuration
+    Read and apply: .claude/config/orchestration-config.md
 
     ## Permission Context
     User has approved: "{original_user_request}"
@@ -335,8 +362,16 @@ Task:
     - Summary: [one-line summary]
     - Findings: [structured findings]
     - Issues: [any problems encountered]
-  model: "haiku"  # Use efficient model for parallel work
+  model: "{from_config}"  # haiku for read-only, sonnet for mutations
 ```
+
+### Model Selection (from config)
+
+| Operation Type | Model | Rationale |
+|----------------|-------|-----------|
+| Read-only/Discovery | haiku | Fast, efficient |
+| Mutations | sonnet | More thorough |
+| Complex planning | sonnet | Better analysis |
 
 ### Aggregation Patterns
 
@@ -392,6 +427,9 @@ If timeout occurs:
 - [ ] Blast radius disclosed for changes
 - [ ] Rollback approach identified for significant changes
 - [ ] Results presented clearly with actionable next steps
-- [ ] Complex tasks trigger scope estimation and user advisement
-- [ ] Parallel execution used when beneficial for large-scale operations
+- [ ] **Always-Agent Mode**: Every request executed via Task tool
+- [ ] **Config reference**: Orchestration thresholds read from `.claude/config/orchestration-config.md`
+- [ ] Scope estimation performed for all tasks
+- [ ] User advised when estimated time exceeds thresholds
+- [ ] Parallel execution used when above configured thresholds
 - [ ] Sub-agent results properly aggregated into coherent response

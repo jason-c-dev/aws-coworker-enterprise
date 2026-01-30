@@ -159,7 +159,11 @@ All agents, skills, and workflows align with the six pillars:
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 3.2 Interaction Flow
+### 3.2 Interaction Flow (Always-Agent Mode)
+
+AWS Coworker operates in **Always-Agent Mode**: every request spawns at least one agent via the Task tool. This ensures consistent execution paths, comprehensive audit trails, and efficient handling of enterprise workloads.
+
+**Configuration:** Thresholds are defined in `.claude/config/orchestration-config.md`
 
 ```
 User Request (free-form or explicit command)
@@ -171,68 +175,105 @@ User Request (free-form or explicit command)
 └─────────────────────────────────────────────────────────────────┘
      │
      ▼
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│  Slash Command  │────▶│   Core Agent    │────▶│     Skills      │
-│   (Workflow)    │     │  (Orchestrator) │     │(Policy/Patterns)│
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-                               │
-                               ▼
-                        ┌─────────────────┐
-                        │    Discovery    │
-                        │ + Scope Estimate│
-                        └─────────────────┘
-                               │
-              ┌────────────────┴────────────────┐
-              │                                 │
-              ▼                                 ▼
-     ┌─────────────────┐               ┌─────────────────┐
-     │  Simple Task    │               │  Complex Task   │
-     │  (< 50 resources│               │  (> 50 resources│
-     │   single region)│               │   multi-region) │
-     └────────┬────────┘               └────────┬────────┘
-              │                                 │
-              │                                 ▼
-              │                        ┌─────────────────┐
-              │                        │ User Advisement │
-              │                        │ (time estimate) │
-              │                        └────────┬────────┘
-              │                                 │
-              │                                 ▼
-              │                        ┌─────────────────┐
-              │                        │ Parallel Agents │
-              │                        │ (see §3.3)      │
-              │                        └────────┬────────┘
-              │                                 │
-              └────────────────┬────────────────┘
-                               │
-                               ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                        SLASH COMMAND                            │
+│                    (Workflow Orchestration)                     │
+└─────────────────────────────────────────────────────────────────┘
+     │
+     ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              CORE AGENT (Always spawned via Task tool)          │
+│                                                                 │
+│  1. Read orchestration-config.md                                │
+│  2. Load relevant skills                                        │
+│  3. Perform discovery                                           │
+│  4. Assess scope against thresholds                             │
+└─────────────────────────────────────────────────────────────────┘
+     │
+     ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     THRESHOLD EVALUATION                        │
+│  Compare: resources, regions, accounts, estimated time          │
+│  Against: configurable thresholds from orchestration-config.md  │
+└─────────────────────────────────────────────────────────────────┘
+     │
+     ├─────────────────────────────┬─────────────────────────────┐
+     │                             │                             │
+     ▼                             ▼                             ▼
+┌───────────────┐         ┌───────────────┐         ┌───────────────┐
+│ Below All     │         │ Above Some    │         │ Above All     │
+│ Thresholds    │         │ Thresholds    │         │ Thresholds    │
+│               │         │               │         │               │
+│ Single Agent  │         │ Advise User   │         │ Require       │
+│ Sequential    │         │ Parallel Opt. │         │ Approval      │
+└───────┬───────┘         └───────┬───────┘         └───────┬───────┘
+        │                         │                         │
+        │                         ▼                         │
+        │                 ┌───────────────┐                 │
+        │                 │ User Decides  │                 │
+        │                 │ Parallel Y/N  │                 │
+        │                 └───────┬───────┘                 │
+        │                         │                         │
+        └─────────────────────────┼─────────────────────────┘
+                                  │
+              ┌───────────────────┴───────────────────┐
+              │                                       │
+              ▼                                       ▼
+     ┌─────────────────┐                     ┌─────────────────┐
+     │  Single Agent   │                     │ Parallel Agents │
+     │  Execution      │                     │ (N sub-agents)  │
+     └────────┬────────┘                     └────────┬────────┘
+              │                                       │
+              │                              ┌────────┴────────┐
+              │                              │   Partition by: │
+              │                              │   • Region      │
+              │                              │   • Account     │
+              │                              │   • Batch       │
+              │                              └────────┬────────┘
+              │                                       │
+              └───────────────────┬───────────────────┘
+                                  │
+                                  ▼
                         ┌─────────────────┐
                         │    Guardrail    │
                         │   Validation    │
                         └─────────────────┘
-                               │
-                               ▼
+                                  │
+                                  ▼
                         ┌─────────────────┐
                         │  Human Approval │
                         │  (if mutation)  │
                         └─────────────────┘
-                               │
-                               ▼
+                                  │
+                                  ▼
                         ┌─────────────────┐
                         │   Execution     │
                         │ (AWS CLI / IaC) │
                         └─────────────────┘
-                               │
-                               ▼
+                                  │
+                                  ▼
                         ┌─────────────────┐
                         │   Aggregation   │
-                        │ (if parallel)   │
+                        │ + Unified Resp. │
                         └─────────────────┘
 ```
 
-### 3.3 Agent Orchestration Architecture
+### 3.3 Agent Orchestration Architecture (Always-Agent Mode)
 
-AWS Coworker supports multi-agent orchestration for complex, long-running tasks. The primary Claude instance (Core Agent) acts as the gatekeeper and orchestrator, delegating work to specialized sub-agents when appropriate.
+AWS Coworker operates in **Always-Agent Mode**: every request spawns at least one agent via the Task tool. This design choice optimizes for enterprise environments where complex tasks are common, consistency is valued, and audit trails are critical.
+
+**Configuration:** `.claude/config/orchestration-config.md`
+
+#### Why Always-Agent Mode?
+
+| Benefit | Explanation |
+|---------|-------------|
+| **Consistency** | Same execution path regardless of task complexity |
+| **Auditability** | Every operation tracked through agent invocation |
+| **Scalability** | Seamless transition from simple to complex tasks |
+| **Enterprise-ready** | Designed for environments where complex tasks are common |
+
+Simple tasks like "list my S3 buckets" work perfectly fine — they use a single agent rather than spawning parallel workers. The overhead is minimal; the consistency benefits are significant.
 
 #### Orchestration Model
 
@@ -241,51 +282,86 @@ User Request
      │
      ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                     PRIMARY CLAUDE (Core Agent)                             │
+│                     CLAUDE.md + SLASH COMMAND                               │
+│                   (Request interception and routing)                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+     │
+     ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                 CORE AGENT (Always spawned via Task tool)                   │
 │                         [Gatekeeper & Orchestrator]                         │
 │                                                                             │
-│  • Intercepts all requests via CLAUDE.md                                    │
-│  • Routes through commands                                                  │
-│  • Performs discovery to assess scope                                       │
-│  • Estimates complexity and time                                            │
-│  • Requests explicit user approval                                          │
-│  • Delegates to sub-agents when beneficial                                  │
-│  • Aggregates results into coherent response                                │
+│  1. Read orchestration-config.md for thresholds                             │
+│  2. Perform discovery to assess scope                                       │
+│  3. Evaluate scope against configurable thresholds                          │
+│  4. Determine: single agent OR parallel agents                              │
+│  5. Advise user if above time thresholds                                    │
+│  6. Execute (single) OR delegate (parallel)                                 │
+│  7. Aggregate results into coherent response                                │
 └─────────────────────────────────────────────────────────────────────────────┘
-     │                                    │
-     │ (Simple tasks)                     │ (Complex tasks - after approval)
-     │                                    │
-     ▼                                    ▼
-┌──────────────────┐     ┌────────────────────────────────────────────────────┐
-│ Direct Execution │     │              TASK DELEGATION                       │
-│  (single-thread) │     │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐   │
-└──────────────────┘     │  │ Sub-Agent 1 │ │ Sub-Agent 2 │ │ Sub-Agent N │   │
-                         │  │ (Region A)  │ │ (Region B)  │ │ (Account X) │   │
-                         │  └─────────────┘ └─────────────┘ └─────────────┘   │
-                         │         │               │               │          │
-                         │         └───────────────┴───────────────┘          │
-                         │                         │                          │
-                         │                         ▼                          │
-                         │              ┌─────────────────────┐               │
-                         │              │  Result Aggregation │               │
-                         │              └─────────────────────┘               │
-                         └────────────────────────────────────────────────────┘
+     │
+     ├─── Below Thresholds ────────────────┬─── Above Thresholds ─────────────┐
+     │                                     │                                  │
+     ▼                                     ▼                                  │
+┌──────────────────┐          ┌─────────────────────┐                         │
+│  SINGLE AGENT    │          │  USER ADVISEMENT    │                         │
+│  Sequential work │          │  "This will take    │                         │
+│  Same execution  │          │   ~10 min. Proceed?"│                         │
+│  path as complex │          └──────────┬──────────┘                         │
+└────────┬─────────┘                     │                                    │
+         │                               ▼                                    │
+         │              ┌────────────────────────────────────────────────────┐│
+         │              │              PARALLEL SUB-AGENTS                   ││
+         │              │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐   ││
+         │              │  │ Sub-Agent 1 │ │ Sub-Agent 2 │ │ Sub-Agent N │   ││
+         │              │  │ (Region A)  │ │ (Region B)  │ │ (Account X) │   ││
+         │              │  └─────────────┘ └─────────────┘ └─────────────┘   ││
+         │              │         │               │               │          ││
+         │              │         └───────────────┴───────────────┘          ││
+         │              │                         │                          ││
+         │              │                         ▼                          ││
+         │              │              ┌─────────────────────┐               ││
+         │              │              │  Result Aggregation │               ││
+         │              │              └─────────────────────┘               ││
+         │              └────────────────────────────────────────────────────┘│
+         │                                        │                           │
+         └────────────────────────────────────────┴───────────────────────────┘
+                                       │
+                                       ▼
+                            ┌─────────────────────┐
+                            │   Unified Response  │
+                            │   to User           │
+                            └─────────────────────┘
 ```
 
-#### When to Use Multi-Agent Orchestration
+#### Configurable Thresholds
 
-| Scenario | Single Agent | Multi-Agent Swarm |
-|----------|--------------|-------------------|
-| List S3 buckets (1 region) | ✅ Appropriate | Overkill |
-| Start/stop single instance | ✅ Appropriate | Overkill |
-| Audit compliance across 10+ accounts | Slow | ✅ Parallel per account |
-| Cost analysis across all regions | Sequential | ✅ Parallel per region |
-| Security group audit across VPCs | Sequential | ✅ Parallel per VPC |
-| Tagging remediation (100s of resources) | Very slow | ✅ Batched parallel |
+Thresholds determine **how many agents** to spawn, not **whether** to spawn agents.
+
+| Factor | Single Agent | Consider Parallel | Require Parallel |
+|--------|--------------|-------------------|------------------|
+| **Resources** | < 50 | 50-200 | > 200 |
+| **Regions** | <= 3 | 4-7 | >= 8 |
+| **Accounts** | <= 3 | 4-9 | >= 10 |
+| **Est. Time** | < 5 min | 5-10 min (advise) | > 10 min (approval required) |
+
+These thresholds are **configurable** in `.claude/config/orchestration-config.md`.
+
+#### When Parallelization Kicks In
+
+| Scenario | Agents | Strategy |
+|----------|--------|----------|
+| List S3 buckets (1 region) | 1 | Single agent, sequential |
+| Start/stop single instance | 1 | Single agent with approval |
+| Audit 100 buckets (3 regions) | 1 | Single agent (below parallel threshold) |
+| Audit 200 buckets (5 regions) | 5 | Parallel per region |
+| Cost analysis (all 16 regions) | 10 | Parallel per region (capped at max) |
+| Compliance across 12 accounts | 10 | Parallel per account (capped at max) |
+| Tag 500 instances | 10 | Batched parallel (50 per agent) |
 
 #### Scope Estimation and User Advisement
 
-During discovery, the Core Agent estimates task complexity:
+During discovery, the Core Agent estimates task complexity and compares against thresholds from `.claude/config/orchestration-config.md`:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -293,12 +369,19 @@ During discovery, the Core Agent estimates task complexity:
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │  Discovery reveals:                                                         │
-│  • 847 S3 buckets across 3 regions                                          │
+│  • 847 S3 buckets across 8 regions                                          │
 │  • Estimated audit time: 8-10 minutes                                       │
+│                                                                             │
+│  Threshold evaluation:                                                      │
+│  • Resources: 847 > 200 (parallel_required) ✓                               │
+│  • Regions: 8 >= 8 (parallel_required) ✓                                    │
+│  • Est. time: 8 min > 5 min (advise_user) ✓                                 │
+│                                                                             │
+│  Decision: Parallel execution with 8 sub-agents (one per region)            │
 │                                                                             │
 │  ┌────────────────────────────────────────────────────────────────────────┐ │
 │  │ This audit will take approximately 8-10 minutes due to the number      │ │
-│  │ of resources. I'll work in parallel across regions to minimize time.   │ │
+│  │ of resources. I'll work in parallel across 8 regions to minimize time. │ │
 │  │                                                                        │ │
 │  │ Do you want to proceed? (yes/no)                                       │ │
 │  └────────────────────────────────────────────────────────────────────────┘ │
@@ -356,28 +439,52 @@ After all sub-agents complete, the Core Agent:
 
 #### Technical Implementation
 
-Sub-agents are spawned using the **Task tool** with specific parameters:
+**Configuration:** `.claude/config/orchestration-config.md`
+
+Sub-agents are spawned using the **Task tool** with parameters determined by configuration:
 
 ```yaml
 task_invocation:
-  subagent_type: "general-purpose"  # or specialized type
+  subagent_type: "general-purpose"
   prompt: |
     You are acting as aws-coworker-planner for region us-east-1.
 
-    Context:
+    ## Configuration Reference
+    Read thresholds from: .claude/config/orchestration-config.md
+
+    ## Context
     - User approved: "Audit S3 buckets for public access"
     - Profile: dev-admin
     - Region: us-east-1
     - Permission: Read-only discovery
 
-    Task:
+    ## Task
     1. List all S3 buckets in this region
     2. Check each bucket's public access configuration
     3. Report any buckets with public access
 
     Return your findings in structured format.
-  model: "haiku"  # Use efficient model for parallel tasks
+  model: "haiku"  # From config: models.read_only = haiku
+
+# Model selection (from orchestration-config.md):
+# - read_only: haiku (fast, efficient)
+# - mutations: sonnet (more thorough)
+# - planning: sonnet (better analysis)
 ```
+
+#### Updating Thresholds
+
+To modify orchestration behavior:
+
+1. Edit `.claude/config/orchestration-config.md`
+2. All agents read this configuration dynamically
+3. No code changes required
+
+**Tuning recommendations:**
+
+- Lower `single_agent` thresholds for more aggressive parallelization
+- Raise `parallel_required` thresholds to reduce agent overhead
+- Adjust `max_parallel_agents` based on API rate limits
 
 ---
 
@@ -446,6 +553,9 @@ aws-coworker/
 │   │   ├── aws-coworker-new-skill-from-session.md
 │   │   ├── aws-coworker-refactor-skills.md
 │   │   └── aws-coworker-audit-library.md
+│   │
+│   ├── config/                          # Orchestration configuration
+│   │   └── orchestration-config.md      # Thresholds and settings
 │   │
 │   └── settings.json                    # Claude Code settings
 │

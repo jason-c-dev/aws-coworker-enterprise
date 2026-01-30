@@ -373,18 +373,23 @@ echo "Branch 'feature/production-change-name' ready for PR"
 echo "Run: gh pr create --title '...' --body '...'"
 ```
 
-## Task Invocation Specification
+## Task Invocation Specification (Always-Agent Mode)
 
-When the Core Agent spawns this agent via the Task tool for parallel execution:
+**Configuration:** Read thresholds and model selection from `.claude/config/orchestration-config.md`
+
+When the Core Agent spawns this agent via the Task tool:
 
 ### Invocation Parameters
 
 ```yaml
 Task:
   subagent_type: "general-purpose"
-  model: "sonnet"  # Use capable model for mutations
+  model: "sonnet"  # From config: models.mutations = sonnet (required for state changes)
   prompt: |
     You are acting as aws-coworker-executor.
+
+    ## Configuration Reference
+    Read settings from: .claude/config/orchestration-config.md
 
     ## Permission Context
     User has approved: "{approved_scope}"

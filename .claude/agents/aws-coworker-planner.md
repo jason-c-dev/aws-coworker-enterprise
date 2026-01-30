@@ -391,18 +391,23 @@ aws ec2 delete-vpc --vpc-id vpc-xxxxxxxx
 - **Cost Impact:** ~$45/month (NAT Gateway primary cost)
 ```
 
-## Task Invocation Specification
+## Task Invocation Specification (Always-Agent Mode)
 
-When the Core Agent spawns this agent via the Task tool for parallel operations:
+**Configuration:** Read thresholds and model selection from `.claude/config/orchestration-config.md`
+
+When the Core Agent spawns this agent via the Task tool:
 
 ### Invocation Parameters
 
 ```yaml
 Task:
   subagent_type: "general-purpose"
-  model: "haiku"  # or "sonnet" for complex planning
+  model: "haiku"  # From config: models.planning = sonnet for complex, haiku for simple
   prompt: |
     You are acting as aws-coworker-planner.
+
+    ## Configuration Reference
+    Read settings from: .claude/config/orchestration-config.md
 
     ## Permission Context
     User has approved: "{approved_scope}"
