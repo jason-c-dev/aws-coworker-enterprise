@@ -61,10 +61,10 @@ See [Getting Started Guide](docs/getting-started/README.md) for detailed instruc
 │                   (Workflow Orchestration)                  │
 ├─────────────────────────────────────────────────────────────┤
 │                         AGENTS                              │
-│   Core │ Planner │ Executor │ Guardrail │ Obs/Cost │ Meta  │
+│    Core │ Planner │ Executor │ Guardrail │ Obs/Cost │ Meta  │
 ├─────────────────────────────────────────────────────────────┤
 │                         SKILLS                              │
-│        aws/ │ org/ │ meta/ │ core/                         │
+│         aws/ │ org/ │ meta/ │ core/                         │
 └─────────────────────────────────────────────────────────────┘
                             │
                             ▼

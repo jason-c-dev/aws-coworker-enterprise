@@ -252,16 +252,21 @@ This checks:
 
 ### Test Discovery
 
-Try a simple discovery operation:
+Try a simple discovery operation using the AWS Coworker command:
 
 ```
-"What S3 buckets exist in this account?"
+/aws-coworker-plan-interaction
+
+# When prompted, describe your goal:
+"Discover what S3 buckets exist in this account"
 ```
 
 Verify that:
-1. Profile and region are announced
-2. Read-only commands are used
+1. Profile and region are announced before any AWS CLI execution
+2. The plan uses read-only commands
 3. Results are presented clearly
+
+**Note:** While you can invoke AWS Coworker commands directly (starting with `/aws-coworker-`), free-form prompts like "list my S3 buckets" will also work safely. The [CLAUDE.md](../../CLAUDE.md) configuration ensures all AWS-related requests are automatically routed through the appropriate AWS Coworker command, enforcing the safety model regardless of how you phrase your request.
 
 ---
 
