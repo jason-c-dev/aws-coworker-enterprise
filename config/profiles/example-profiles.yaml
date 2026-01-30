@@ -1,0 +1,123 @@
+# AWS Coworker Profile Configuration
+# ==================================
+#
+# This file classifies AWS CLI profiles for AWS Coworker.
+# Copy this file to profiles.yaml and customize for your organization.
+#
+# Profile Classification:
+#   - unknown: Not yet classified (defaults to read-only)
+#   - sandbox: Experimentation environment
+#   - development: Active development
+#   - staging: Pre-production
+#   - production: Live workloads
+#
+# Permissions:
+#   - read-only: Can only run discovery commands
+#   - read-write: Can execute approved mutations
+#
+# Approval Requirements:
+#   - none: No approval needed (sandbox only)
+#   - destructive-only: Approval for delete/terminate operations
+#   - all-mutations: Approval for any state change
+#   - always: Approval for everything including read operations
+
+profiles:
+  # Default profile - typically development
+  default:
+    classification: development
+    permissions: read-write
+    approval_required: destructive-only
+    description: Default profile for development work
+    regions:
+      allowed: [us-east-1, us-west-2, eu-west-1]
+      default: us-east-1
+
+  # Sandbox profiles - maximum freedom
+  sandbox-admin:
+    classification: sandbox
+    permissions: read-write
+    approval_required: none
+    description: Full access to sandbox environment
+    regions:
+      allowed: ["*"]
+      default: us-east-1
+
+  # Development profiles
+  dev-admin:
+    classification: development
+    permissions: read-write
+    approval_required: destructive-only
+    description: Admin access to development environment
+    regions:
+      allowed: [us-east-1, us-west-2]
+      default: us-east-1
+
+  dev-readonly:
+    classification: development
+    permissions: read-only
+    approval_required: none
+    description: Read-only access to development
+    regions:
+      allowed: [us-east-1, us-west-2]
+      default: us-east-1
+
+  # Staging profiles
+  staging-admin:
+    classification: staging
+    permissions: read-write
+    approval_required: all-mutations
+    description: Admin access to staging (mutations require approval)
+    regions:
+      allowed: [us-east-1]
+      default: us-east-1
+
+  staging-readonly:
+    classification: staging
+    permissions: read-only
+    approval_required: none
+    description: Read-only access to staging
+    regions:
+      allowed: [us-east-1]
+      default: us-east-1
+
+  # Production profiles
+  prod-readonly:
+    classification: production
+    permissions: read-only
+    approval_required: none
+    description: Read-only access to production
+    regions:
+      allowed: [us-east-1, us-west-2, eu-west-1]
+      default: us-east-1
+
+  prod-admin:
+    classification: production
+    permissions: read-write
+    approval_required: always
+    description: Admin access to production - EMERGENCY USE ONLY
+    emergency_only: true
+    audit_required: true
+    regions:
+      allowed: [us-east-1, us-west-2, eu-west-1]
+      default: us-east-1
+
+# Discovery settings for unknown profiles
+discovery:
+  # How to classify profiles not listed above
+  unknown_profile_behavior:
+    default_classification: unknown
+    default_permissions: read-only
+    prompt_for_classification: true
+
+  # Auto-detect classification from profile name patterns
+  auto_classify:
+    enabled: true
+    patterns:
+      - pattern: "*-sandbox-*"
+        classification: sandbox
+      - pattern: "*-dev-*"
+        classification: development
+      - pattern: "*-staging-*"
+        classification: staging
+      - pattern: "*-prod-*"
+        classification: production

@@ -1,0 +1,173 @@
+# AWS Coworker Environment Configuration
+# =======================================
+#
+# This file defines environment classifications and rules.
+# Copy this file to environments.yaml and customize for your organization.
+
+environments:
+  # Sandbox - Maximum freedom for experimentation
+  sandbox:
+    purpose: Experimentation, learning, proof-of-concepts
+    description: |
+      Sandbox environments are for experimentation and learning.
+      No production data. No SLAs. Resources may be deleted without notice.
+
+    # Account identification
+    accounts:
+      patterns: ["*-sandbox", "sandbox-*"]
+      ids: []  # Add specific account IDs if needed
+
+    # Permissions
+    permissions:
+      cli_access: read-write
+      approval_required: none
+      direct_mutation: allowed
+
+    # Restrictions
+    restrictions:
+      no_production_data: true
+      cost_limit_monthly: 500
+      resource_limits:
+        ec2_instances: 10
+        rds_instances: 2
+
+    # Change management
+    change_management:
+      ticket_required: false
+      change_window: none
+      cab_approval: false
+
+  # Development - Active development work
+  development:
+    purpose: Active development, feature work, integration testing
+    description: |
+      Development environments for day-to-day development work.
+      May contain synthetic test data. No production data.
+
+    accounts:
+      patterns: ["*-dev", "dev-*", "*-development"]
+      ids: []
+
+    permissions:
+      cli_access: read-write
+      approval_required: destructive-only
+      direct_mutation: allowed
+
+    restrictions:
+      no_production_data: true
+      data_classification_max: internal
+      cost_limit_monthly: 2000
+
+    change_management:
+      ticket_required: false
+      change_window: none
+      cab_approval: false
+
+  # Test/QA - Formal testing
+  test:
+    purpose: QA testing, automated testing, performance testing
+    description: |
+      Test environments for formal QA and automated testing.
+      May contain anonymized copies of production data.
+
+    accounts:
+      patterns: ["*-test", "test-*", "*-qa", "qa-*"]
+      ids: []
+
+    permissions:
+      cli_access: read-write
+      approval_required: destructive-only
+      direct_mutation: allowed
+
+    restrictions:
+      no_production_data: true
+      data_classification_max: internal
+
+    change_management:
+      ticket_required: recommended
+      change_window: none
+      cab_approval: false
+
+  # Staging - Pre-production validation
+  staging:
+    purpose: Pre-production validation, release candidates
+    description: |
+      Staging environments mirror production configuration.
+      Used for final validation before production deployment.
+
+    accounts:
+      patterns: ["*-staging", "staging-*", "*-preprod", "preprod-*"]
+      ids: []
+
+    permissions:
+      cli_access: read-only
+      approval_required: all-mutations
+      direct_mutation: discouraged
+      preferred_method: iac-pipeline
+
+    restrictions:
+      no_production_data: true
+      data_classification_max: confidential
+      configuration_drift: alert
+
+    change_management:
+      ticket_required: true
+      change_window: business-hours
+      cab_approval: false
+      deployment_method: pipeline-only
+
+  # Production - Live workloads
+  production:
+    purpose: Live customer-facing workloads
+    description: |
+      Production environments serving live traffic.
+      Highest level of protection and change control.
+
+    accounts:
+      patterns: ["*-prod", "prod-*", "*-production", "production-*"]
+      ids: []
+
+    permissions:
+      cli_access: read-only
+      approval_required: via-cicd
+      direct_mutation: prohibited
+      preferred_method: iac-pipeline
+
+    restrictions:
+      data_classification: all
+      configuration_drift: critical-alert
+      manual_changes: prohibited
+
+    change_management:
+      ticket_required: true
+      change_window: defined-windows
+      cab_approval: true
+      deployment_method: pipeline-only
+      rollback_plan_required: true
+
+    # Emergency access
+    emergency_access:
+      enabled: true
+      requires: incident-ticket
+      audit: mandatory
+      post_incident_review: required
+
+# Global settings
+global:
+  # Default for unclassified environments
+  unknown_environment:
+    treat_as: staging
+    permissions:
+      cli_access: read-only
+      approval_required: all-mutations
+
+  # Audit settings
+  audit:
+    log_all_commands: true
+    log_destination: cloudwatch
+    retention_days: 90
+
+  # Cost controls
+  cost:
+    alert_threshold_percent: 80
+    hard_limit_action: notify

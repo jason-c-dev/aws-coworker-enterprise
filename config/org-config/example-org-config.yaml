@@ -1,0 +1,267 @@
+# AWS Coworker Organization Configuration
+# ========================================
+#
+# This file defines your organization's AWS structure and policies.
+# Copy this file to org-config.yaml and customize for your organization.
+
+organization:
+  # Organization identity
+  name: Example Organization
+  short_name: example
+  domain: example.com
+
+  # AWS Organizations
+  aws_organizations:
+    enabled: true
+    management_account_id: "000000000000"
+    organization_id: o-exampleorg
+
+  # Organizational Units
+  organizational_units:
+    root:
+      name: Root
+      id: r-xxxx
+
+    security:
+      name: Security
+      id: ou-xxxx-security
+      parent: root
+      purpose: Security tooling and audit
+      accounts:
+        - id: "111111111111"
+          name: security
+          purpose: GuardDuty, Security Hub, CloudTrail aggregation
+
+    infrastructure:
+      name: Infrastructure
+      id: ou-xxxx-infra
+      parent: root
+      purpose: Shared infrastructure services
+      accounts:
+        - id: "222222222222"
+          name: shared-services
+          purpose: Transit Gateway, shared VPCs, DNS
+
+    workloads:
+      name: Workloads
+      id: ou-xxxx-workloads
+      parent: root
+      purpose: Application workloads
+      children:
+        - name: Non-Production
+          id: ou-xxxx-nonprod
+          accounts:
+            - id: "333333333333"
+              name: development
+              purpose: Development workloads
+            - id: "444444444444"
+              name: staging
+              purpose: Pre-production validation
+        - name: Production
+          id: ou-xxxx-prod
+          accounts:
+            - id: "555555555555"
+              name: production
+              purpose: Production workloads
+
+    sandbox:
+      name: Sandbox
+      id: ou-xxxx-sandbox
+      parent: root
+      purpose: Experimentation
+      accounts:
+        - id: "666666666666"
+          name: sandbox
+          purpose: Team experimentation
+
+# Tagging standards
+tagging:
+  # Required tags for all resources
+  required:
+    - name: Environment
+      description: Deployment environment
+      allowed_values: [sandbox, development, test, staging, production]
+      case_sensitive: false
+
+    - name: Owner
+      description: Team or individual responsible
+      pattern: "^[a-z]+-team$|^[a-z]+\\.[a-z]+$"
+      examples: [platform-team, john.doe]
+
+    - name: CostCenter
+      description: Cost allocation code
+      pattern: "^CC-[0-9]{4,6}$"
+      examples: [CC-1234, CC-56789]
+
+  # Conditionally required tags
+  conditional:
+    - name: DataClassification
+      description: Data sensitivity level
+      required_when: stores_data
+      allowed_values: [public, internal, confidential, restricted]
+
+    - name: Compliance
+      description: Compliance framework
+      required_when: regulated_workload
+      allowed_values: [hipaa, pci-dss, sox, gdpr, none]
+
+  # Recommended tags
+  recommended:
+    - name: Project
+      description: Project or initiative name
+
+    - name: Application
+      description: Application name
+
+    - name: CreatedBy
+      description: Tool or process that created the resource
+      examples: [terraform, cdk, manual, aws-coworker]
+
+  # Tag formatting
+  formatting:
+    key_case: PascalCase
+    value_case: lowercase
+    separator: hyphen
+
+# Naming conventions
+naming:
+  # General pattern
+  pattern: "{org}-{env}-{region_short}-{service}-{component}"
+
+  # Components
+  components:
+    org:
+      value: example
+      description: Organization prefix
+
+    env:
+      description: Environment abbreviation
+      mappings:
+        sandbox: sbx
+        development: dev
+        test: tst
+        staging: stg
+        production: prd
+
+    region_short:
+      description: Region abbreviation
+      mappings:
+        us-east-1: use1
+        us-west-2: usw2
+        eu-west-1: euw1
+        ap-southeast-1: apse1
+
+  # Resource-specific patterns
+  resources:
+    vpc:
+      pattern: "{org}-{env}-{region_short}-vpc"
+      example: example-dev-use1-vpc
+
+    subnet:
+      pattern: "{org}-{env}-{region_short}-{tier}-{az}"
+      example: example-dev-use1-private-a
+
+    security_group:
+      pattern: "{org}-{env}-{service}-sg"
+      example: example-dev-web-sg
+
+    iam_role:
+      pattern: "{org}-{env}-{service}-role"
+      example: example-dev-lambda-role
+
+    s3_bucket:
+      pattern: "{org}-{env}-{purpose}-{random}"
+      example: example-dev-logs-a1b2c3
+
+# Network standards
+networking:
+  # CIDR allocation
+  cidr_allocation:
+    production:
+      primary: 10.0.0.0/16
+      secondary: 10.1.0.0/16
+    staging:
+      primary: 10.10.0.0/16
+    development:
+      primary: 10.20.0.0/16
+    sandbox:
+      primary: 10.30.0.0/16
+
+  # Subnet tiers
+  subnet_tiers:
+    - name: public
+      purpose: Internet-facing resources
+      size: /24
+
+    - name: private
+      purpose: Application workloads
+      size: /22
+
+    - name: data
+      purpose: Databases and storage
+      size: /24
+
+  # Security group rules
+  security_groups:
+    prohibited_ingress:
+      - cidr: 0.0.0.0/0
+        ports: [22, 3389]
+        reason: No direct SSH/RDP from internet
+
+    required_egress:
+      - cidr: 0.0.0.0/0
+        ports: [443]
+        reason: HTTPS for AWS API access
+
+# IAM standards
+iam:
+  # Role naming
+  role_patterns:
+    service_role: "{org}-{env}-{service}-role"
+    instance_profile: "{org}-{env}-{service}-instance-profile"
+
+  # Permission boundaries
+  permission_boundaries:
+    required: true
+    default_boundary: "arn:aws:iam::{account}:policy/{org}-permission-boundary"
+
+  # Prohibited actions
+  prohibited_actions:
+    - "iam:CreateUser"  # Use SSO instead
+    - "iam:CreateAccessKey"  # Use roles instead
+    - "organizations:LeaveOrganization"
+
+  # Required conditions
+  required_conditions:
+    - condition: aws:SecureTransport
+      value: true
+      applies_to: [s3, sqs, sns]
+
+# Encryption standards
+encryption:
+  at_rest:
+    required: true
+    kms_key_policy: customer-managed
+    exceptions:
+      - public_static_content
+
+  in_transit:
+    required: true
+    minimum_tls_version: "1.2"
+
+# Logging standards
+logging:
+  cloudtrail:
+    enabled: true
+    multi_region: true
+    log_file_validation: true
+    s3_bucket: "{org}-{env}-cloudtrail-logs"
+
+  vpc_flow_logs:
+    enabled: true
+    traffic_type: ALL
+    retention_days: 90
+
+  s3_access_logs:
+    enabled: true
+    target_bucket: "{org}-{env}-s3-access-logs"
