@@ -70,11 +70,60 @@ thresholds:
 
 ---
 
-## Agent Selection
+## Model Hierarchy
+
+AWS Coworker uses a tiered model strategy for cost efficiency and performance:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     PRIMARY AGENT (Orchestrator)                            │
+│                                                                             │
+│  Model: User's selected model (e.g., Opus 4.5, Sonnet, etc.)                │
+│                                                                             │
+│  Responsibilities:                                                          │
+│  • Intercept and route requests                                             │
+│  • Read orchestration config                                                │
+│  • Perform discovery and scope assessment                                   │
+│  • Evaluate thresholds                                                      │
+│  • Communicate with user (advisement, approval)                             │
+│  • Spawn and coordinate sub-agents                                          │
+│  • Aggregate results into final response                                    │
+│  • Handle complex decision-making                                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                    ┌───────────────┴───────────────┐
+                    ▼                               ▼
+┌─────────────────────────────┐   ┌─────────────────────────────┐
+│  SUB-AGENT (Read-Only)      │   │  SUB-AGENT (Mutations)      │
+│                             │   │                             │
+│  Model: haiku               │   │  Model: sonnet              │
+│                             │   │                             │
+│  Tasks:                     │   │  Tasks:                     │
+│  • Discovery operations     │   │  • State-changing ops       │
+│  • Audit scans              │   │  • Resource modifications   │
+│  • Cost analysis            │   │  • Tag updates              │
+│  • Compliance checks        │   │  • Configuration changes    │
+└─────────────────────────────┘   └─────────────────────────────┘
+```
+
+**Why this hierarchy?**
+
+| Aspect | Primary Agent | Sub-Agents |
+|--------|---------------|------------|
+| **Model** | User's choice (Opus, Sonnet, etc.) | Configured (haiku/sonnet) |
+| **Cost** | Premium (user accepts this) | Optimized per task type |
+| **Role** | Orchestration, synthesis, communication | Parallelized execution |
+| **Complexity** | High (decision-making, aggregation) | Lower (focused tasks) |
+
+This means if you run AWS Coworker with Opus 4.5, Opus handles the "thinking" while Haiku does the "doing" — getting you the best of both worlds.
+
+---
+
+## Sub-Agent Model Selection
 
 ```yaml
 agents:
-  # Model selection for sub-agents
+  # Model selection for sub-agents (NOT the primary orchestrator)
   models:
     read_only: haiku       # Fast, efficient for discovery/audit tasks
     mutations: sonnet      # More capable for state-changing operations

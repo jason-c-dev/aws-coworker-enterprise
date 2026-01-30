@@ -157,6 +157,18 @@ AWS Coworker operates in **Always-Agent Mode**: every request spawns at least on
 
 Simple tasks like "list my S3 buckets" work perfectly fine — they use a single agent. The overhead is minimal; the consistency benefits are significant.
 
+### Model Hierarchy
+
+AWS Coworker uses a tiered model strategy for cost efficiency and performance:
+
+| Role | Model | Purpose |
+|------|-------|---------|
+| **Primary (Orchestrator)** | Your selected model (Opus, Sonnet, etc.) | Orchestration, decisions, user communication, result synthesis |
+| **Sub-Agents (Read-Only)** | Haiku | Fast parallel discovery, audits, cost analysis |
+| **Sub-Agents (Mutations)** | Sonnet | Thorough state-change analysis |
+
+**Why this matters:** If you run AWS Coworker with Opus 4.5, Opus handles the "thinking" (orchestration, threshold evaluation, aggregation) while Haiku does the parallelized "doing" (scanning each region). You get the best quality where it counts, with optimized cost at scale.
+
 ### Configurable Thresholds
 
 Thresholds determine **how many agents** to spawn, not **whether** to spawn agents.
@@ -237,22 +249,29 @@ aws-coworker/
 ├── .claude/
 │   ├── agents/          # Agent definitions
 │   ├── commands/        # Slash command definitions
-│   └── config/          # Orchestration configuration
-│       └── orchestration-config.md  # Thresholds and settings
+│   └── config/          # Agent orchestration (thresholds, model selection)
+├── config/              # AWS environment configuration (profiles, environments)
 ├── skills/
 │   ├── aws/             # AWS-focused skills
 │   ├── org/             # Organization-specific
 │   ├── meta/            # Meta-design skills
 │   └── core/            # Non-AWS core skills
-├── config/              # Configuration templates
 ├── docs/                # Documentation
 └── examples/            # Example implementations
 ```
 
 **Why this structure?**
 
-- **`.claude/`** contains *execution components* (agents, commands) — follows Claude Code conventions
-- **`skills/`** at root contains *knowledge documents* (policies, patterns) — intentionally visible and human-maintainable, not hidden tool configuration
+- **`.claude/`** contains *execution components* (agents, commands, orchestration config) — follows Claude Code conventions
+- **`/config/`** at root contains *AWS environment templates* (profile classification, environment definitions)
+- **`skills/`** at root contains *knowledge documents* (policies, patterns) — intentionally visible and human-maintainable
+
+**Two config directories explained:**
+
+| Directory | Purpose | Contents |
+|-----------|---------|----------|
+| **`.claude/config/`** | How Claude orchestrates agents | Thresholds, model selection (haiku/sonnet), parallelization limits |
+| **`/config/`** (root) | How AWS environments are classified | Profile → environment mapping, safety rules, org settings |
 
 Skills are loaded by agents via explicit `Read` operations, making their location flexible. Placing them at root (not `.claude/skills/`) emphasizes they are core content meant to be browsed, edited, and referenced beyond just Claude tooling.
 

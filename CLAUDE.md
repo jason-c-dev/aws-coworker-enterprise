@@ -124,6 +124,18 @@ AWS Coworker operates in **Always-Agent Mode**: every request spawns at least on
 
 Simple tasks like "list my S3 buckets" work perfectly fine — they use a single agent rather than spawning parallel workers. The overhead is minimal; the consistency benefits are significant.
 
+### Model Hierarchy
+
+AWS Coworker uses a tiered model strategy for cost efficiency:
+
+| Role | Model | Purpose |
+|------|-------|---------|
+| **Primary (Orchestrator)** | Your selected model (Opus, Sonnet, etc.) | Orchestration, threshold evaluation, user communication, result synthesis |
+| **Sub-Agents (Read-Only)** | Haiku | Fast parallel discovery, audits, cost analysis |
+| **Sub-Agents (Mutations)** | Sonnet | Thorough state-change analysis |
+
+**Why this matters:** If you run AWS Coworker with Opus 4.5, Opus handles the "thinking" while Haiku does the parallelized "doing" — best quality where it counts, optimized cost at scale.
+
 ### Configurable Thresholds
 
 Thresholds determine **how many agents** to spawn, not **whether** to spawn agents.
