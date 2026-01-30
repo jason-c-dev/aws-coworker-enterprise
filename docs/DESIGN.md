@@ -355,7 +355,40 @@ aws-coworker/
 └── README.md
 ```
 
-### 5.2 Naming Conventions
+### 5.2 Directory Structure Rationale
+
+**Why `.claude/` for agents and commands, but `skills/` at root level?**
+
+This is an intentional architectural decision, not an oversight:
+
+| Location | Contains | Rationale |
+|----------|----------|-----------|
+| `.claude/agents/` | Agent definitions | Claude Code convention for execution components |
+| `.claude/commands/` | Slash commands | Claude Code convention for workflow triggers |
+| `skills/` (root) | Knowledge & policy documents | Intentionally visible, human-readable, tool-agnostic |
+
+**Detailed reasoning:**
+
+1. **`.claude/` directory (Claude Code convention)**
+   - Agents and commands are *execution components* — they define how Claude operates
+   - Following Claude Code's standard location ensures compatibility with Claude tooling
+   - The `.` prefix indicates these are tool-specific configuration files
+
+2. **`skills/` at repository root (AWS Coworker design decision)**
+   - Skills are *knowledge documents* — policies, patterns, and guidance
+   - They should be visible, browsable, and maintainable by humans
+   - No `.` prefix because these aren't hidden configuration; they're core content
+   - Skills can be referenced by tools other than Claude (documentation, training, audits)
+   - Agents load skills via the `Read` tool by path, so location is flexible
+
+3. **How skills are loaded**
+   - Commands reference skills in their frontmatter: `skills: [aws-cli-playbook, aws-governance-guardrails]`
+   - Agents read skill files using the `Read` tool when guidance is needed
+   - This explicit loading pattern means skills don't require a specific location
+
+**Alternative considered:** Placing skills in `.claude/skills/` was considered for consistency, but rejected because skills are meant to be visible, human-maintained documentation rather than hidden tool configuration.
+
+### 5.3 Naming Conventions
 
 | Component | Convention | Example |
 |-----------|------------|---------|
@@ -365,7 +398,7 @@ aws-coworker/
 | Skill files | `SKILL.md` (main), supporting `.md` files | `SKILL.md`, `iam.md` |
 | Config files | `{purpose}.yaml` | `environments.yaml` |
 
-### 5.3 File Naming Rules
+### 5.4 File Naming Rules
 
 1. **Lowercase with hyphens** — `aws-coworker-core.md`, not `AWSCoworkerCore.md`
 2. **Descriptive prefixes** — All AWS Coworker components prefixed with `aws-coworker-`

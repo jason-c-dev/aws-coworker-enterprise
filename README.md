@@ -160,6 +160,15 @@ aws-coworker/
 └── examples/            # Example implementations
 ```
 
+**Why this structure?**
+
+- **`.claude/`** contains *execution components* (agents, commands) — follows Claude Code conventions
+- **`skills/`** at root contains *knowledge documents* (policies, patterns) — intentionally visible and human-maintainable, not hidden tool configuration
+
+Skills are loaded by agents via explicit `Read` operations, making their location flexible. Placing them at root (not `.claude/skills/`) emphasizes they are core content meant to be browsed, edited, and referenced beyond just Claude tooling.
+
+See [DESIGN.md](docs/DESIGN.md#52-directory-structure-rationale) for detailed rationale.
+
 ---
 
 ## Contributing
