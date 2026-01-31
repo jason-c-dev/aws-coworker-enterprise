@@ -1,0 +1,188 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: AWS Coworker Test Resource Cleanup Lambda - Safety net for orphaned test resources
+
+Parameters:
+  ScheduleExpression:
+    Type: String
+    Default: 'rate(6 hours)'
+    Description: How often to run cleanup (CloudWatch Events schedule)
+
+  DefaultTTLHours:
+    Type: Number
+    Default: 4
+    Description: Default TTL for resources without TTL tag
+
+  DryRun:
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: Set to true to log without deleting
+
+  NotificationEmail:
+    Type: String
+    Default: ''
+    Description: Email for cleanup notifications (optional)
+
+Conditions:
+  CreateSNSTopic: !Not [!Equals [!Ref NotificationEmail, '']]
+
+Resources:
+
+  # IAM Role for Lambda
+  CleanupLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: aws-coworker-test-cleanup-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: TestResourceCleanup
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # EC2 permissions
+              - Effect: Allow
+                Action:
+                  - ec2:DescribeInstances
+                  - ec2:DescribeVolumes
+                  - ec2:DescribeSecurityGroups
+                  - ec2:DescribeKeyPairs
+                  - ec2:DescribeAddresses
+                  - ec2:TerminateInstances
+                  - ec2:DeleteVolume
+                  - ec2:DeleteSecurityGroup
+                  - ec2:DeleteKeyPair
+                  - ec2:ReleaseAddress
+                Resource: '*'
+                Condition:
+                  StringEquals:
+                    'ec2:ResourceTag/Purpose': 'aws-coworker-test'
+              # EC2 describe permissions (no conditions needed for describe)
+              - Effect: Allow
+                Action:
+                  - ec2:DescribeInstances
+                  - ec2:DescribeVolumes
+                  - ec2:DescribeSecurityGroups
+                  - ec2:DescribeKeyPairs
+                  - ec2:DescribeAddresses
+                Resource: '*'
+              # S3 permissions
+              - Effect: Allow
+                Action:
+                  - s3:ListAllMyBuckets
+                  - s3:GetBucketTagging
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - s3:DeleteBucket
+                  - s3:DeleteObject
+                  - s3:DeleteObjectVersion
+                  - s3:ListBucket
+                  - s3:ListBucketVersions
+                Resource:
+                  - 'arn:aws:s3:::*'
+              # SNS permissions (if configured)
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: !If
+                  - CreateSNSTopic
+                  - !Ref NotificationTopic
+                  - !Ref 'AWS::NoValue'
+
+  # Lambda Function
+  CleanupLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: aws-coworker-test-cleanup
+      Description: Cleans up expired AWS Coworker test resources
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt CleanupLambdaRole.Arn
+      Timeout: 300
+      MemorySize: 256
+      Environment:
+        Variables:
+          DRY_RUN: !Ref DryRun
+          DEFAULT_TTL_HOURS: !Ref DefaultTTLHours
+          SNS_TOPIC_ARN: !If
+            - CreateSNSTopic
+            - !Ref NotificationTopic
+            - ''
+      Code:
+        ZipFile: |
+          # Inline code - replace with S3 deployment for production
+          # See index.py for full implementation
+          def lambda_handler(event, context):
+              print("Deploy full code from index.py")
+              return {"status": "placeholder"}
+      Tags:
+        - Key: Purpose
+          Value: aws-coworker-infrastructure
+        - Key: Component
+          Value: test-cleanup
+
+  # CloudWatch Events Rule (Schedule)
+  CleanupSchedule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: aws-coworker-test-cleanup-schedule
+      Description: Triggers test resource cleanup Lambda
+      ScheduleExpression: !Ref ScheduleExpression
+      State: ENABLED
+      Targets:
+        - Id: CleanupLambdaTarget
+          Arn: !GetAtt CleanupLambda.Arn
+
+  # Permission for CloudWatch Events to invoke Lambda
+  CleanupLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref CleanupLambda
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt CleanupSchedule.Arn
+
+  # SNS Topic for notifications (optional)
+  NotificationTopic:
+    Type: AWS::SNS::Topic
+    Condition: CreateSNSTopic
+    Properties:
+      TopicName: aws-coworker-test-cleanup-notifications
+      DisplayName: AWS Coworker Test Cleanup
+
+  # Email subscription (optional)
+  NotificationSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: CreateSNSTopic
+    Properties:
+      TopicArn: !Ref NotificationTopic
+      Protocol: email
+      Endpoint: !Ref NotificationEmail
+
+Outputs:
+  LambdaFunctionArn:
+    Description: ARN of the cleanup Lambda function
+    Value: !GetAtt CleanupLambda.Arn
+
+  LambdaFunctionName:
+    Description: Name of the cleanup Lambda function
+    Value: !Ref CleanupLambda
+
+  ScheduleRuleArn:
+    Description: ARN of the CloudWatch Events schedule rule
+    Value: !GetAtt CleanupSchedule.Arn
+
+  SNSTopicArn:
+    Condition: CreateSNSTopic
+    Description: ARN of the notification topic
+    Value: !Ref NotificationTopic

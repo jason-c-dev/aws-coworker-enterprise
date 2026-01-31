@@ -1,0 +1,27 @@
+{
+  "description": "Mandatory tags for all test resources - enables automated cleanup",
+  "required_tags": {
+    "Purpose": "aws-coworker-test",
+    "CreatedBy": "aws-coworker",
+    "TestRun": "${TIMESTAMP}",
+    "TTL": "${TTL_HOURS}"
+  },
+  "defaults": {
+    "TTL_HOURS": "4",
+    "TIMESTAMP_FORMAT": "%Y%m%d-%H%M%S"
+  },
+  "tag_specifications": {
+    "ec2_instance": "ResourceType=instance,Tags=[{Key=Purpose,Value=aws-coworker-test},{Key=CreatedBy,Value=aws-coworker},{Key=TestRun,Value=${TIMESTAMP}},{Key=TTL,Value=${TTL_HOURS}}]",
+    "ec2_volume": "ResourceType=volume,Tags=[{Key=Purpose,Value=aws-coworker-test},{Key=CreatedBy,Value=aws-coworker},{Key=TestRun,Value=${TIMESTAMP}},{Key=TTL,Value=${TTL_HOURS}}]",
+    "security_group": "ResourceType=security-group,Tags=[{Key=Purpose,Value=aws-coworker-test},{Key=CreatedBy,Value=aws-coworker},{Key=TestRun,Value=${TIMESTAMP}},{Key=TTL,Value=${TTL_HOURS}}]",
+    "key_pair": "ResourceType=key-pair,Tags=[{Key=Purpose,Value=aws-coworker-test},{Key=CreatedBy,Value=aws-coworker},{Key=TestRun,Value=${TIMESTAMP}},{Key=TTL,Value=${TTL_HOURS}}]"
+  },
+  "s3_tags": {
+    "TagSet": [
+      {"Key": "Purpose", "Value": "aws-coworker-test"},
+      {"Key": "CreatedBy", "Value": "aws-coworker"},
+      {"Key": "TestRun", "Value": "${TIMESTAMP}"},
+      {"Key": "TTL", "Value": "${TTL_HOURS}"}
+    ]
+  }
+}

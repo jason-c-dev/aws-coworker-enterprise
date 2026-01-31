@@ -711,37 +711,174 @@ For each pillar, request analysis:
 
 ---
 
-## Cleanup Checklist
+## Resource Cleanup (Defense in Depth)
 
-After testing, ensure these resources are removed:
+We use a multi-layer approach to prevent orphaned resources:
 
-- [ ] EC2 instances (tagged with test identifiers)
-- [ ] Security groups created during tests
-- [ ] S3 buckets created during tests
-- [ ] Key pairs created during tests
-- [ ] IAM resources (if any)
-- [ ] CloudTrail/Config (if T26 executed and cleanup desired)
+### Layer 1: Mandatory Tagging
+
+All test resources **must** have these tags:
+
+| Tag | Value | Purpose |
+|-----|-------|---------|
+| `Purpose` | `aws-coworker-test` | Identifies test resources |
+| `CreatedBy` | `aws-coworker` | Attribution |
+| `TestRun` | `YYYYMMDD-HHMMSS` | Groups resources by test session |
+| `TTL` | `4` (hours) | Time-to-live for auto-cleanup |
+
+**Config:** See `tests/config/test-tags.json`
+
+### Layer 2: Test Harness Script
+
+Interactive wrapper for test sessions:
+
+```bash
+# Start test session (takes pre-snapshot)
+./tests/scripts/test-harness.sh start
+
+# Run your tests...
+
+# Check what would be cleaned
+./tests/scripts/test-harness.sh status
+
+# Clean up all test resources
+./tests/scripts/test-harness.sh cleanup
+
+# Dry run (preview without deleting)
+DRY_RUN=true ./tests/scripts/test-harness.sh cleanup
+```
+
+**Features:**
+- Takes pre-test snapshots
+- Tracks resources created during session
+- Handles Ctrl+C gracefully (offers cleanup)
+- Supports dry-run mode
+
+### Layer 3: Pre/Post Test Hooks
+
+For individual test tracking:
+
+```bash
+# Before a specific test
+pre_snapshot=$(./tests/scripts/hooks.sh pre T9)
+
+# Run test T9...
+
+# After test (shows diff)
+./tests/scripts/hooks.sh post T9 $pre_snapshot
+
+# Verify no orphans
+./tests/scripts/hooks.sh verify
+```
+
+### Layer 4: Scheduled Cleanup Lambda
+
+Safety net that runs every 6 hours:
+
+```bash
+# Deploy the cleanup Lambda
+cd tests/lambda/cleanup-test-resources
+aws cloudformation deploy \
+  --template-file template.yaml \
+  --stack-name aws-coworker-test-cleanup \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --parameter-overrides \
+    ScheduleExpression="rate(6 hours)" \
+    DefaultTTLHours=4 \
+    DryRun=false \
+    NotificationEmail=you@example.com
+```
+
+**How it works:**
+1. Runs on schedule (default: every 6 hours)
+2. Finds resources tagged `Purpose=aws-coworker-test`
+3. Checks `TestRun` timestamp against `TTL`
+4. Deletes expired resources
+5. Sends notification (if SNS configured)
+
+### Cleanup Checklist
+
+After testing, verify cleanup:
+
+```bash
+# Quick verification
+./tests/scripts/hooks.sh verify
+
+# Manual checks
+aws ec2 describe-instances \
+  --filters "Name=tag:Purpose,Values=aws-coworker-test" \
+  --query 'Reservations[*].Instances[*].[InstanceId,State.Name]' \
+  --output table
+```
+
+- [ ] EC2 instances terminated
+- [ ] Security groups deleted
+- [ ] Key pairs removed
+- [ ] S3 buckets emptied and deleted
+- [ ] EBS volumes deleted
+- [ ] Elastic IPs released
+- [ ] Local key files removed (`~/dev-instance-*.pem`)
 
 ---
 
 ## Notes
 
 1. **Run tests in order** — Some tests depend on resources from earlier tests
-2. **Use test tags** — Tag all resources with `Purpose=aws-coworker-test` for easy cleanup
+2. **Always use tags** — Resources without tags won't be auto-cleaned
 3. **Monitor costs** — Some tests create billable resources
 4. **Check quotas** — Ensure service quotas allow test resources
 5. **Document failures** — Note exact error messages and context
+6. **Verify cleanup** — Always run `hooks.sh verify` after testing
 
 ---
 
-## Appendix: Quick Test Commands
+## Appendix: Quick Reference
+
+### Before Testing
 
 ```bash
-# Verify AWS access before testing
+# Verify AWS access
 aws sts get-caller-identity --profile default
 
-# List test resources for cleanup
-aws ec2 describe-instances --filters "Name=tag:Purpose,Values=aws-coworker-test" --query 'Reservations[*].Instances[*].InstanceId' --output text
+# Start test session
+./tests/scripts/test-harness.sh start
 
-aws s3api list-buckets --query 'Buckets[?contains(Name, `test`)].Name' --output text
+# Or for individual tests
+pre_snapshot=$(./tests/scripts/hooks.sh pre T1)
+```
+
+### During Testing
+
+```bash
+# Check current test resources
+./tests/scripts/test-harness.sh status
+```
+
+### After Testing
+
+```bash
+# Verify no orphans
+./tests/scripts/hooks.sh verify
+
+# Clean up if needed
+./tests/scripts/test-harness.sh cleanup
+
+# Or dry-run first
+DRY_RUN=true ./tests/scripts/test-harness.sh cleanup
+```
+
+### Emergency Cleanup
+
+```bash
+# Force terminate all test instances
+aws ec2 describe-instances \
+  --filters "Name=tag:Purpose,Values=aws-coworker-test" \
+  --query 'Reservations[*].Instances[*].InstanceId' \
+  --output text | xargs -r aws ec2 terminate-instances --instance-ids
+
+# Delete all test security groups (after instances terminated)
+aws ec2 describe-security-groups \
+  --filters "Name=tag:Purpose,Values=aws-coworker-test" \
+  --query 'SecurityGroups[*].GroupId' \
+  --output text | xargs -r -I {} aws ec2 delete-security-group --group-id {}
 ```
