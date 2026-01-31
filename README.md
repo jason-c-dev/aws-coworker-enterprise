@@ -22,6 +22,26 @@ AWS Coworker is built on **[Claude Code](https://claude.ai/code)** and **Anthrop
 
 ---
 
+## Important Notice
+
+**You are responsible for what AWS Coworker does to your AWS account(s).**
+
+While we continue to enhance and test AWS Coworker's safety guardrails, managing complex cloud architectures requires more than opinionated frameworks. Every AWS environment is unique—different account structures, security requirements, compliance needs, and operational patterns.
+
+AWS Coworker is designed to **augment, not replace**:
+- Platform Engineers
+- DevOps Engineers
+- Cloud Architects
+- Site Reliability Engineers (SREs)
+- Security Engineers
+- FinOps Practitioners
+
+**The non-deterministic nature of generative AI is a double-edged sword.** It enables Claude to navigate complexity, adapt to unique situations, and provide nuanced recommendations that brittle rule-based systems cannot. But it also means outputs can vary, and human judgment remains essential.
+
+AWS Coworker provides guardrails, approval gates, and safety defaults—but **you must review plans before execution**, especially for production workloads. The system is a powerful tool to help you work faster and more consistently, not an autopilot.
+
+---
+
 ## What is AWS Coworker?
 
 AWS Coworker is a **production-ready system** for managing AWS with Claude. The core works out of the box, and the layered architecture lets you extend it for your organization's needs. It provides:

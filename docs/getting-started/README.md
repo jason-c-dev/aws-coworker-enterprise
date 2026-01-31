@@ -19,6 +19,8 @@ AWS Coworker is a **production-ready system** built on [Claude Code](https://cla
 | Slash commands | Safety-first workflows with approval gates |
 | Model flexibility | Cost-optimized model hierarchy (Opus/Sonnet/Haiku) |
 
+> **Important:** AWS Coworker augments—it doesn't replace—your expertise. You remain responsible for what it does to your AWS account(s). Always review plans before execution, especially for production workloads. See the [full notice in README](../../README.md#important-notice).
+
 ---
 
 ## What You'll Learn

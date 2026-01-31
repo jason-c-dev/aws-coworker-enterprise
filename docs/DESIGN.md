@@ -41,6 +41,25 @@ AWS Coworker augments AWS best practices with Claude's agentic capabilities:
 
 **The goal:** Show how Claude can be a trusted partner for cloud operations—not by constraining it, but by giving it the right context, guardrails, and patterns.
 
+### Important: User Responsibility & AI Augmentation
+
+**Users are responsible for what AWS Coworker does to their AWS account(s).**
+
+Managing complex cloud architectures requires more than opinionated frameworks. Every AWS environment is unique—different account structures, security requirements, compliance needs, and operational patterns. Deterministic systems alone cannot address this complexity; that's precisely where generative AI provides value.
+
+AWS Coworker is designed to **augment, not replace** platform engineers, DevOps teams, cloud architects, SREs, security engineers, and FinOps practitioners.
+
+**The non-deterministic nature of generative AI is a double-edged sword:**
+
+| Benefit | Trade-off |
+|---------|-----------|
+| Adapts to unique situations | Outputs can vary between runs |
+| Navigates complexity that breaks rule-based systems | Requires human review of recommendations |
+| Provides nuanced, context-aware guidance | Confidence doesn't guarantee correctness |
+| Handles novel scenarios | May require iteration to get desired results |
+
+AWS Coworker provides guardrails, approval gates, and safety defaults—but human judgment remains essential, especially for production workloads. The system is a powerful tool to help teams work faster and more consistently, not an autopilot.
+
 ### What AWS Coworker Provides
 
 - **A complete library** of agents, skills, and workflows for safe, effective AWS operations
