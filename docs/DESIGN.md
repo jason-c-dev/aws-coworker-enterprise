@@ -25,11 +25,11 @@
 
 ## 1. Executive Summary
 
-**AWS Coworker** is a reference implementation demonstrating how to use [Claude Code](https://claude.ai/code) and Anthropic's Claude Agent SDK safely and effectively for enterprise AWS infrastructure management.
+**AWS Coworker** is a batteries-included system for enterprise AWS infrastructure management, built on [Claude Code](https://claude.ai/code) and Anthropic's Claude Agent SDK. The core works out of the box. The layered architecture lets organizations extend it for their specific needs.
 
 ### Built on Claude Code
 
-AWS Coworker doesn't hide that Claude is the underlying technology—it embraces it. The system demonstrates how Claude's agentic capabilities can be harnessed for enterprise infrastructure work through:
+AWS Coworker augments AWS best practices with Claude's agentic capabilities:
 
 | What Claude Code Provides | What AWS Coworker Adds |
 |---------------------------|------------------------|
@@ -43,7 +43,7 @@ AWS Coworker doesn't hide that Claude is the underlying technology—it embraces
 
 ### What AWS Coworker Provides
 
-- **A reference library** of agents, skills, and workflows for safe, effective AWS operations
+- **A complete library** of agents, skills, and workflows for safe, effective AWS operations
 - **A meta-layer** enabling self-evolution through meta-agents, meta-skills, and meta-commands
 - **GitOps-native governance** with human approval, audit trails, and rollback capabilities
 - **Enterprise-grade flexibility** supporting single-account through complex multi-account Organizations

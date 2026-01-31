@@ -1,6 +1,6 @@
 # AWS Coworker
 
-**A reference implementation showing how to use [Claude Code](https://claude.ai/code) safely and effectively for enterprise AWS infrastructure management.**
+**A batteries-included system for enterprise AWS infrastructure management, built on [Claude Code](https://claude.ai/code). Works out of the box. Designed to be extended.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -24,7 +24,7 @@ AWS Coworker is built on **[Claude Code](https://claude.ai/code)** and **Anthrop
 
 ## What is AWS Coworker?
 
-AWS Coworker is a **reference implementation** for using Claude Code with AWS. It provides:
+AWS Coworker is a **production-ready system** for managing AWS with Claude. The core works out of the box, and the layered architecture lets you extend it for your organization's needs. It provides:
 
 - **Curated Agents** — Pre-configured agents for planning, execution, compliance, and cost analysis
 - **AWS Skills Library** — CLI patterns, Well-Architected pillars, governance policies
@@ -32,7 +32,7 @@ AWS Coworker is a **reference implementation** for using Claude Code with AWS. I
 - **Enterprise Patterns** — Multi-account, multi-region orchestration with parallel execution
 - **Self-Evolution** — Meta-layer that can extend itself based on usage patterns
 
-AWS Coworker demonstrates that Claude isn't just capable of infrastructure work—it can do it **safely, efficiently, and at scale** when given proper structure.
+With proper structure, Claude handles infrastructure work **safely, efficiently, and at scale**.
 
 ---
 
