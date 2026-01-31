@@ -66,8 +66,15 @@ init_state() {
     "s3_buckets": [],
     "ebs_volumes": [],
     "elastic_ips": [],
+    "eks_clusters": [],
+    "ecs_clusters": [],
+    "rds_instances": [],
+    "lambda_functions": [],
+    "nat_gateways": [],
+    "cloudformation_stacks": [],
     "other": []
   },
+  "test_results": {},
   "cleanup_completed": false
 }
 EOF
@@ -346,22 +353,292 @@ cleanup_elastic_ips() {
     done
 }
 
+cleanup_eks_clusters() {
+    log "Cleaning up EKS clusters..."
+
+    local clusters=$(aws eks list-clusters \
+        --profile "$AWS_PROFILE" \
+        --region "$AWS_REGION" \
+        --query 'clusters' \
+        --output text 2>/dev/null || echo "")
+
+    if [[ -z "$clusters" ]]; then
+        log_success "No EKS clusters to check"
+        return
+    fi
+
+    for cluster in $clusters; do
+        # Check if cluster has test tags
+        local tags=$(aws eks describe-cluster \
+            --profile "$AWS_PROFILE" \
+            --region "$AWS_REGION" \
+            --name "$cluster" \
+            --query 'cluster.tags' \
+            --output json 2>/dev/null || echo "{}")
+
+        if echo "$tags" | grep -q "aws-coworker-test"; then
+            if [[ "$DRY_RUN" == "true" ]]; then
+                log_warn "[DRY RUN] Would delete EKS cluster: $cluster"
+            else
+                log "Deleting EKS cluster: $cluster (this may take several minutes)"
+                # Delete nodegroups first
+                local nodegroups=$(aws eks list-nodegroups \
+                    --profile "$AWS_PROFILE" \
+                    --region "$AWS_REGION" \
+                    --cluster-name "$cluster" \
+                    --query 'nodegroups' \
+                    --output text 2>/dev/null || echo "")
+                for ng in $nodegroups; do
+                    aws eks delete-nodegroup \
+                        --profile "$AWS_PROFILE" \
+                        --region "$AWS_REGION" \
+                        --cluster-name "$cluster" \
+                        --nodegroup-name "$ng" 2>/dev/null || true
+                done
+                # Wait for nodegroups to delete, then delete cluster
+                sleep 30
+                aws eks delete-cluster \
+                    --profile "$AWS_PROFILE" \
+                    --region "$AWS_REGION" \
+                    --name "$cluster" 2>/dev/null || true
+                log_success "Initiated deletion: $cluster"
+            fi
+        fi
+    done
+}
+
+cleanup_rds_instances() {
+    log "Cleaning up RDS instances..."
+
+    local instances=$(aws rds describe-db-instances \
+        --profile "$AWS_PROFILE" \
+        --region "$AWS_REGION" \
+        --query 'DBInstances[*].DBInstanceIdentifier' \
+        --output text 2>/dev/null || echo "")
+
+    if [[ -z "$instances" ]]; then
+        log_success "No RDS instances to check"
+        return
+    fi
+
+    for instance in $instances; do
+        local tags=$(aws rds list-tags-for-resource \
+            --profile "$AWS_PROFILE" \
+            --region "$AWS_REGION" \
+            --resource-name "arn:aws:rds:${AWS_REGION}:$(aws sts get-caller-identity --query Account --output text):db:${instance}" \
+            --query 'TagList' \
+            --output json 2>/dev/null || echo "[]")
+
+        if echo "$tags" | grep -q "aws-coworker-test"; then
+            if [[ "$DRY_RUN" == "true" ]]; then
+                log_warn "[DRY RUN] Would delete RDS instance: $instance"
+            else
+                log "Deleting RDS instance: $instance (skipping final snapshot)"
+                aws rds delete-db-instance \
+                    --profile "$AWS_PROFILE" \
+                    --region "$AWS_REGION" \
+                    --db-instance-identifier "$instance" \
+                    --skip-final-snapshot \
+                    --delete-automated-backups 2>/dev/null || true
+                log_success "Initiated deletion: $instance"
+            fi
+        fi
+    done
+}
+
+cleanup_lambda_functions() {
+    log "Cleaning up Lambda functions..."
+
+    local functions=$(aws lambda list-functions \
+        --profile "$AWS_PROFILE" \
+        --region "$AWS_REGION" \
+        --query 'Functions[*].FunctionName' \
+        --output text 2>/dev/null || echo "")
+
+    if [[ -z "$functions" ]]; then
+        log_success "No Lambda functions to check"
+        return
+    fi
+
+    for func in $functions; do
+        local tags=$(aws lambda list-tags \
+            --profile "$AWS_PROFILE" \
+            --region "$AWS_REGION" \
+            --resource "arn:aws:lambda:${AWS_REGION}:$(aws sts get-caller-identity --query Account --output text):function:${func}" \
+            --query 'Tags' \
+            --output json 2>/dev/null || echo "{}")
+
+        if echo "$tags" | grep -q "aws-coworker-test"; then
+            if [[ "$DRY_RUN" == "true" ]]; then
+                log_warn "[DRY RUN] Would delete Lambda: $func"
+            else
+                log "Deleting Lambda function: $func"
+                aws lambda delete-function \
+                    --profile "$AWS_PROFILE" \
+                    --region "$AWS_REGION" \
+                    --function-name "$func" 2>/dev/null || true
+                log_success "Deleted: $func"
+            fi
+        fi
+    done
+}
+
+cleanup_ecs_clusters() {
+    log "Cleaning up ECS clusters..."
+
+    local clusters=$(aws ecs list-clusters \
+        --profile "$AWS_PROFILE" \
+        --region "$AWS_REGION" \
+        --query 'clusterArns' \
+        --output text 2>/dev/null || echo "")
+
+    if [[ -z "$clusters" ]]; then
+        log_success "No ECS clusters to check"
+        return
+    fi
+
+    for cluster_arn in $clusters; do
+        local tags=$(aws ecs list-tags-for-resource \
+            --profile "$AWS_PROFILE" \
+            --region "$AWS_REGION" \
+            --resource-arn "$cluster_arn" \
+            --query 'tags' \
+            --output json 2>/dev/null || echo "[]")
+
+        if echo "$tags" | grep -q "aws-coworker-test"; then
+            local cluster_name=$(echo "$cluster_arn" | awk -F'/' '{print $NF}')
+            if [[ "$DRY_RUN" == "true" ]]; then
+                log_warn "[DRY RUN] Would delete ECS cluster: $cluster_name"
+            else
+                log "Deleting ECS cluster: $cluster_name"
+                # Stop all services first
+                local services=$(aws ecs list-services \
+                    --profile "$AWS_PROFILE" \
+                    --region "$AWS_REGION" \
+                    --cluster "$cluster_name" \
+                    --query 'serviceArns' \
+                    --output text 2>/dev/null || echo "")
+                for svc in $services; do
+                    aws ecs delete-service \
+                        --profile "$AWS_PROFILE" \
+                        --region "$AWS_REGION" \
+                        --cluster "$cluster_name" \
+                        --service "$svc" \
+                        --force 2>/dev/null || true
+                done
+                aws ecs delete-cluster \
+                    --profile "$AWS_PROFILE" \
+                    --region "$AWS_REGION" \
+                    --cluster "$cluster_name" 2>/dev/null || true
+                log_success "Deleted: $cluster_name"
+            fi
+        fi
+    done
+}
+
+cleanup_nat_gateways() {
+    log "Cleaning up NAT Gateways..."
+
+    local nats=$(aws ec2 describe-nat-gateways \
+        --profile "$AWS_PROFILE" \
+        --region "$AWS_REGION" \
+        --filter "Name=tag:Purpose,Values=aws-coworker-test" "Name=state,Values=available,pending" \
+        --query 'NatGateways[*].NatGatewayId' \
+        --output text 2>/dev/null || echo "")
+
+    if [[ -z "$nats" ]]; then
+        log_success "No NAT Gateways to clean up"
+        return
+    fi
+
+    for nat_id in $nats; do
+        if [[ "$DRY_RUN" == "true" ]]; then
+            log_warn "[DRY RUN] Would delete NAT Gateway: $nat_id"
+        else
+            log "Deleting NAT Gateway: $nat_id"
+            aws ec2 delete-nat-gateway \
+                --profile "$AWS_PROFILE" \
+                --region "$AWS_REGION" \
+                --nat-gateway-id "$nat_id" > /dev/null
+            log_success "Initiated deletion: $nat_id"
+        fi
+    done
+}
+
+cleanup_cloudformation_stacks() {
+    log "Cleaning up CloudFormation stacks..."
+
+    local stacks=$(aws cloudformation list-stacks \
+        --profile "$AWS_PROFILE" \
+        --region "$AWS_REGION" \
+        --stack-status-filter CREATE_COMPLETE UPDATE_COMPLETE ROLLBACK_COMPLETE \
+        --query 'StackSummaries[*].StackName' \
+        --output text 2>/dev/null || echo "")
+
+    if [[ -z "$stacks" ]]; then
+        log_success "No CloudFormation stacks to check"
+        return
+    fi
+
+    for stack in $stacks; do
+        local tags=$(aws cloudformation describe-stacks \
+            --profile "$AWS_PROFILE" \
+            --region "$AWS_REGION" \
+            --stack-name "$stack" \
+            --query 'Stacks[0].Tags' \
+            --output json 2>/dev/null || echo "[]")
+
+        if echo "$tags" | grep -q "aws-coworker-test"; then
+            if [[ "$DRY_RUN" == "true" ]]; then
+                log_warn "[DRY RUN] Would delete stack: $stack"
+            else
+                log "Deleting CloudFormation stack: $stack"
+                aws cloudformation delete-stack \
+                    --profile "$AWS_PROFILE" \
+                    --region "$AWS_REGION" \
+                    --stack-name "$stack" 2>/dev/null || true
+                log_success "Initiated deletion: $stack"
+            fi
+        fi
+    done
+}
+
 cleanup_all() {
     log "Starting full cleanup..."
 
-    # Order matters - instances first, then dependent resources
+    # Order matters - highest-level resources first, then dependencies
+
+    # 1. Container orchestration (slow to delete)
+    cleanup_eks_clusters
+    cleanup_ecs_clusters
+
+    # 2. Databases (slow to delete)
+    cleanup_rds_instances
+
+    # 3. Compute
     cleanup_ec2_instances
+    cleanup_lambda_functions
 
     # Wait for instances to fully terminate
     log "Waiting for instances to terminate..."
-    sleep 10
+    sleep 15
 
-    cleanup_security_groups
-    cleanup_key_pairs
-    cleanup_s3_buckets
+    # 4. Networking (after compute)
+    cleanup_nat_gateways
     cleanup_elastic_ips
+    cleanup_security_groups
+
+    # 5. Storage
+    cleanup_s3_buckets
+
+    # 6. Key management
+    cleanup_key_pairs
+
+    # 7. Infrastructure as Code (may have dependencies)
+    cleanup_cloudformation_stacks
 
     log_success "Cleanup complete!"
+    log "Note: Some resources (EKS, RDS) delete asynchronously. Run 'status' to verify."
 }
 
 #######################################
@@ -433,6 +710,89 @@ cmd_cleanup() {
     fi
 }
 
+#######################################
+# Test Result Recording
+#######################################
+FRAMEWORK_FILE="${TESTS_DIR}/TEST-FRAMEWORK.md"
+
+record_test_result() {
+    local test_id="$1"
+    local status="$2"  # pass, fail, skip
+    local notes="${3:-}"
+
+    local date_str=$(date +%Y-%m-%d)
+    local emoji=""
+
+    case "$status" in
+        pass)   emoji="✅" ;;
+        fail)   emoji="❌" ;;
+        skip)   emoji="⏭️" ;;
+        *)      emoji="🟡" ;;
+    esac
+
+    if [[ ! -f "$FRAMEWORK_FILE" ]]; then
+        log_error "TEST-FRAMEWORK.md not found at $FRAMEWORK_FILE"
+        return 1
+    fi
+
+    # Update the tracking table in TEST-FRAMEWORK.md
+    # Look for line starting with "| $test_id |" and update it
+    if grep -q "^| $test_id |" "$FRAMEWORK_FILE"; then
+        # Use sed to update the line
+        sed -i.bak "s/^| $test_id |.*$/| $test_id | $emoji | $date_str | $notes |/" "$FRAMEWORK_FILE"
+        rm -f "${FRAMEWORK_FILE}.bak"
+        log_success "Updated $test_id: $emoji ($status)"
+    else
+        log_warn "Test $test_id not found in tracking table"
+    fi
+
+    # Also record in state file if it exists
+    if [[ -f "$STATE_FILE" ]]; then
+        local tmp_file=$(mktemp)
+        jq --arg id "$test_id" \
+           --arg status "$status" \
+           --arg date "$date_str" \
+           --arg notes "$notes" \
+           '.test_results[$id] = {"status": $status, "date": $date, "notes": $notes}' \
+           "$STATE_FILE" > "$tmp_file" && mv "$tmp_file" "$STATE_FILE"
+    fi
+}
+
+cmd_record() {
+    local test_id="${1:-}"
+    local status="${2:-}"
+    local notes="${3:-}"
+
+    if [[ -z "$test_id" || -z "$status" ]]; then
+        echo "Usage: $0 record <test_id> <pass|fail|skip> [notes]"
+        echo ""
+        echo "Examples:"
+        echo "  $0 record T1 pass"
+        echo "  $0 record T9 pass 'EC2 launched successfully'"
+        echo "  $0 record T14 fail 'Permission denied error'"
+        echo "  $0 record T26 skip 'Requires bootstrap permissions'"
+        return 1
+    fi
+
+    record_test_result "$test_id" "$status" "$notes"
+}
+
+cmd_results() {
+    log "Test Results from TEST-FRAMEWORK.md:"
+    echo ""
+
+    if [[ ! -f "$FRAMEWORK_FILE" ]]; then
+        log_error "TEST-FRAMEWORK.md not found"
+        return 1
+    fi
+
+    # Extract and display the tracking table
+    awk '/^## Test Execution Tracking/,/^---/' "$FRAMEWORK_FILE" | head -20
+
+    echo ""
+    echo "Legend: ✅ Pass | ❌ Fail | ⏭️ Skipped | ⬜ Not Run | 🟡 In Progress"
+}
+
 cmd_help() {
     cat << EOF
 AWS Coworker Test Harness
@@ -440,9 +800,16 @@ AWS Coworker Test Harness
 Usage: $0 <command> [options]
 
 Commands:
-  start     Initialize test session, take snapshot, prepare for tests
-  status    Show current test resources that would be cleaned up
-  cleanup   Clean up all test resources (interactive)
+  start                         Initialize test session, take snapshot
+  status                        Show current test resources
+  cleanup                       Clean up all test resources (interactive)
+  record <id> <status> [notes]  Record test result to TEST-FRAMEWORK.md
+  results                       Show test results summary
+
+Status values for 'record':
+  pass    Test passed
+  fail    Test failed
+  skip    Test skipped
 
 Options:
   AWS_PROFILE=name    AWS profile to use (default: default)
@@ -451,11 +818,14 @@ Options:
   DRY_RUN=true        Show what would be deleted without deleting
 
 Examples:
-  $0 start                          # Start test session
-  $0 status                         # Show test resources
-  $0 cleanup                        # Interactive cleanup
-  DRY_RUN=true $0 cleanup           # Preview cleanup
-  AWS_REGION=us-west-2 $0 cleanup   # Cleanup in specific region
+  $0 start                                  # Start test session
+  $0 status                                 # Show test resources
+  $0 cleanup                                # Interactive cleanup
+  $0 record T1 pass                         # Record T1 as passed
+  $0 record T9 pass 'EC2 launched OK'       # With notes
+  $0 record T14 fail 'Permission denied'    # Record failure
+  $0 results                                # Show all results
+  DRY_RUN=true $0 cleanup                   # Preview cleanup
 
 EOF
 }
@@ -472,6 +842,12 @@ case "${1:-help}" in
         ;;
     cleanup)
         cmd_cleanup
+        ;;
+    record)
+        cmd_record "${2:-}" "${3:-}" "${4:-}"
+        ;;
+    results)
+        cmd_results
         ;;
     help|--help|-h)
         cmd_help

@@ -25,7 +25,16 @@ TAG_PURPOSE = 'aws-coworker-test'
 # Clients
 ec2 = boto3.client('ec2')
 s3 = boto3.client('s3')
+eks = boto3.client('eks')
+rds = boto3.client('rds')
+lambda_client = boto3.client('lambda')
+ecs = boto3.client('ecs')
+sts = boto3.client('sts')
 sns = boto3.client('sns') if SNS_TOPIC_ARN else None
+
+# Get account ID for ARN construction
+ACCOUNT_ID = sts.get_caller_identity()['Account']
+REGION = boto3.session.Session().region_name
 
 
 def lambda_handler(event, context):
@@ -41,19 +50,39 @@ def lambda_handler(event, context):
             'key_pairs': [],
             's3_buckets': [],
             'elastic_ips': [],
-            'ebs_volumes': []
+            'ebs_volumes': [],
+            'eks_clusters': [],
+            'rds_instances': [],
+            'lambda_functions': [],
+            'ecs_clusters': [],
+            'nat_gateways': []
         },
         'errors': [],
         'skipped': []
     }
 
     try:
-        # Clean up in order of dependencies
+        # Clean up in order of dependencies (highest-level first)
+
+        # 1. Container orchestration (slow, start early)
+        results['cleaned']['eks_clusters'] = cleanup_eks_clusters()
+        results['cleaned']['ecs_clusters'] = cleanup_ecs_clusters()
+
+        # 2. Databases
+        results['cleaned']['rds_instances'] = cleanup_rds_instances()
+
+        # 3. Compute
         results['cleaned']['ec2_instances'] = cleanup_ec2_instances()
+        results['cleaned']['lambda_functions'] = cleanup_lambda_functions()
         results['cleaned']['ebs_volumes'] = cleanup_ebs_volumes()
-        results['cleaned']['security_groups'] = cleanup_security_groups()
-        results['cleaned']['key_pairs'] = cleanup_key_pairs()
+
+        # 4. Networking
+        results['cleaned']['nat_gateways'] = cleanup_nat_gateways()
         results['cleaned']['elastic_ips'] = cleanup_elastic_ips()
+        results['cleaned']['security_groups'] = cleanup_security_groups()
+
+        # 5. Storage & keys
+        results['cleaned']['key_pairs'] = cleanup_key_pairs()
         results['cleaned']['s3_buckets'] = cleanup_s3_buckets()
 
     except Exception as e:
@@ -287,6 +316,173 @@ def cleanup_s3_buckets() -> List[str]:
     return cleaned
 
 
+def cleanup_eks_clusters() -> List[str]:
+    """Delete expired EKS clusters."""
+    cleaned = []
+
+    try:
+        response = eks.list_clusters()
+        for cluster_name in response.get('clusters', []):
+            try:
+                cluster = eks.describe_cluster(name=cluster_name)
+                tags = cluster['cluster'].get('tags', {})
+
+                # Convert dict tags to list format for should_cleanup
+                tag_list = [{'Key': k, 'Value': v} for k, v in tags.items()]
+
+                if should_cleanup(tag_list):
+                    if not DRY_RUN:
+                        # Delete nodegroups first
+                        nodegroups = eks.list_nodegroups(clusterName=cluster_name)
+                        for ng in nodegroups.get('nodegroups', []):
+                            eks.delete_nodegroup(clusterName=cluster_name, nodegroupName=ng)
+                            print(f"Deleting nodegroup: {ng}")
+
+                        # Delete cluster (async)
+                        eks.delete_cluster(name=cluster_name)
+                        print(f"Initiated EKS cluster deletion: {cluster_name}")
+                    else:
+                        print(f"[DRY RUN] Would delete EKS cluster: {cluster_name}")
+
+                    cleaned.append(cluster_name)
+            except Exception as e:
+                print(f"Error processing EKS cluster {cluster_name}: {e}")
+    except Exception as e:
+        print(f"Error listing EKS clusters: {e}")
+
+    return cleaned
+
+
+def cleanup_rds_instances() -> List[str]:
+    """Delete expired RDS instances."""
+    cleaned = []
+
+    try:
+        paginator = rds.get_paginator('describe_db_instances')
+        for page in paginator.paginate():
+            for instance in page['DBInstances']:
+                db_id = instance['DBInstanceIdentifier']
+                db_arn = instance['DBInstanceArn']
+
+                try:
+                    tags_response = rds.list_tags_for_resource(ResourceName=db_arn)
+                    tags = [{'Key': t['Key'], 'Value': t['Value']} for t in tags_response.get('TagList', [])]
+
+                    if should_cleanup(tags):
+                        if not DRY_RUN:
+                            rds.delete_db_instance(
+                                DBInstanceIdentifier=db_id,
+                                SkipFinalSnapshot=True,
+                                DeleteAutomatedBackups=True
+                            )
+                            print(f"Initiated RDS deletion: {db_id}")
+                        else:
+                            print(f"[DRY RUN] Would delete RDS instance: {db_id}")
+
+                        cleaned.append(db_id)
+                except Exception as e:
+                    print(f"Error processing RDS instance {db_id}: {e}")
+    except Exception as e:
+        print(f"Error listing RDS instances: {e}")
+
+    return cleaned
+
+
+def cleanup_lambda_functions() -> List[str]:
+    """Delete expired Lambda functions."""
+    cleaned = []
+
+    try:
+        paginator = lambda_client.get_paginator('list_functions')
+        for page in paginator.paginate():
+            for func in page['Functions']:
+                func_name = func['FunctionName']
+                func_arn = func['FunctionArn']
+
+                try:
+                    tags_response = lambda_client.list_tags(Resource=func_arn)
+                    tags = [{'Key': k, 'Value': v} for k, v in tags_response.get('Tags', {}).items()]
+
+                    if should_cleanup(tags):
+                        if not DRY_RUN:
+                            lambda_client.delete_function(FunctionName=func_name)
+                            print(f"Deleted Lambda function: {func_name}")
+                        else:
+                            print(f"[DRY RUN] Would delete Lambda: {func_name}")
+
+                        cleaned.append(func_name)
+                except Exception as e:
+                    print(f"Error processing Lambda {func_name}: {e}")
+    except Exception as e:
+        print(f"Error listing Lambda functions: {e}")
+
+    return cleaned
+
+
+def cleanup_ecs_clusters() -> List[str]:
+    """Delete expired ECS clusters."""
+    cleaned = []
+
+    try:
+        response = ecs.list_clusters()
+        for cluster_arn in response.get('clusterArns', []):
+            try:
+                tags_response = ecs.list_tags_for_resource(resourceArn=cluster_arn)
+                tags = [{'Key': t['key'], 'Value': t['value']} for t in tags_response.get('tags', [])]
+
+                if should_cleanup(tags):
+                    cluster_name = cluster_arn.split('/')[-1]
+
+                    if not DRY_RUN:
+                        # Stop and delete services first
+                        services = ecs.list_services(cluster=cluster_name)
+                        for svc_arn in services.get('serviceArns', []):
+                            ecs.delete_service(cluster=cluster_name, service=svc_arn, force=True)
+
+                        ecs.delete_cluster(cluster=cluster_name)
+                        print(f"Deleted ECS cluster: {cluster_name}")
+                    else:
+                        print(f"[DRY RUN] Would delete ECS cluster: {cluster_name}")
+
+                    cleaned.append(cluster_name)
+            except Exception as e:
+                print(f"Error processing ECS cluster {cluster_arn}: {e}")
+    except Exception as e:
+        print(f"Error listing ECS clusters: {e}")
+
+    return cleaned
+
+
+def cleanup_nat_gateways() -> List[str]:
+    """Delete expired NAT Gateways."""
+    cleaned = []
+
+    try:
+        paginator = ec2.get_paginator('describe_nat_gateways')
+        for page in paginator.paginate(
+            Filters=[
+                {'Name': 'tag:Purpose', 'Values': [TAG_PURPOSE]},
+                {'Name': 'state', 'Values': ['available', 'pending']}
+            ]
+        ):
+            for nat in page['NatGateways']:
+                nat_id = nat['NatGatewayId']
+                tags = nat.get('Tags', [])
+
+                if should_cleanup(tags):
+                    if not DRY_RUN:
+                        ec2.delete_nat_gateway(NatGatewayId=nat_id)
+                        print(f"Initiated NAT Gateway deletion: {nat_id}")
+                    else:
+                        print(f"[DRY RUN] Would delete NAT Gateway: {nat_id}")
+
+                    cleaned.append(nat_id)
+    except Exception as e:
+        print(f"Error cleaning NAT Gateways: {e}")
+
+    return cleaned
+
+
 def send_notification(results: Dict[str, Any]):
     """Send SNS notification about cleanup."""
     if not sns:
@@ -303,7 +499,12 @@ Dry Run: {results['dry_run']}
 Resources Cleaned: {total_cleaned}
 
 Details:
+- EKS Clusters: {len(results['cleaned']['eks_clusters'])}
+- ECS Clusters: {len(results['cleaned']['ecs_clusters'])}
+- RDS Instances: {len(results['cleaned']['rds_instances'])}
 - EC2 Instances: {len(results['cleaned']['ec2_instances'])}
+- Lambda Functions: {len(results['cleaned']['lambda_functions'])}
+- NAT Gateways: {len(results['cleaned']['nat_gateways'])}
 - Security Groups: {len(results['cleaned']['security_groups'])}
 - Key Pairs: {len(results['cleaned']['key_pairs'])}
 - S3 Buckets: {len(results['cleaned']['s3_buckets'])}
