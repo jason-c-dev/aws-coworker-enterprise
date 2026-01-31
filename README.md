@@ -8,7 +8,7 @@
 
 ## Built on Claude Code
 
-AWS Coworker is built on **[Claude Code](https://claude.ai/code)** and **Anthropic's Claude Agent SDK**. Rather than hiding that Claude is the underlying technology, we embrace it—demonstrating how Claude's agentic capabilities can be harnessed for enterprise infrastructure work.
+AWS Coworker is built on **[Claude Code](https://claude.ai/code)** and **Anthropic's Claude Agent SDK**, augmenting AWS best practices with Claude's agentic capabilities for safe, effective infrastructure management.
 
 | What Claude Code Provides | What AWS Coworker Adds |
 |---------------------------|------------------------|

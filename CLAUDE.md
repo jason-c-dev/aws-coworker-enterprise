@@ -15,7 +15,7 @@ AWS Coworker is built on **[Claude Code](https://claude.ai/code)** and **Anthrop
 | Slash commands | Safety-first workflows with approval gates |
 | Model selection | Tiered strategy: orchestrator (your model) + workers (Haiku/Sonnet) |
 
-**This is not a wrapper that hides Claude**—it's a reference implementation showing how to give Claude the right context, guardrails, and patterns for enterprise cloud work.
+AWS Coworker gives Claude the right context, guardrails, and patterns for enterprise cloud work.
 
 ---
 
