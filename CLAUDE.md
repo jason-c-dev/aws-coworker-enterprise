@@ -4,6 +4,21 @@
 
 ---
 
+## About AWS Coworker
+
+AWS Coworker is built on **[Claude Code](https://claude.ai/code)** and **Anthropic's Claude Agent SDK**. It demonstrates how Claude's agentic capabilities can be used safely and effectively for enterprise AWS infrastructure management.
+
+| Claude Code Capability | AWS Coworker Implementation |
+|------------------------|----------------------------|
+| Task tool (sub-agents) | Specialized AWS agents (Planner, Executor, Guardrail) |
+| Skill system | AWS CLI patterns, Well-Architected guidance, governance policies |
+| Slash commands | Safety-first workflows with approval gates |
+| Model selection | Tiered strategy: orchestrator (your model) + workers (Haiku/Sonnet) |
+
+**This is not a wrapper that hides Claude**—it's a reference implementation showing how to give Claude the right context, guardrails, and patterns for enterprise cloud work.
+
+---
+
 ## Critical Instruction
 
 **NEVER execute AWS CLI commands directly.** All AWS operations must go through AWS Coworker commands to ensure:

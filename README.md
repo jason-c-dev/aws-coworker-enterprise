@@ -1,22 +1,38 @@
 # AWS Coworker
 
-**A batteries-included, fully extensible meta-system of agents, skills, and slash commands for enterprise AWS interaction.**
+**A reference implementation showing how to use [Claude Code](https://claude.ai/code) safely and effectively for enterprise AWS infrastructure management.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
 
+## Built on Claude Code
+
+AWS Coworker is built on **[Claude Code](https://claude.ai/code)** and **Anthropic's Claude Agent SDK**. Rather than hiding that Claude is the underlying technology, we embrace it—demonstrating how Claude's agentic capabilities can be harnessed for enterprise infrastructure work.
+
+| What Claude Code Provides | What AWS Coworker Adds |
+|---------------------------|------------------------|
+| Agent architecture & Task tool | AWS-specific agents with defined roles |
+| Skill system for knowledge | AWS CLI patterns, Well-Architected guidance |
+| Slash commands for workflows | Safety-first workflows with approval gates |
+| Multi-agent orchestration | Configurable thresholds for parallel execution |
+| Model flexibility (Opus, Sonnet, Haiku) | Tiered model strategy optimized for cost |
+
+**The goal:** Show how Claude can be a trusted partner for cloud operations—not by constraining it, but by giving it the right context, guardrails, and patterns.
+
+---
+
 ## What is AWS Coworker?
 
-AWS Coworker is a framework for safely and effectively interacting with AWS in enterprise environments. It provides:
+AWS Coworker is a **reference implementation** for using Claude Code with AWS. It provides:
 
-- **Reference Library** — Pre-built agents, skills, and workflows for common AWS operations
-- **Safety-First Design** — Read-only defaults, explicit approvals for mutations, blast radius awareness
-- **GitOps Native** — All changes via branches and pull requests with human review
-- **Self-Evolving** — Meta-layer that can create and refine its own capabilities based on usage
-- **Enterprise Ready** — Supports single-account through complex multi-account Organizations
+- **Curated Agents** — Pre-configured agents for planning, execution, compliance, and cost analysis
+- **AWS Skills Library** — CLI patterns, Well-Architected pillars, governance policies
+- **Safety Guardrails** — Read-only defaults, explicit approvals, production protection
+- **Enterprise Patterns** — Multi-account, multi-region orchestration with parallel execution
+- **Self-Evolution** — Meta-layer that can extend itself based on usage patterns
 
-AWS Coworker is **not** an application architecture framework—it's a platform for *interacting with AWS* safely and consistently.
+AWS Coworker demonstrates that Claude isn't just capable of infrastructure work—it can do it **safely, efficiently, and at scale** when given proper structure.
 
 ---
 
@@ -306,3 +322,13 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 - **Issues**: [GitHub Issues](https://github.com/your-org/aws-coworker-enterprise/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/your-org/aws-coworker-enterprise/discussions)
+
+---
+
+## Acknowledgments
+
+AWS Coworker is built on [Claude Code](https://claude.ai/code) and the [Claude Agent SDK](https://docs.anthropic.com/en/docs/build-with-claude/claude-code/sdk) by [Anthropic](https://www.anthropic.com).
+
+Learn more about building with Claude:
+- [Claude Code Documentation](https://docs.anthropic.com/en/docs/build-with-claude/claude-code)
+- [Anthropic API Documentation](https://docs.anthropic.com/en/api)

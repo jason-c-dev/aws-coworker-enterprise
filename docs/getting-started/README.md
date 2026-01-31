@@ -4,9 +4,26 @@ Welcome to AWS Coworker! This guide will help you get up and running quickly.
 
 ---
 
+## What is AWS Coworker?
+
+AWS Coworker is a **reference implementation** showing how to use [Claude Code](https://claude.ai/code) and Anthropic's Claude Agent SDK for enterprise AWS infrastructure management. Rather than hiding Claude as the underlying technology, AWS Coworker demonstrates how Claude's agentic capabilities can be harnessed effectively for cloud operations.
+
+**Think of it as:** Claude Code + AWS best practices + enterprise safety guardrails.
+
+### What You Get
+
+| From Claude Code | From AWS Coworker |
+|------------------|-------------------|
+| Agent architecture (Task tool) | Pre-configured agents for AWS operations |
+| Skill system | AWS CLI patterns, Well-Architected guidance |
+| Slash commands | Safety-first workflows with approval gates |
+| Model flexibility | Cost-optimized model hierarchy (Opus/Sonnet/Haiku) |
+
+---
+
 ## What You'll Learn
 
-1. How to set up AWS Coworker
+1. How to set up AWS Coworker with Claude Code
 2. How to run your first AWS interaction
 3. How to understand AWS Coworker's safety model
 4. Where to go for more advanced usage
@@ -81,7 +98,14 @@ aws configure list --profile your-profile-name
 
 ### Step 4: Open in Claude Code
 
-Open the `aws-coworker-enterprise` directory in Claude Code or your compatible Claude environment.
+Open the `aws-coworker-enterprise` directory in Claude Code. AWS Coworker leverages Claude Code's built-in capabilities:
+
+- **Task tool** — For spawning specialized sub-agents
+- **Skill system** — For loading AWS patterns and policies
+- **Slash commands** — For triggering workflows
+- **Model selection** — For cost-optimized execution
+
+When you open this directory, Claude automatically reads `CLAUDE.md` and routes all AWS-related requests through the safety model.
 
 ---
 
@@ -130,9 +154,33 @@ This will:
 
 ## Key Concepts
 
+### How AWS Coworker Uses Claude Code
+
+AWS Coworker builds on Claude Code's agent architecture:
+
+```
+Your Request
+     │
+     ▼
+CLAUDE.md (routes AWS requests)
+     │
+     ▼
+Slash Command (workflow orchestration)
+     │
+     ▼
+Primary Agent (your selected model: Opus, Sonnet)
+     │
+     ├── Reads Skills (AWS patterns, policies)
+     │
+     └── Spawns Sub-Agents via Task tool
+              │
+              ├── Haiku agents (fast read-only work)
+              └── Sonnet agents (mutations requiring care)
+```
+
 ### Agents
 
-AWS Coworker has specialized agents for different tasks:
+AWS Coworker defines specialized agents using Claude Code's Task tool:
 
 | Agent | Role |
 |-------|------|
@@ -143,7 +191,7 @@ AWS Coworker has specialized agents for different tasks:
 
 ### Skills
 
-Skills provide reference patterns and policies:
+Skills use Claude Code's skill system to provide reference patterns and policies:
 
 | Category | Examples |
 |----------|----------|

@@ -25,14 +25,30 @@
 
 ## 1. Executive Summary
 
-**AWS Coworker** is a batteries-included, fully extensible meta-system of agents, skills, and slash commands designed for enterprise AWS interaction. It provides:
+**AWS Coworker** is a reference implementation demonstrating how to use [Claude Code](https://claude.ai/code) and Anthropic's Claude Agent SDK safely and effectively for enterprise AWS infrastructure management.
+
+### Built on Claude Code
+
+AWS Coworker doesn't hide that Claude is the underlying technology—it embraces it. The system demonstrates how Claude's agentic capabilities can be harnessed for enterprise infrastructure work through:
+
+| What Claude Code Provides | What AWS Coworker Adds |
+|---------------------------|------------------------|
+| Agent architecture & Task tool | AWS-specific agents with defined roles |
+| Skill system for knowledge | AWS CLI patterns, Well-Architected guidance |
+| Slash commands for workflows | Safety-first workflows with approval gates |
+| Multi-agent orchestration | Configurable thresholds for parallel execution |
+| Model flexibility (Opus, Sonnet, Haiku) | Tiered model strategy optimized for cost |
+
+**The goal:** Show how Claude can be a trusted partner for cloud operations—not by constraining it, but by giving it the right context, guardrails, and patterns.
+
+### What AWS Coworker Provides
 
 - **A reference library** of agents, skills, and workflows for safe, effective AWS operations
 - **A meta-layer** enabling self-evolution through meta-agents, meta-skills, and meta-commands
 - **GitOps-native governance** with human approval, audit trails, and rollback capabilities
 - **Enterprise-grade flexibility** supporting single-account through complex multi-account Organizations
 
-AWS Coworker is **not** an application architecture framework—it is a platform for *interacting with AWS* safely and consistently across diverse organizational contexts.
+AWS Coworker is **not** an application architecture framework—it is a platform for *interacting with AWS* safely and consistently across diverse organizational contexts, powered by Claude.
 
 ### Key Characteristics
 
@@ -99,6 +115,16 @@ All agents, skills, and workflows align with the six pillars:
 ---
 
 ## 3. Architecture Overview
+
+AWS Coworker's architecture extends Claude Code's built-in capabilities with AWS-specific implementations:
+
+| Claude Code Capability | AWS Coworker Implementation |
+|------------------------|----------------------------|
+| **Task tool** | Spawns specialized AWS agents (Planner, Executor, Guardrail) |
+| **Skill system** | Loads AWS CLI patterns, Well-Architected guidance, governance policies |
+| **Slash commands** | Orchestrates safety-first workflows with approval gates |
+| **CLAUDE.md** | Intercepts all AWS requests and routes through safety model |
+| **Model parameter** | Tiered strategy: orchestrator (user's model) + workers (Haiku/Sonnet) |
 
 ### 3.1 Component Architecture
 
