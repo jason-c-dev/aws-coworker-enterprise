@@ -69,7 +69,7 @@ With proper structure, Claude handles infrastructure work **safely, efficiently,
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/aws-coworker-enterprise.git
+git clone https://github.com/jason-c-dev/aws-coworker-enterprise.git
 cd aws-coworker-enterprise
 
 # Verify AWS CLI access
