@@ -70,7 +70,7 @@ Before starting, ensure you have:
 ### Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/your-org/aws-coworker-enterprise.git
+git clone https://github.com/jason-c-dev/aws-coworker-enterprise.git
 cd aws-coworker-enterprise
 ```
 
