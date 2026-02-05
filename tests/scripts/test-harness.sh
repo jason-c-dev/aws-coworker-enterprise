@@ -14,6 +14,9 @@ TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 STATE_FILE="${STATE_DIR}/test-run-${TIMESTAMP}.json"
 LOG_FILE="${STATE_DIR}/test-run-${TIMESTAMP}.log"
 
+# Ensure state directory exists (needed for logging)
+mkdir -p "$STATE_DIR"
+
 # Defaults
 AWS_PROFILE="${AWS_PROFILE:-default}"
 AWS_REGION="${AWS_REGION:-us-east-1}"
