@@ -161,8 +161,23 @@ Load and apply relevant skills:
 2. Clarify if ambiguous
 3. State intended approach
 4. Seek approval for mutations
-5. Execute and report
+5. Execute via /aws-coworker-execute-nonprod (NEVER direct CLI)
+6. Report results
 ```
+
+### CRITICAL: Plan → Execute Handoff
+
+**After user approves a plan, you MUST invoke the execute command. Do NOT run AWS CLI directly.**
+
+```
+CORRECT:
+  /aws-coworker-plan-interaction → User approves → /aws-coworker-execute-nonprod
+
+WRONG:
+  /aws-coworker-plan-interaction → User approves → aws s3api create-bucket (NEVER DO THIS)
+```
+
+Plan approval authorizes the EXECUTE COMMAND to run—not you running AWS CLI directly.
 
 ### With Planner
 
@@ -213,12 +228,16 @@ User: "Add a new security group for our web servers in dev"
 
 Core Agent:
 1. Clarify requirements (ports, CIDR, VPC)
-2. Announce profile and region
-3. Delegate to planner for detailed plan
-4. Submit plan to guardrail for validation
-5. Present plan with approval request
-6. Upon approval, delegate to executor
-7. Report completion
+2. Invoke /aws-coworker-plan-interaction
+3. Plan is generated with profile announcement
+4. Plan submitted to guardrail for validation
+5. Present plan with: "To execute, run /aws-coworker-execute-nonprod"
+6. User approves
+7. Invoke /aws-coworker-execute-nonprod (MANDATORY - do NOT run aws CLI directly)
+8. Report completion
+
+❌ WRONG: After approval, run `aws ec2 create-security-group` directly
+✅ CORRECT: After approval, invoke `/aws-coworker-execute-nonprod`
 ```
 
 ### Production Change

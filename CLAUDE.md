@@ -77,6 +77,53 @@ When a user makes a free-form request, invoke the appropriate command and pass t
 
 ---
 
+## Execution Flow (Mandatory)
+
+**This is the ONLY valid execution path for mutations:**
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  1. USER REQUEST                                                    │
+│     "Create an S3 bucket"                                           │
+└──────────────────────────────┬──────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  2. PLAN: /aws-coworker-plan-interaction                            │
+│     - Discovery                                                     │
+│     - Generate plan with rollback                                   │
+│     - Present plan to user                                          │
+│     - Output: "To execute, run /aws-coworker-execute-nonprod"       │
+└──────────────────────────────┬──────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  3. USER APPROVAL                                                   │
+│     "Yes, proceed" / "Approved"                                     │
+└──────────────────────────────┬──────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  4. EXECUTE: /aws-coworker-execute-nonprod    ← MANDATORY STEP      │
+│     - Guardrail validation                                          │
+│     - Execute approved commands                                     │
+│     - Verify results                                                │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Critical Rule
+
+**After user approves a plan, you MUST invoke `/aws-coworker-execute-nonprod` to execute.**
+
+DO NOT:
+- Run AWS CLI commands directly, even with user approval
+- Treat plan approval as execution approval
+- Skip the execute command "for simplicity"
+
+The plan command generates a plan. The execute command runs it. These are separate steps BY DESIGN for audit trails and safety.
+
+---
+
 ## Safety Model (Non-Negotiable)
 
 1. **Announce before action** — Always state AWS profile and region before any operation
@@ -119,8 +166,10 @@ Before ANY AWS operation:
 ❌ `aws cloudwatch get-metric-data` — Monitoring queries need profile announcement
 ❌ `aws ec2 terminate-instances` — Never without plan, approval, and guardrail check
 ❌ Any AWS CLI in production — Must go through CI/CD
+❌ **Running `aws` commands after plan approval** — Use `/aws-coworker-execute-nonprod` instead
+❌ **Treating plan approval as execution permission** — Plan and execute are separate commands
 
-**Rule of thumb:** If it starts with `aws `, it MUST go through AWS Coworker.
+**Rule of thumb:** If it starts with `aws `, it MUST go through AWS Coworker commands. User approval of a plan authorizes the EXECUTE COMMAND to run—not you running CLI directly.
 
 ---
 

@@ -250,11 +250,19 @@ Key points:
 
 Guardrail validation: {status}
 
+---
+
+**Next Step (REQUIRED):**
+- Non-prod: Run `/aws-coworker-execute-nonprod`
+- Production: Run `/aws-coworker-prepare-prod-change`
+
 Do you want to:
-1. Approve and proceed to execution
-2. Request modifications
-3. Cancel
+1. **Approve this plan** — I will then run the appropriate execute command
+2. **Request modifications** — Adjust the plan before approval
+3. **Cancel** — Abandon this plan
 ```
+
+**CRITICAL:** After user approves, you MUST invoke `/aws-coworker-execute-nonprod` (or `/aws-coworker-prepare-prod-change` for production). Do NOT execute AWS CLI commands directly.
 
 ---
 
@@ -264,15 +272,31 @@ The command produces:
 1. **Detailed execution plan** with commands and validation steps
 2. **Guardrail validation report** with compliance status
 3. **Risk assessment** with blast radius and rollback procedures
+4. **Explicit next step** — Which command to run for execution
 
 ---
 
-## Next Steps
+## What Happens After Approval
 
-After plan approval:
+**This is mandatory, not optional:**
 
-- **For non-prod**: Run `/aws-coworker-execute-nonprod` to execute
-- **For production**: Run `/aws-coworker-prepare-prod-change` to generate CI/CD changes
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  User approves plan                                             │
+└─────────────────────────────┬───────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  YOU MUST invoke /aws-coworker-execute-nonprod                  │
+│  (or /aws-coworker-prepare-prod-change for production)          │
+│                                                                 │
+│  ❌ DO NOT run AWS CLI commands directly                        │
+│  ❌ DO NOT treat approval as permission to execute inline       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+- **For non-prod**: Invoke `/aws-coworker-execute-nonprod` with the approved plan
+- **For production**: Invoke `/aws-coworker-prepare-prod-change` to generate CI/CD changes
 
 ---
 
