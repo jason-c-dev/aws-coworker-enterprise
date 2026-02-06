@@ -44,7 +44,7 @@ AWS Coworker provides guardrails, approval gates, and safety defaults—but **yo
 
 ## What is AWS Coworker?
 
-AWS Coworker is a **production-ready system** for managing AWS with Claude. The core works out of the box, and the layered architecture lets you extend it for your organization's needs. It provides:
+AWS Coworker is a **working foundation** for managing AWS with Claude. Tested and functional, the core works out of the box, and the layered architecture lets you extend and customize it for your organization's needs. It provides:
 
 - **Curated Agents** — Pre-configured agents for planning, execution, compliance, and cost analysis
 - **AWS Skills Library** — CLI patterns, Well-Architected pillars, governance policies
@@ -189,7 +189,7 @@ AWS Coworker operates in **Always-Agent Mode**: every request spawns at least on
 | **Consistency** | Same execution path regardless of task complexity |
 | **Auditability** | Every operation tracked through agent invocation |
 | **Scalability** | Seamless transition from simple to complex tasks |
-| **Enterprise-ready** | Designed for environments where complex tasks are common |
+| **Enterprise-scale patterns** | Designed for environments where complex tasks are common |
 
 Simple tasks like "list my S3 buckets" work perfectly fine — they use a single agent. The overhead is minimal; the consistency benefits are significant.
 

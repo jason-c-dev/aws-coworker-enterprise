@@ -6,7 +6,7 @@ Welcome to AWS Coworker! This guide will help you get up and running quickly.
 
 ## What is AWS Coworker?
 
-AWS Coworker is a **production-ready system** built on [Claude Code](https://claude.ai/code) and Anthropic's Claude Agent SDK. It augments AWS best practices with Claude's agentic capabilities for safe, effective infrastructure management.
+AWS Coworker is a **working foundation** built on [Claude Code](https://claude.ai/code) and Anthropic's Claude Agent SDK. It augments AWS best practices with Claude's agentic capabilities for safe, effective infrastructure management. Tested and functional, it's designed to be extended and customized for your environment.
 
 **The core works out of the box.** The layered architecture lets you extend it for your organization's needs.
 

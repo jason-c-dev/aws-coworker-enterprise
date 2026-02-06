@@ -33,7 +33,7 @@ This skill provides Git and GitHub best practices for managing changes within AW
 
 | Type | Pattern | Purpose | Merge Target |
 |------|---------|---------|--------------|
-| Main | `main` | Production-ready baseline | N/A (protected) |
+| Main | `main` | Stable baseline | N/A (protected) |
 | Feature | `feature/{description}` | New capabilities | `main` |
 | Fix | `fix/{description}` | Bug fixes | `main` |
 | Refactor | `refactor/{description}` | Code improvements | `main` |

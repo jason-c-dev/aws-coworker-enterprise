@@ -184,7 +184,7 @@ AWS Coworker operates in **Always-Agent Mode**: every request spawns at least on
 | **Consistency** | Same execution path regardless of task complexity |
 | **Auditability** | Every operation tracked through agent invocation |
 | **Scalability** | Seamless transition from simple to complex tasks |
-| **Enterprise-ready** | Designed for environments where complex tasks are common |
+| **Enterprise-scale patterns** | Designed for environments where complex tasks are common |
 
 Simple tasks like "list my S3 buckets" work perfectly fine — they use a single agent rather than spawning parallel workers. The overhead is minimal; the consistency benefits are significant.
 

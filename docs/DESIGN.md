@@ -316,7 +316,7 @@ AWS Coworker operates in **Always-Agent Mode**: every request spawns at least on
 | **Consistency** | Same execution path regardless of task complexity |
 | **Auditability** | Every operation tracked through agent invocation |
 | **Scalability** | Seamless transition from simple to complex tasks |
-| **Enterprise-ready** | Designed for environments where complex tasks are common |
+| **Enterprise-scale patterns** | Designed for environments where complex tasks are common |
 
 Simple tasks like "list my S3 buckets" work perfectly fine — they use a single agent rather than spawning parallel workers. The overhead is minimal; the consistency benefits are significant.
 
@@ -828,7 +828,7 @@ This is an intentional architectural decision, not an oversight:
 
 | Branch Type | Purpose | Naming | Merge Target |
 |-------------|---------|--------|--------------|
-| `main` | Production-ready baseline | `main` | N/A (protected) |
+| `main` | Stable baseline | `main` | N/A (protected) |
 | `feature/*` | New agents/skills/commands | `feature/add-eks-skill` | `main` |
 | `fix/*` | Bug fixes and corrections | `fix/guardrail-typo` | `main` |
 | `org/*` | Organization-specific changes | `org/acme-tagging-policy` | `main` or org branch |
