@@ -230,10 +230,23 @@ FORBIDDEN (orchestrator running directly):
   ⏺ Bash(aws s3api create-bucket --bucket my-bucket ...)
   ⏺ Bash(aws ec2 describe-instances ...)
 
-REQUIRED (delegate to sub-agents with explicit model):
-  ⏺ Task(Create S3 bucket) model: "sonnet"     ← Sub-agent for mutation
-  ⏺ Task(Discover EC2 instances) model: "haiku" ← Sub-agent for read-only
+ALSO FORBIDDEN (parallel Bash without Task tool):
+  ⏺ 3 Bash agents finished        ← WRONG: bypasses model selection
+     ├─ Verify AWS identity
+     ├─ Discover VPC
+
+REQUIRED (Task tool with explicit model - output shows model):
+  ⏺ Task(Create S3 bucket) Sonnet 4.5      ← Correct: shows model
+  ⏺ Task(Discover EC2 instances) Haiku 4.5 ← Correct: shows model
 ```
+
+**How to identify correct vs incorrect execution:**
+| Output Pattern | Status | Problem |
+|----------------|--------|---------|
+| `Task(description) Haiku 4.5` | ✅ Correct | Model explicitly shown |
+| `Task(description) Sonnet 4.5` | ✅ Correct | Model explicitly shown |
+| `Bash agents finished` | ❌ Wrong | Bypasses Task tool, no model selection |
+| `Bash(aws ...)` | ❌ Wrong | Orchestrator running directly |
 
 **Task tool invocation pattern:**
 ```yaml

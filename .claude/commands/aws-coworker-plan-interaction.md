@@ -68,15 +68,30 @@ This is a planning session - I will only run read-only discovery commands.
 
 Run read-only AWS CLI commands to understand current state and estimate task complexity.
 
-#### CRITICAL: Model Selection for Sub-Agents
+#### CRITICAL: Use Task Tool for Sub-Agents (NOT Parallel Bash)
 
-When spawning sub-agents for discovery, you MUST explicitly specify the model:
+**You MUST use the Task tool to spawn sub-agents. DO NOT use parallel Bash execution directly.**
+
+```
+CORRECT (Task tool with model):
+⏺ Task(Discover VPC state) Haiku 4.5
+  ⎿  Done (2 tool uses)
+
+WRONG (Parallel Bash - bypasses model selection):
+⏺ 3 Bash agents finished
+   ├─ Verify AWS identity
+```
+
+When spawning sub-agents for discovery, use the Task tool with explicit model:
 
 ```
 Task:
+  description: "Discover VPC and subnet state"
   subagent_type: "Bash"
-  model: "haiku"              ← REQUIRED for read-only discovery
-  prompt: "You are an authorized AWS Coworker sub-agent..."
+  model: "haiku"              ← REQUIRED - must specify model
+  prompt: |
+    You are an authorized AWS Coworker sub-agent...
+    Run: aws ec2 describe-vpcs --profile {profile} --region {region}
 ```
 
 **Model selection rules:**
@@ -85,7 +100,10 @@ Task:
 | Discovery / Read-only | `haiku` | Fast, cost-effective |
 | Mutations / Write | `sonnet` | Thorough, careful |
 
-**DO NOT** spawn discovery sub-agents without explicitly setting `model: "haiku"`.
+**DO NOT:**
+- Spawn "Bash agents" directly (bypasses model selection)
+- Run parallel Bash without Task tool
+- Omit the `model` parameter
 
 #### 3a: Initial Discovery
 
