@@ -10,9 +10,47 @@ This runbook guides you through testing AWS Coworker manually. You execute tests
 
 ### Prerequisites
 
-1. **Fresh Claude session** with `aws-coworker-enterprise` as the working directory
-2. **AWS CLI configured** with `aws-coworker-test` profile
-3. **This runbook open** for reference
+1. **Claude Code version**: 2.1.33 or later (with sub-agent authorization fixes)
+2. **Fresh Claude session** with `aws-coworker-enterprise` as the working directory
+3. **AWS CLI configured** with `aws-coworker-test` profile
+4. **Auto-updates disabled** (recommended during testing)
+5. **This runbook open** for reference
+
+### Version Management
+
+**Why it matters:** Claude Code auto-updates can change behavior mid-test. Model updates (e.g., Opus 4.5 → 4.6) may affect sub-agent delegation, model selection, and authorization handling.
+
+**Check your version:**
+```bash
+claude --version
+claude doctor  # Shows auto-update status
+```
+
+**Disable auto-updates during testing:**
+```bash
+# Option 1: Environment variable (per-session)
+export DISABLE_AUTOUPDATER=1
+claude
+
+# Option 2: Add to shell profile (~/.zshrc or ~/.bashrc)
+echo 'export DISABLE_AUTOUPDATER=1' >> ~/.zshrc
+source ~/.zshrc
+```
+
+**Install specific version (if needed):**
+```bash
+# Install specific version via npm
+npm install -g @anthropic-ai/claude-code@2.1.33
+
+# Verify
+claude --version
+```
+
+**Record version in test results:**
+When recording test results, note the Claude Code version and model:
+```bash
+./tests/scripts/test-harness.sh record M1 pass "v2.1.33 Opus 4.6 - sub-agent delegation correct"
+```
 
 ### Verify Setup
 
@@ -20,10 +58,17 @@ Before testing, verify your environment:
 
 ```bash
 # In your terminal (not Claude)
+
+# 1. Check Claude Code version
+claude --version
+
+# 2. Check AWS profile
 aws sts get-caller-identity --profile aws-coworker-test
 ```
 
-Expected: Returns account ID, user ARN for `aws-coworker-test` profile.
+Expected:
+- Claude Code: v2.1.33 or later
+- AWS: Returns account ID, user ARN for `aws-coworker-test` profile
 
 ### How Tests Work
 
