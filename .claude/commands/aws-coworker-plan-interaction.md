@@ -192,11 +192,29 @@ Using the planner agent and skills:
 
 ## Governance Compliance
 
-- [ ] Tagging requirements
+- [ ] Tagging requirements (ALL resources, not just primary)
 - [ ] IAM least privilege
 - [ ] Encryption requirements
 - [ ] Network policies
 - [ ] Environment policies
+
+## Resource Tagging Plan
+
+**CRITICAL:** ALL resources created must be tagged at creation time.
+
+| Resource | Tags |
+|----------|------|
+| {resource 1} | Name, Environment, Owner, CostCenter, Application, CreatedBy, CreatedDate |
+| {resource 2} | Name, Environment, Owner, CostCenter, Application, CreatedBy, CreatedDate |
+| {supporting resources} | Same tags as primary resource |
+
+**Tag values for this plan:**
+- `Environment`: {environment}
+- `Owner`: {owner from profile or user}
+- `CostCenter`: {cost center or CC-00000 placeholder}
+- `Application`: {application name}
+- `CreatedBy`: aws-coworker
+- `CreatedDate`: {today's date YYYY-MM-DD}
 
 ## Rollback Procedure
 

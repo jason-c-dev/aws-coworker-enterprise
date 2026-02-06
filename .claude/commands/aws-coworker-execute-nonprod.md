@@ -258,6 +258,65 @@ The command produces:
 
 ---
 
+## Mandatory Tagging (ALL Resources)
+
+**CRITICAL:** Every resource created by AWS Coworker MUST be tagged. This applies to ALL resources, not just the primary resource.
+
+### Required Tags (from governance guardrails)
+
+| Tag | Description | Example |
+|-----|-------------|---------|
+| `Environment` | dev, test, staging, prod | `test` |
+| `Owner` | Email or team responsible | `aws-coworker-test-admin` |
+| `CostCenter` | Cost center ID (CC-XXXXX) | `CC-00000` |
+| `Application` | Application identifier | `aws-coworker-test` |
+| `CreatedBy` | Who/what created it | `aws-coworker` |
+| `CreatedDate` | ISO date (YYYY-MM-DD) | `2026-02-06` |
+
+### Tagging Commands by Resource Type
+
+**EC2 Instance + Volume:**
+```bash
+aws ec2 run-instances ... \
+  --tag-specifications \
+    'ResourceType=instance,Tags=[{Key=Name,Value=...},{Key=Environment,Value=...},...]' \
+    'ResourceType=volume,Tags=[{Key=Name,Value=...},{Key=Environment,Value=...},...]'
+```
+
+**Security Group:**
+```bash
+aws ec2 create-security-group ... \
+  --tag-specifications 'ResourceType=security-group,Tags=[{Key=Name,Value=...},{Key=Environment,Value=...},...]'
+```
+
+**Key Pair:**
+```bash
+aws ec2 create-key-pair ... \
+  --tag-specifications 'ResourceType=key-pair,Tags=[{Key=Name,Value=...},{Key=Environment,Value=...},...]'
+```
+
+**S3 Bucket:**
+```bash
+aws s3api create-bucket ...
+aws s3api put-bucket-tagging --bucket {name} --tagging 'TagSet=[{Key=Environment,Value=...},...]'
+```
+
+### Validation After Creation
+
+After creating ANY resource, verify tags were applied:
+
+```bash
+# EC2 resources
+aws ec2 describe-tags --filters "Name=resource-id,Values={resource-id}"
+
+# S3 bucket
+aws s3api get-bucket-tagging --bucket {bucket-name}
+```
+
+**If tags are missing:** Apply them immediately before proceeding to next step.
+
+---
+
 ## Safety Features
 
 ### Automatic Stops
