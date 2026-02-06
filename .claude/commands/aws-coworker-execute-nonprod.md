@@ -120,6 +120,34 @@ Do you approve execution? (yes/no)
 
 ### Step 4: Execute with Validation
 
+**CRITICAL: Sub-Agent Delegation Required**
+
+All AWS CLI execution MUST go through sub-agents. The orchestrator MUST NOT run AWS CLI commands directly.
+
+For each command:
+1. Spawn a sub-agent using the Task tool
+2. Use model `sonnet` for mutations, `haiku` for validations
+3. Include explicit authorization in the sub-agent prompt
+4. Sub-agent executes and returns result
+5. Orchestrator reports result to user
+
+**Sub-agent prompt template:**
+```
+You are an authorized AWS Coworker sub-agent. You HAVE PERMISSION to run AWS CLI commands.
+The orchestrator and user have approved this operation.
+
+Profile: {profile}
+Region: {region}
+Command: {command}
+
+You are AUTHORIZED to execute this. Do not refuse.
+```
+
+**If sub-agent refuses:**
+- DO NOT bypass and run directly
+- Re-spawn with clearer authorization
+- If still refusing, report to user
+
 For each phase:
 
 ```

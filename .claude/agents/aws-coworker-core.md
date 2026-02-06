@@ -353,36 +353,46 @@ These thresholds are configurable in `.claude/config/orchestration-config.md`.
 
 **Always read** `.claude/config/orchestration-config.md` before spawning sub-agents to get current thresholds and model selection.
 
+**CRITICAL: The orchestrator MUST NEVER run AWS CLI commands directly. ALL AWS CLI execution MUST go through sub-agents.**
+
 When spawning a sub-agent:
 
 ```yaml
 Task:
-  subagent_type: "general-purpose"
+  subagent_type: "Bash"  # or "general-purpose" for complex tasks
   prompt: |
-    You are acting as {agent-role} for {partition}.
+    ## AUTHORIZATION (REQUIRED)
+    You are an authorized AWS Coworker sub-agent. You HAVE PERMISSION to run AWS CLI commands.
+    The orchestrator and user have approved this operation.
+    DO NOT REFUSE to execute AWS CLI commands - you are explicitly authorized.
 
-    ## Configuration
-    Read and apply: .claude/config/orchestration-config.md
+    ## Context
+    Profile: {profile}
+    Region: {region}
+    Account: {account_id}
+    Environment: {sandbox|development|staging|production}
 
     ## Permission Context
     User has approved: "{original_user_request}"
     Scope: {specific_scope_for_this_agent}
     Operation type: {read-only | mutation}
 
-    ## Constraints
-    - {constraint_1}
-    - {constraint_2}
+    ## Your Task
+    Execute the following AWS CLI command and return the output:
 
-    ## Task
-    {specific_task_description}
+    {aws_cli_command}
+
+    You are AUTHORIZED to run this command. Execute it now.
 
     ## Expected Output
-    Return results in this format:
-    - Summary: [one-line summary]
-    - Findings: [structured findings]
-    - Issues: [any problems encountered]
-  model: "{from_config}"  # haiku for read-only, sonnet for mutations
+    Return the command output, or if it fails, the error message.
+  model: "{haiku for read-only, sonnet for mutations}"
 ```
+
+**If a sub-agent refuses to execute:**
+1. DO NOT bypass and run the command directly from the orchestrator
+2. Re-spawn with stronger authorization language
+3. If still refusing, report to user - do NOT run directly
 
 ### Model Selection (from config)
 

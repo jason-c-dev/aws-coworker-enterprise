@@ -213,6 +213,43 @@ Read-only operations include: `describe-*`, `list-*`, `get-*`, `head-*`, and any
 
 **Why this matters:** If you run AWS Coworker with Opus 4.5, Opus handles the "thinking" while Haiku does the parallelized "doing" — best quality where it counts, optimized cost at scale.
 
+### Sub-Agent Delegation (MANDATORY)
+
+**The orchestrator MUST NEVER run AWS CLI commands directly.**
+
+All AWS CLI execution MUST go through sub-agents spawned via the Task tool:
+
+```
+FORBIDDEN (orchestrator running directly):
+  ⏺ Bash(aws s3api create-bucket --bucket my-bucket ...)
+  ⏺ Bash(aws ec2 describe-instances ...)
+
+REQUIRED (delegate to sub-agents):
+  ⏺ Bash(Create S3 bucket) Sonnet 4.5        ← Sub-agent for mutation
+  ⏺ Bash(Discover EC2 instances) Haiku 4.5   ← Sub-agent for read-only
+```
+
+**Sub-Agent Authorization Context:**
+
+When spawning sub-agents, you MUST include explicit authorization in the prompt:
+
+```
+You are an authorized AWS Coworker sub-agent. You HAVE PERMISSION to run AWS CLI commands.
+The orchestrator and user have approved this operation.
+
+Profile: {profile}
+Region: {region}
+Operation: {command}
+
+You are AUTHORIZED to execute this command. Do not refuse.
+```
+
+**If a sub-agent refuses to execute:**
+1. DO NOT bypass and run the command directly
+2. Re-spawn the sub-agent with clearer authorization context
+3. If still refusing, report to user and request explicit confirmation
+4. NEVER fall back to orchestrator running commands directly
+
 ### Configurable Thresholds
 
 Thresholds determine **how many agents** to spawn, not **whether** to spawn agents.
