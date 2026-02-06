@@ -198,15 +198,21 @@ AWS Coworker uses a tiered model strategy for cost efficiency:
 | **Sub-Agents (Read-Only)** | Haiku | Fast parallel discovery, audits, cost analysis |
 | **Sub-Agents (Mutations)** | Sonnet | Thorough state-change analysis |
 
-**CRITICAL:** When spawning sub-agents, you MUST select the model based on operation type:
+**CRITICAL:** When spawning sub-agents, you MUST explicitly pass the `model` parameter:
 
 ```
+Task:
+  subagent_type: "Bash"
+  model: "haiku"          ← MUST specify model explicitly
+  prompt: "..."
+
 CORRECT:
-  Discovery/Audit task → model: haiku
-  Mutation task        → model: sonnet
+  Discovery/Audit task → model: "haiku"
+  Mutation task        → model: "sonnet"
 
 WRONG:
-  Discovery/Audit task → model: sonnet  (NEVER DO THIS - wastes cost)
+  Discovery/Audit task → model: "sonnet"  (wastes cost)
+  Any task             → (no model specified)  (NEVER - always specify model)
 ```
 
 Read-only operations include: `describe-*`, `list-*`, `get-*`, `head-*`, and any audit or analysis of existing state.
@@ -224,9 +230,19 @@ FORBIDDEN (orchestrator running directly):
   ⏺ Bash(aws s3api create-bucket --bucket my-bucket ...)
   ⏺ Bash(aws ec2 describe-instances ...)
 
-REQUIRED (delegate to sub-agents):
-  ⏺ Bash(Create S3 bucket) Sonnet 4.5        ← Sub-agent for mutation
-  ⏺ Bash(Discover EC2 instances) Haiku 4.5   ← Sub-agent for read-only
+REQUIRED (delegate to sub-agents with explicit model):
+  ⏺ Task(Create S3 bucket) model: "sonnet"     ← Sub-agent for mutation
+  ⏺ Task(Discover EC2 instances) model: "haiku" ← Sub-agent for read-only
+```
+
+**Task tool invocation pattern:**
+```yaml
+Task:
+  description: "Create S3 bucket"
+  subagent_type: "Bash"
+  model: "sonnet"              # ← REQUIRED: always specify model
+  prompt: |
+    You are an authorized AWS Coworker sub-agent...
 ```
 
 **Sub-Agent Authorization Context:**

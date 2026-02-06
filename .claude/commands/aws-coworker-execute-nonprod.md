@@ -126,10 +126,31 @@ All AWS CLI execution MUST go through sub-agents. The orchestrator MUST NOT run 
 
 For each command:
 1. Spawn a sub-agent using the Task tool
-2. Use model `sonnet` for mutations, `haiku` for validations
+2. **MUST explicitly specify model**: `sonnet` for mutations, `haiku` for validations
 3. Include explicit authorization in the sub-agent prompt
 4. Sub-agent executes and returns result
 5. Orchestrator reports result to user
+
+**CRITICAL: Model Selection is MANDATORY**
+
+You MUST pass the `model` parameter when spawning sub-agents:
+
+```
+Task:
+  subagent_type: "Bash"
+  model: "sonnet"             ← REQUIRED for mutations
+  prompt: "..."
+```
+
+| Operation | Model | Example |
+|-----------|-------|---------|
+| Create resource | `sonnet` | create-bucket, run-instances, create-security-group |
+| Delete resource | `sonnet` | delete-bucket, terminate-instances |
+| Modify resource | `sonnet` | authorize-security-group-ingress, put-bucket-tagging |
+| Validate/describe | `haiku` | describe-instances, get-bucket-tagging |
+
+**DO NOT** spawn mutation sub-agents without `model: "sonnet"`.
+**DO NOT** spawn validation sub-agents without `model: "haiku"`.
 
 **Sub-agent prompt template:**
 ```

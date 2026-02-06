@@ -66,7 +66,26 @@ This is a planning session - I will only run read-only discovery commands.
 
 **Configuration:** Read thresholds from `.claude/config/orchestration-config.md`
 
-Run read-only AWS CLI commands to understand current state and estimate task complexity:
+Run read-only AWS CLI commands to understand current state and estimate task complexity.
+
+#### CRITICAL: Model Selection for Sub-Agents
+
+When spawning sub-agents for discovery, you MUST explicitly specify the model:
+
+```
+Task:
+  subagent_type: "Bash"
+  model: "haiku"              ← REQUIRED for read-only discovery
+  prompt: "You are an authorized AWS Coworker sub-agent..."
+```
+
+**Model selection rules:**
+| Operation Type | Model | Reason |
+|----------------|-------|--------|
+| Discovery / Read-only | `haiku` | Fast, cost-effective |
+| Mutations / Write | `sonnet` | Thorough, careful |
+
+**DO NOT** spawn discovery sub-agents without explicitly setting `model: "haiku"`.
 
 #### 3a: Initial Discovery
 
@@ -200,21 +219,46 @@ Using the planner agent and skills:
 
 ## Resource Tagging Plan
 
-**CRITICAL:** ALL resources created must be tagged at creation time.
+**CRITICAL:** ALL resources created must be tagged at creation time. This includes supporting resources, not just the primary resource.
 
-| Resource | Tags |
-|----------|------|
+### Resources That MUST Be Tagged
+
+| Resource Type | How to Tag |
+|---------------|------------|
+| EC2 Instance | `--tag-specifications 'ResourceType=instance,Tags=[...]'` |
+| EBS Volume | `--tag-specifications 'ResourceType=volume,Tags=[...]'` (in run-instances) |
+| Security Group | `--tag-specifications 'ResourceType=security-group,Tags=[...]'` |
+| Key Pair | `--tag-specifications 'ResourceType=key-pair,Tags=[...]'` |
+| S3 Bucket | `aws s3api put-bucket-tagging` (separate command after create) |
+| RDS Instance | `--tags` parameter |
+| Lambda Function | `--tags` parameter |
+
+### Tagging Plan for This Request
+
+| Resource | Tags to Apply |
+|----------|---------------|
 | {resource 1} | Name, Environment, Owner, CostCenter, Application, CreatedBy, CreatedDate |
 | {resource 2} | Name, Environment, Owner, CostCenter, Application, CreatedBy, CreatedDate |
-| {supporting resources} | Same tags as primary resource |
+| {EBS volumes} | Same tags as EC2 instance |
+| {key pairs} | Same tags as EC2 instance |
+| {security groups} | Same tags as EC2 instance |
 
 **Tag values for this plan:**
+- `Name`: {descriptive name for resource}
 - `Environment`: {environment}
 - `Owner`: {owner from profile or user}
 - `CostCenter`: {cost center or CC-00000 placeholder}
 - `Application`: {application name}
 - `CreatedBy`: aws-coworker
 - `CreatedDate`: {today's date YYYY-MM-DD}
+
+**Example EC2 with all resources tagged:**
+```bash
+aws ec2 run-instances ... \
+  --tag-specifications \
+    'ResourceType=instance,Tags=[{Key=Name,Value=...},{Key=Environment,Value=...},...]' \
+    'ResourceType=volume,Tags=[{Key=Name,Value=...},{Key=Environment,Value=...},...]'
+```
 
 ## Rollback Procedure
 
