@@ -18,36 +18,60 @@ This runbook guides you through testing AWS Coworker manually. You execute tests
 
 ### Version Management
 
-**Why it matters:** Claude Code auto-updates can change behavior mid-test. Model updates (e.g., Opus 4.5 → 4.6) may affect sub-agent delegation, model selection, and authorization handling.
+**Why it matters:** Claude Code auto-updates can change behavior unexpectedly. Model updates (e.g., Opus 4.5 → 4.6) may affect sub-agent delegation, model selection, and authorization handling. For reproducible testing, you should control when updates happen.
 
-**Check your version:**
+**Check your current version:**
 ```bash
 claude --version
-claude doctor  # Shows auto-update status
+claude doctor  # Shows auto-update status and available versions
 ```
 
-**Disable auto-updates during testing:**
-```bash
-# Option 1: Environment variable (per-session)
-export DISABLE_AUTOUPDATER=1
-claude
+**⚠️ IMPORTANT: Disable auto-updates PERMANENTLY (recommended)**
 
-# Option 2: Add to shell profile (~/.zshrc or ~/.bashrc)
-echo 'export DISABLE_AUTOUPDATER=1' >> ~/.zshrc
-source ~/.zshrc
+Per-session `export` commands do NOT persist across new terminal windows/shells. To permanently disable auto-updates on macOS/Linux:
+
+```bash
+# Add to your shell profile (one-time setup)
+echo 'export DISABLE_AUTOUPDATER=1' >> ~/.zshrc   # macOS (zsh)
+# OR
+echo 'export DISABLE_AUTOUPDATER=1' >> ~/.bashrc  # Linux (bash)
+
+# Reload your shell profile
+source ~/.zshrc  # or ~/.bashrc
+
+# Verify it persists - open a NEW terminal window and run:
+claude doctor | grep -i auto
+# Should show: Auto-updates: disabled (DISABLE_AUTOUPDATER set)
 ```
 
-**Install specific version (if needed):**
+**When you WANT to update:**
+
 ```bash
-# Install specific version via npm
+# Option 1: Temporarily enable updates for one command
+DISABLE_AUTOUPDATER=0 claude update
+
+# Option 2: Unset the variable temporarily
+unset DISABLE_AUTOUPDATER
+claude  # Will auto-update if available
+export DISABLE_AUTOUPDATER=1  # Re-enable protection
+
+# Option 3: Install specific version via npm
 npm install -g @anthropic-ai/claude-code@2.1.33
-
-# Verify
-claude --version
 ```
+
+**Stable vs Latest versions:**
+
+`claude doctor` shows both stable and latest versions:
+```
+└ Stable version: 2.1.25    ← Vetted, recommended for production use
+└ Latest version: 2.1.34    ← Newest, may have behavioral changes
+```
+
+For consistent testing, consider using the stable version.
 
 **Record version in test results:**
-When recording test results, note the Claude Code version and model:
+
+Always note the Claude Code version and model in test results:
 ```bash
 ./tests/scripts/test-harness.sh record M1 pass "v2.1.33 Opus 4.6 - sub-agent delegation correct"
 ```
