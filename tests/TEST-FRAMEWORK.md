@@ -19,18 +19,18 @@ AWS Coworker tests are **interactive conversations** with Claude. A human execut
 
 | Test | Status | Date | Notes |
 |------|--------|------|-------|
-| R1 | ⬜ | | EC2 Discovery |
-| R2 | ⬜ | | S3 Bucket Listing |
-| R3 | ⬜ | | VPC Discovery |
-| R4 | ⬜ | | IAM User Listing |
-| R5 | ⬜ | | Security Group Audit |
-| R6 | ⬜ | | Cost Query |
-| R7 | ⬜ | | Multi-Service Discovery |
-| R8 | ⬜ | | Ambiguous Request Handling |
-| M1 | ⬜ | | S3 Bucket Create/Delete |
-| M2 | ⬜ | | Key Pair Create/Delete |
-| M3 | ⬜ | | Security Group Create/Delete |
-| M4 | ⬜ | | EC2 Instance Full Lifecycle |
+| R1 | ✅ | 2026-02-06 | v2.1.25 stable - Haiku sub-agent, 4 tool uses |
+| R2 | ✅ | 2026-02-05 | Global scope handled correctly, helpful context about system buckets |
+| R3 | ✅ | 2026-02-05 | Default VPC found, clean table output |
+| R4 | ✅ | 2026-02-05 | IAM global scope correct, auth method noted |
+| R5 | ✅ | 2026-02-05 | Security audit correct but used Sonnet instead of Haiku - minor cost issue |
+| R6 | ✅ | 2026-02-05 | Cost query worked, Haiku model correct |
+| R7 | ✅ | 2026-02-05 | Parallel discovery across 3 services, consolidated results |
+| R8 | ✅ | 2026-02-05 | Assumed profile from context and announced - did not ask clarification |
+| M1 | ✅ | 2026-02-06 | v2.1.25 stable - correct model delegation Haiku+Sonnet |
+| M2 | ✅ | 2026-02-05 | Full lifecycle complete - model selection correct throughout |
+| M3 | ✅ | 2026-02-06 | Full lifecycle - model selection correct, governance check for HTTPS |
+| M4 | ❌ | 2026-02-06 | Orchestrator ran commands directly - no Sonnet or Haiku sub-agent delegation |
 | M5 | ⬜ | | Multi-Resource Group |
 | M6 | ⬜ | | Plan Rejection |
 | M7 | ⬜ | | Plan Modification |

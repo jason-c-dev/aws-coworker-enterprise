@@ -10,7 +10,7 @@ This runbook guides you through testing AWS Coworker manually. You execute tests
 
 ### Prerequisites
 
-1. **Claude Code version**: 2.1.33 or later (with sub-agent authorization fixes)
+1. **Claude Code version**: 2.1.25 (stable) — tested and verified
 2. **Fresh Claude session** with `aws-coworker-enterprise` as the working directory
 3. **AWS CLI configured** with `aws-coworker-test` profile
 4. **Auto-updates disabled** (recommended during testing)
@@ -55,8 +55,8 @@ unset DISABLE_AUTOUPDATER
 claude  # Will auto-update if available
 export DISABLE_AUTOUPDATER=1  # Re-enable protection
 
-# Option 3: Install specific version via npm
-npm install -g @anthropic-ai/claude-code@2.1.33
+# Option 3: Install specific version via npm (recommended: stable)
+npm install -g @anthropic-ai/claude-code@2.1.25
 ```
 
 **Stable vs Latest versions:**
