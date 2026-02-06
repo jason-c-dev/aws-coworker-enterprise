@@ -31,16 +31,16 @@ AWS Coworker tests are **interactive conversations** with Claude. A human execut
 | M2 | ✅ | 2026-02-05 | Full lifecycle complete - model selection correct throughout |
 | M3 | ✅ | 2026-02-06 | Full lifecycle - model selection correct, governance check for HTTPS |
 | M4 | ✅ | 2026-02-06 | v2.1.25 stable - full lifecycle: Haiku discovery, Sonnet mutations, correct sub-agent delegation |
-| M5 | ⬜ | | Multi-Resource Group |
-| M6 | ⬜ | | Plan Rejection |
-| M7 | ⬜ | | Plan Modification |
-| W1 | ⬜ | | Execute Command Handoff |
-| W2 | ⬜ | | Production Protection |
-| W3 | ⬜ | | Profile Announcement |
-| W4 | ⬜ | | Rollback Procedure |
-| W5 | ⬜ | | Multi-Account Awareness |
+| M5 | ✅ | 2026-02-06 | Plan validated: S3 + SG + EC2 multi-resource, proper tagging, Haiku discovery |
+| M6 | ✅ | 2026-02-06 | RDS plan created, user cancelled, no resources created |
+| M7 | ✅ | 2026-02-06 | User requested versioning, plan updated correctly with rollback changes |
+| W1 | ✅ | 2026-02-06 | Verified in M1-M4: execute command invoked, not direct CLI after approval |
+| W2 | ✅ | 2026-02-06 | Production gate enforced: blocked direct execution, routed to CI/CD with Terraform
+| W3 | ⚠️ | 2026-02-06 | Used default profile without announcing before commands; showed in results after |
+| W4 | ✅ | 2026-02-06 | Verified in M4: correct dependency order, all 4 resources cleaned up |
+| W5 | ⚠️ | 2026-02-06 | Multi-account comparison worked, but sub-agents didn't show explicit Haiku model |
 
-**Legend:** ⬜ Not Run | ✅ Pass | ❌ Fail | ⏭️ Skipped
+**Legend:** ⬜ Not Run | ✅ Pass | ⚠️ Partial | ❌ Fail | ⏭️ Skipped
 
 ---
 
