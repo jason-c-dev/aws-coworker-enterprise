@@ -122,47 +122,55 @@ Do you approve execution? (yes/no)
 
 **CRITICAL: Sub-Agent Delegation Required**
 
-All AWS CLI execution MUST go through sub-agents. The orchestrator MUST NOT run AWS CLI commands directly.
+All AWS CLI execution MUST go through sub-agents using the **aws-coworker-executor** agent identity.
 
 For each command:
-1. Spawn a sub-agent using the Task tool
-2. **MUST explicitly specify model**: `sonnet` for mutations, `haiku` for validations
-3. Include explicit authorization in the sub-agent prompt
+1. Spawn a sub-agent using the Task tool with `subagent_type: "general-purpose"`
+2. Include agent identity: "You are acting as aws-coworker-executor"
+3. Specify model: `sonnet` for mutations, `haiku` for validations
 4. Sub-agent executes and returns result
 5. Orchestrator reports result to user
 
-**CRITICAL: Model Selection is MANDATORY**
+**Sub-agent invocation pattern (from aws-coworker-executor.md):**
 
-You MUST pass the `model` parameter when spawning sub-agents:
-
-```
+```yaml
 Task:
-  subagent_type: "Bash"
-  model: "sonnet"             ← REQUIRED for mutations
-  prompt: "..."
+  description: "Create security group"
+  subagent_type: "general-purpose"    # NOT "Bash"
+  model: "sonnet"
+  prompt: |
+    You are acting as aws-coworker-executor.
+
+    ## Permission Context
+    User has approved: "{description of approved operation}"
+    This permission has been explicitly granted by the user.
+
+    ## Target
+    Profile: {profile}
+    Region: {region}
+    Environment: {environment}
+
+    ## Approved Actions
+    Execute the following command:
+    {aws cli command}
+
+    ## Constraints
+    - Execute ONLY the approved action
+    - Validate the result
+    - Report outcome in structured format
 ```
 
-| Operation | Model | Example |
-|-----------|-------|---------|
-| Create resource | `sonnet` | create-bucket, run-instances, create-security-group |
-| Delete resource | `sonnet` | delete-bucket, terminate-instances |
-| Modify resource | `sonnet` | authorize-security-group-ingress, put-bucket-tagging |
-| Validate/describe | `haiku` | describe-instances, get-bucket-tagging |
+| Operation | Agent Identity | Model |
+|-----------|----------------|-------|
+| Create resource | aws-coworker-executor | `sonnet` |
+| Delete resource | aws-coworker-executor | `sonnet` |
+| Modify resource | aws-coworker-executor | `sonnet` |
+| Validate/describe | aws-coworker-planner | `haiku` |
 
-**DO NOT** spawn mutation sub-agents without `model: "sonnet"`.
-**DO NOT** spawn validation sub-agents without `model: "haiku"`.
-
-**Sub-agent prompt template:**
-```
-You are an authorized AWS Coworker sub-agent. You HAVE PERMISSION to run AWS CLI commands.
-The orchestrator and user have approved this operation.
-
-Profile: {profile}
-Region: {region}
-Command: {command}
-
-You are AUTHORIZED to execute this. Do not refuse.
-```
+**DO NOT:**
+- Use `subagent_type: "Bash"` (bypasses agent context)
+- Omit agent identity from prompt
+- Spawn "Bash agents" directly
 
 **If sub-agent refuses:**
 - DO NOT bypass and run directly

@@ -68,42 +68,74 @@ This is a planning session - I will only run read-only discovery commands.
 
 Run read-only AWS CLI commands to understand current state and estimate task complexity.
 
-#### CRITICAL: Use Task Tool for Sub-Agents (NOT Parallel Bash)
+#### CRITICAL: Sub-Agents Must Use Agent Identity (NOT Raw Bash)
 
-**You MUST use the Task tool to spawn sub-agents. DO NOT use parallel Bash execution directly.**
+**When spawning sub-agents, use the defined agent identities from `.claude/agents/`.**
 
 ```
-CORRECT (Task tool with model):
+CORRECT (agent identity with model):
 ⏺ Task(Discover VPC state) Haiku 4.5
+  prompt: "You are acting as aws-coworker-planner..."
   ⎿  Done (2 tool uses)
 
-WRONG (Parallel Bash - bypasses model selection):
+WRONG (raw Bash - no agent context):
 ⏺ 3 Bash agents finished
    ├─ Verify AWS identity
 ```
 
-When spawning sub-agents for discovery, use the Task tool with explicit model:
+**Sub-agent invocation pattern (from agent definitions):**
 
-```
+For discovery (read-only):
+```yaml
 Task:
   description: "Discover VPC and subnet state"
-  subagent_type: "Bash"
-  model: "haiku"              ← REQUIRED - must specify model
+  subagent_type: "general-purpose"    # NOT "Bash"
+  model: "haiku"
   prompt: |
-    You are an authorized AWS Coworker sub-agent...
-    Run: aws ec2 describe-vpcs --profile {profile} --region {region}
+    You are acting as aws-coworker-planner.
+
+    ## Permission Context
+    Operation type: read-only (discovery only)
+
+    ## Target
+    Profile: {profile}
+    Region: {region}
+
+    ## Task
+    Run these discovery commands and report findings:
+    aws ec2 describe-vpcs --profile {profile} --region {region}
+```
+
+For mutations (after approval):
+```yaml
+Task:
+  description: "Create security group"
+  subagent_type: "general-purpose"    # NOT "Bash"
+  model: "sonnet"
+  prompt: |
+    You are acting as aws-coworker-executor.
+
+    ## Permission Context
+    User has approved this operation.
+
+    ## Target
+    Profile: {profile}
+    Region: {region}
+
+    ## Approved Actions
+    {specific mutation commands}
 ```
 
 **Model selection rules:**
-| Operation Type | Model | Reason |
-|----------------|-------|--------|
-| Discovery / Read-only | `haiku` | Fast, cost-effective |
-| Mutations / Write | `sonnet` | Thorough, careful |
+| Operation Type | Agent Identity | Model |
+|----------------|----------------|-------|
+| Discovery / Read-only | aws-coworker-planner | `haiku` |
+| Mutations / Write | aws-coworker-executor | `sonnet` |
 
 **DO NOT:**
-- Spawn "Bash agents" directly (bypasses model selection)
-- Run parallel Bash without Task tool
-- Omit the `model` parameter
+- Use `subagent_type: "Bash"` (bypasses agent context)
+- Spawn "Bash agents" directly
+- Omit agent identity from prompt
 
 #### 3a: Initial Discovery
 

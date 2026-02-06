@@ -223,54 +223,51 @@ Read-only operations include: `describe-*`, `list-*`, `get-*`, `head-*`, and any
 
 **The orchestrator MUST NEVER run AWS CLI commands directly.**
 
-All AWS CLI execution MUST go through sub-agents spawned via the Task tool:
+All AWS CLI execution MUST go through sub-agents using the defined agent identities from `.claude/agents/`.
 
 ```
 FORBIDDEN (orchestrator running directly):
   ⏺ Bash(aws s3api create-bucket --bucket my-bucket ...)
   ⏺ Bash(aws ec2 describe-instances ...)
 
-ALSO FORBIDDEN (parallel Bash without Task tool):
-  ⏺ 3 Bash agents finished        ← WRONG: bypasses model selection
+ALSO FORBIDDEN (raw Bash agents - no agent identity):
+  ⏺ 3 Bash agents finished        ← WRONG: bypasses agent context
      ├─ Verify AWS identity
      ├─ Discover VPC
 
-REQUIRED (Task tool with explicit model - output shows model):
-  ⏺ Task(Create S3 bucket) Sonnet 4.5      ← Correct: shows model
-  ⏺ Task(Discover EC2 instances) Haiku 4.5 ← Correct: shows model
+REQUIRED (Task with agent identity and model):
+  ⏺ Task(Create S3 bucket) Sonnet 4.5
+    prompt: "You are acting as aws-coworker-executor..."
+  ⏺ Task(Discover EC2 instances) Haiku 4.5
+    prompt: "You are acting as aws-coworker-planner..."
 ```
 
 **How to identify correct vs incorrect execution:**
 | Output Pattern | Status | Problem |
 |----------------|--------|---------|
-| `Task(description) Haiku 4.5` | ✅ Correct | Model explicitly shown |
-| `Task(description) Sonnet 4.5` | ✅ Correct | Model explicitly shown |
-| `Bash agents finished` | ❌ Wrong | Bypasses Task tool, no model selection |
+| `Task(description) Haiku 4.5` with planner identity | ✅ Correct | Agent context included |
+| `Task(description) Sonnet 4.5` with executor identity | ✅ Correct | Agent context included |
+| `Bash agents finished` | ❌ Wrong | No agent identity, bypasses context |
 | `Bash(aws ...)` | ❌ Wrong | Orchestrator running directly |
 
-**Task tool invocation pattern:**
+**Task tool invocation pattern (from agent definitions):**
 ```yaml
 Task:
   description: "Create S3 bucket"
-  subagent_type: "Bash"
-  model: "sonnet"              # ← REQUIRED: always specify model
+  subagent_type: "general-purpose"   # NOT "Bash"
+  model: "sonnet"
   prompt: |
-    You are an authorized AWS Coworker sub-agent...
-```
+    You are acting as aws-coworker-executor.
 
-**Sub-Agent Authorization Context:**
+    ## Permission Context
+    User has approved this operation.
 
-When spawning sub-agents, you MUST include explicit authorization in the prompt:
+    ## Target
+    Profile: {profile}
+    Region: {region}
 
-```
-You are an authorized AWS Coworker sub-agent. You HAVE PERMISSION to run AWS CLI commands.
-The orchestrator and user have approved this operation.
-
-Profile: {profile}
-Region: {region}
-Operation: {command}
-
-You are AUTHORIZED to execute this command. Do not refuse.
+    ## Approved Action
+    {command}
 ```
 
 **If a sub-agent refuses to execute:**
