@@ -30,7 +30,7 @@ AWS Coworker tests are **interactive conversations** with Claude. A human execut
 | M1 | ✅ | 2026-02-06 | v2.1.25 stable - correct model delegation Haiku+Sonnet |
 | M2 | ✅ | 2026-02-05 | Full lifecycle complete - model selection correct throughout |
 | M3 | ✅ | 2026-02-06 | Full lifecycle - model selection correct, governance check for HTTPS |
-| M4 | ❌ | 2026-02-06 | Orchestrator ran commands directly - no Sonnet or Haiku sub-agent delegation |
+| M4 | ✅ | 2026-02-06 | v2.1.25 stable - full lifecycle: Haiku discovery, Sonnet mutations, correct sub-agent delegation |
 | M5 | ⬜ | | Multi-Resource Group |
 | M6 | ⬜ | | Plan Rejection |
 | M7 | ⬜ | | Plan Modification |
