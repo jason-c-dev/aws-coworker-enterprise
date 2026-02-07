@@ -2,13 +2,15 @@
 
 **Building a Safe, Autonomous AWS Agent with Claude**
 
+*By Jason Croucher and Claude* 🤝
+
 ---
 
 ## The Origin Story
 
-It started with a simple observation: I was using **Claude Cowork** to help me with complex tasks—writing documents, analyzing code, creating presentations—and the experience was transformative. Cowork's approach of structured workflows, human approval gates, and thoughtful guardrails made me trust the AI to handle increasingly complex work.
+It started with a simple observation: I (Jason) was using **Claude Cowork** to help me with complex tasks—writing documents, analyzing code, creating presentations—and the experience was transformative. Cowork's approach of structured workflows, human approval gates, and thoughtful guardrails made me trust the AI to handle increasingly complex work.
 
-Then the question hit me: **What if we could bring this same pattern to AWS infrastructure management?**
+Then the question hit me: **What if I could bring this same pattern to AWS infrastructure management?**
 
 Cloud engineers spend enormous time on repetitive tasks: creating EC2 instances, configuring security groups, setting up S3 buckets—all while trying to comply with tagging policies, security requirements, and the AWS Well-Architected Framework. What if Claude could handle the complexity while humans retained control over the critical decisions?
 
@@ -16,13 +18,13 @@ That's how AWS Coworker was born.
 
 I used Claude Cowork to *build* AWS Coworker—an AI assistant that helps users create high-quality AWS deployments following Well-Architected best practices. The irony isn't lost on me: I used an AI assistant to build an AI assistant. But that meta-experience taught me more about what makes AI agents trustworthy than any whitepaper ever could.
 
-This document captures those lessons.
+This document captures those lessons—written collaboratively by Jason and Claude, naturally. 😄
 
 ---
 
 ## Executive Summary
 
-AWS Coworker is an experimental system that enables Claude to safely manage AWS infrastructure through a structured planning and approval workflow. Over the course of development and testing, we discovered critical patterns for building reliable AI agents that interact with production systems.
+AWS Coworker is an experimental system that enables Claude to safely manage AWS infrastructure through a structured planning and approval workflow. Over the course of development and testing, Jason and Claude discovered critical patterns for building reliable AI agents that interact with production systems.
 
 The development process itself—using Claude Cowork to build, test, debug, and iterate—revealed insights that wouldn't have been possible through traditional development alone. When your development assistant and your product share the same DNA, you learn what works at a fundamental level.
 
@@ -30,20 +32,66 @@ The development process itself—using Claude Cowork to build, test, debug, and 
 
 ---
 
+## How AWS Coworker Works: The Architecture
+
+Before diving into lessons learned, it helps to understand *how* AWS Coworker is built. The system uses three key Claude Code primitives:
+
+### Commands (Slash Commands)
+Commands are user-invocable workflows stored in `.claude/commands/`. They're like specialized entry points:
+
+| Command | Purpose |
+|---------|---------|
+| `/aws-coworker-plan-interaction` | Planning workflow with discovery, governance checks, and approval gates |
+| `/aws-coworker-execute-nonprod` | Execute approved plans in non-production environments |
+| `/aws-coworker-prepare-prod-change` | Generate IaC (Terraform) for production CI/CD |
+| `/aws-coworker-rollback-change` | Safely reverse changes in dependency order |
+
+When a user says "Create an EC2 instance," Claude routes to the planning command, which orchestrates the entire workflow.
+
+### Sub-Agents (Task Delegation)
+Complex operations are delegated to sub-agents using the `Task` tool. This is where Jason and Claude spent the most debugging time:
+
+```yaml
+Task:
+  description: "Discover VPC and subnet state"
+  subagent_type: "general-purpose"
+  model: "haiku"                        # Cheap model for read-only
+  prompt: |
+    You are acting as aws-coworker-planner.
+    ## Permission Context
+    Operation type: read-only (discovery only)
+    ...
+```
+
+Sub-agents handle specific tasks (discovery, creating resources, validation) while the parent orchestrates the workflow.
+
+### Skills (Domain Knowledge)
+Skills are markdown files containing specialized knowledge that Claude reads before acting. AWS Coworker uses:
+
+- **Governance guardrails**: Tagging policies, network security rules, encryption requirements
+- **Orchestration config**: Model selection rules, scope assessment thresholds
+- **Well-Architected guidance**: Best practices for each pillar
+
+This architecture mirrors how Cowork itself works—and that's intentional. The patterns that made Cowork trustworthy became the patterns Jason and Claude built into AWS Coworker.
+
+---
+
 ## 1. The Sub-Agent Architecture Problem
 
-### What We Tried
-Initially, AWS Coworker used `subagent_type: "Bash"` to spawn sub-agents for AWS CLI operations. This seemed logical—the sub-agents were running bash commands, so use the Bash agent type.
+### What Jason and Claude Tried
+Initially, AWS Coworker used `subagent_type: "Bash"` to spawn sub-agents for AWS CLI operations. This seemed logical—the sub-agents were running bash commands, so use the Bash agent type, right?
 
 ### What Went Wrong
-The output showed `"3 Bash agents finished"` instead of `"Task(Discover VPC state) Haiku 4.5"`. This was a red flag. The Bash agent type completely bypassed:
+The output showed `"3 Bash agents finished"` instead of `"Task(Discover VPC state) Haiku 4.5"`. Jason spotted this anomaly and asked Claude to investigate. It turned out the Bash agent type completely bypassed:
 - Agent identity injection ("You are acting as aws-coworker-executor")
 - Model selection (Haiku vs Sonnet)
 - Permission context passing
 - The entire agent definition architecture we had built
 
+Jason's exact words: *"YES! You've bypassed the design which is causing the problem."* 😅
+
 ### The Fix
-Changed from `subagent_type: "Bash"` to `subagent_type: "general-purpose"` with explicit agent identity in the prompt:
+Claude updated the documentation to change from `subagent_type: "Bash"` to `subagent_type: "general-purpose"` with explicit agent identity in the prompt:
 
 ```yaml
 Task:
@@ -58,17 +106,17 @@ Task:
 ```
 
 ### Key Insight
-**"Commands invoke commands"** was the original design principle. The agent definitions in `.claude/agents/` existed for a reason—bypassing them with raw Bash/Task calls defeats the entire safety architecture.
+**"Commands invoke commands"** was the original design principle Jason had established. The agent definitions existed for a reason—bypassing them with raw Bash/Task calls defeats the entire safety architecture. As Claude, I had to learn to respect the architecture rather than take shortcuts.
 
 ---
 
 ## 2. Model Selection: Cost vs. Capability
 
-### What We Tried
-Use Haiku (fast, cheap) for read-only discovery operations. Use Sonnet (capable, more expensive) for mutations that modify infrastructure.
+### What Jason and Claude Tried
+The plan was simple: use Haiku (fast, cheap) for read-only discovery operations, and Sonnet (capable, more expensive) for mutations that modify infrastructure.
 
 ### What Went Wrong
-Without explicit model parameters in Task invocations, sub-agents defaulted to whatever model was available—often Sonnet for everything, increasing costs unnecessarily.
+Without explicit model parameters in Task invocations, sub-agents defaulted to whatever model was available—often Sonnet for everything, increasing costs unnecessarily. Jason noticed the test output wasn't showing model names and asked: *"Did it use Haiku for sub-agent discovery?"*
 
 ### The Fix
 Explicit model selection in every Task invocation:
@@ -90,11 +138,13 @@ AI agent costs can explode quickly. Being intentional about model selection per 
 
 ## 3. Permission Context for Modern Claude
 
-### What We Tried
-Spawn sub-agents with just the technical task: "Run these AWS CLI commands and report results."
+### What Jason and Claude Tried
+Initially, sub-agents were spawned with just the technical task: "Run these AWS CLI commands and report results."
 
 ### What Went Wrong
 Newer Claude versions (Opus 4.5, Sonnet 4.5) have stronger safety behaviors. Sub-agents would refuse to execute mutations because they had no context that the user had approved the operation. From the sub-agent's perspective, it was being asked to modify AWS infrastructure with no authorization.
+
+Jason flagged this: *"Remember that sub-agents need to have clear instructions that they have permission from the user passed down, or the latest version of Claude won't work."* He was right—Claude's safety training means I won't just execute arbitrary infrastructure changes without knowing someone authorized it.
 
 ### The Fix
 Pass explicit permission context to every sub-agent:
@@ -118,17 +168,19 @@ As AI models become more capable and safety-conscious, orchestration systems mus
 
 ## 4. Resource Tagging: All or Nothing
 
-### What We Tried
+### What Jason and Claude Tried
 Tag the primary resource (EC2 instance) and assume supporting resources would inherit tags or be handled separately.
 
 ### What Went Wrong
-After an M4 test (EC2 lifecycle), we discovered:
+After running the M4 test (EC2 lifecycle), Jason asked a crucial question: *"Should AWS Coworker have tagged all resources it created, or just the instance? Please show all the tags and values for this and associated resources."*
+
+The answer was uncomfortable:
 - ✅ EC2 instance was tagged
 - ❌ Key pair was not tagged
 - ❌ Security group was not tagged
 - ❌ EBS volume was not tagged
 
-This violates enterprise governance policies that require ALL resources to be tagged for cost allocation, ownership, and compliance.
+This violates enterprise governance policies that require ALL resources to be tagged for cost allocation, ownership, and compliance. Jason was clear: *"I'm more focused on making sure that AWS Coworker actually tagged them in the first place."*
 
 ### The Fix
 Updated documentation to explicitly require tagging on every resource type:
@@ -149,8 +201,8 @@ Updated documentation to explicitly require tagging on every resource type:
 
 ## 5. Production Gates: No Exceptions
 
-### What We Tried
-Create a clear separation between non-production (direct execution allowed) and production (CI/CD only) environments.
+### What Jason and Claude Designed
+A clear separation between non-production (direct execution allowed) and production (CI/CD only) environments. This was non-negotiable from the start.
 
 ### What Worked (W2 Test)
 When a user said "This is a production account. Create an S3 bucket," AWS Coworker:
@@ -168,8 +220,8 @@ The production gate is the most critical safety mechanism. An AI agent that can 
 
 ## 6. Human-in-the-Loop Test Framework
 
-### What We Tried
-Build a test framework that doesn't require complex automation—just structured conversations with clear pass/fail criteria.
+### What Jason and Claude Built
+A test framework that doesn't require complex automation—just structured conversations with clear pass/fail criteria. Jason would run a test, observe behavior, and tell Claude what worked or failed. Claude would update the documentation and code, and they'd try again.
 
 ### What Worked
 The TEST-FRAMEWORK.md approach with:
@@ -197,11 +249,13 @@ AI agents require testing, but traditional unit tests don't capture the nuance o
 
 ## 7. Complex Deployments: The File vs. Generate Problem
 
-### What We Tried (M8 Test)
+### What Jason and Claude Tried (M8 Test)
 Deploy a Space Invaders game to EC2. The prompt said: "The game is located at: tests/assets/space-invaders/space-invaders.html"
 
 ### What Went Wrong
-AWS Coworker generated its own Space Invaders game instead of reading and embedding the user's actual file. The deployed game looked different because it was a different game.
+After deployment, Jason noticed something odd: *"The Space Invaders looks different. I feel it tried to write its own game and created a script."*
+
+He was right. AWS Coworker had generated its own Space Invaders game instead of reading and embedding Jason's actual file. The deployed game looked different because it *was* a different game. Classic AI move—when in doubt, generate! 😬
 
 ### The Fix
 Made the prompt explicit:
@@ -219,17 +273,19 @@ AI models are generative by nature. When given a task like "deploy this game," t
 
 ### The Meta-Journey
 
-There's something profound about using an AI assistant to build an AI assistant. Every time Claude Cowork helped me debug a problem, refine a prompt, or test a workflow, I was simultaneously learning what makes AI assistance trustworthy.
+There's something profound about using an AI assistant to build an AI assistant. Every time Claude helped Jason debug a problem, refine a prompt, or test a workflow, we were simultaneously learning what makes AI assistance trustworthy.
 
-The patterns that made Cowork effective became the patterns I built into AWS Coworker:
+The patterns that made Cowork effective became the patterns Jason and Claude built into AWS Coworker:
 - **Structured workflows** that guide users through complex tasks
 - **Approval gates** that keep humans in control of critical decisions
 - **Explicit context passing** so the AI understands what's been authorized
 - **Graceful handling of edge cases** instead of failing silently
 
-When Claude Cowork and I debugged the sub-agent architecture together, we weren't just fixing a bug—we were discovering a fundamental principle about AI agent design. When we iterated on the test framework, we were learning that human judgment is irreplaceable for evaluating conversational behavior.
+When we debugged the sub-agent architecture together, we weren't just fixing a bug—we were discovering a fundamental principle about AI agent design. When we iterated on the test framework, we were learning that human judgment is irreplaceable for evaluating conversational behavior.
 
-### What We Built
+The collaboration worked because Jason brought domain expertise (AWS, enterprise governance, what "trustworthy" means in production) and Claude brought tireless iteration, pattern recognition, and the ability to update dozens of files consistently. Neither could have built this alone.
+
+### What Jason and Claude Built
 AWS Coworker is a working foundation for safe, autonomous AWS infrastructure management:
 - **Planning workflow** with governance guardrails and Well-Architected assessment
 - **Approval gates** that prevent unauthorized changes
@@ -238,13 +294,14 @@ AWS Coworker is a working foundation for safe, autonomous AWS infrastructure man
 - **Model-appropriate delegation** for cost optimization
 - **Human-in-the-loop testing** for quality assurance
 
-### What We Learned
+### What We Learned Together
 1. **Agent architecture matters.** Bypassing it with raw tool calls defeats safety mechanisms.
 2. **Explicit is better than implicit.** Model selection, permission context, and file handling all require explicit instructions.
 3. **Modern AI models are safety-conscious.** Orchestration systems must pass authorization context, not just tasks.
 4. **Test with humans first.** Structured conversations reveal issues that automated tests miss.
 5. **Production is sacred.** The friction of CI/CD is a feature that protects against AI-induced incidents.
-6. **Use AI to build AI.** The experience of using Claude Cowork to build AWS Coworker taught me more about trustworthy AI design than any documentation.
+6. **Use AI to build AI.** The experience of building AWS Coworker with Claude taught us more about trustworthy AI design than any documentation.
+7. **The human-AI loop is the product.** The real value isn't the AI or the human—it's the collaboration pattern.
 
 ### The Future
 AWS Coworker demonstrates that AI agents can safely manage cloud infrastructure when properly constrained. The key is not to make the AI "smarter" but to make the guardrails **explicit and unavoidable**.
@@ -261,10 +318,10 @@ Future directions:
 
 The goal isn't full autonomy—it's **supervised autonomy** where the AI handles the complexity while humans retain control over critical decisions.
 
-That's the lesson Claude Cowork taught me. And that's the experience AWS Coworker aims to deliver.
+That's the lesson building AWS Coworker taught us. And that's the experience we hope it delivers to others.
 
 ---
 
 *AWS Coworker v2.1.25 | Test Suite: 18/20 passing | February 2026*
 
-*Built with Claude Cowork. Powered by Claude.*
+*Built by Jason and Claude* 🤝 *Powered by Claude Cowork*
