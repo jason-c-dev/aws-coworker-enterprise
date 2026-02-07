@@ -133,7 +133,7 @@ Changed from `subagent_type: "Bash"` to `subagent_type: "general-purpose"` with 
 
 ### Key Insight
 
-**"Commands invoke commands"** was the original design principle I had established. The agent definitions existed for a reason—bypassing them with raw Bash/Task calls defeats the entire safety architecture. Claude had to learn to respect the architecture rather than take shortcuts.
+The agent definitions existed for a reason—bypassing them with raw Bash/Task calls defeats the entire safety architecture (**Tenet 7: Respect the Agent Architecture**). But stating the principle wasn't enough; we had to make violations impossible to ignore by explicitly prohibiting the shortcuts (**Tenet 6: Explicit Over Implicit**). Positive guidance shows the right path. Explicit prohibitions block the wrong ones.
 
 ---
 

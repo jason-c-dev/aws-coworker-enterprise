@@ -179,7 +179,7 @@ Task:
 **The "DO NOT" Discovery:** But that wasn't enough. Initially, we thought clear positive instructions would suffice—"use `subagent_type: general-purpose`". Claude obeyed in one call, then reverted to the simpler `Bash` approach in subsequent calls. We learned that AI agents need explicit boundaries on what NOT to do, not just what to do. The fix wasn't complete until we added `# NOT "Bash" - Bash bypasses agent context` directly in the code comments and documentation. Positive guidance drifts; explicit prohibitions stick.
 
 ### Key Insight
-**"Commands invoke commands"** was the original design principle I had established. The agent definitions existed for a reason—bypassing them with raw Bash/Task calls defeats the entire safety architecture. Claude had to learn to respect the architecture rather than take shortcuts.
+The agent definitions existed for a reason—bypassing them with raw Bash/Task calls defeats the entire safety architecture (**Tenet 7: Respect the Agent Architecture**). But stating the principle wasn't enough; we had to make violations impossible to ignore by explicitly prohibiting the shortcuts (**Tenet 6: Explicit Over Implicit**). Positive guidance shows the right path. Explicit prohibitions block the wrong ones.
 
 ---
 
