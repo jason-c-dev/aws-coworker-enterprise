@@ -278,6 +278,39 @@ See [Customization Guide](docs/customization/README.md) for:
 
 ---
 
+## Enterprise Deployment
+
+**GenAI sprawl is the new shadow IT.** Teams signing up directly with frontier model providers creates governance challenges that enterprises have seen before—and solved before.
+
+### Recommended: Amazon Bedrock
+
+For enterprise deployments, access Claude models through **Amazon Bedrock** rather than direct API integration:
+
+| Benefit | What Bedrock Provides |
+|---------|----------------------|
+| **Identity & Access** | IAM integration, principle of least privilege |
+| **Model Governance** | Control which models users can access |
+| **Audit & Compliance** | CloudTrail logging, compliance certifications |
+| **Cost Management** | Consolidated billing, usage tracking |
+
+### Model Hierarchy
+
+AWS Coworker uses a tiered model strategy that Bedrock makes governable:
+
+| Role | Recommended Model | Purpose |
+|------|-------------------|---------|
+| **Orchestrator** | Opus 4.6 | High-quality oversight, planning, user communication |
+| **Sub-Agents (Mutations)** | Sonnet | Thorough analysis for state changes |
+| **Sub-Agents (Discovery)** | Haiku | Fast, cost-effective read-only operations |
+
+Use Opus where quality matters most (orchestration), fall back to Sonnet and Haiku where speed and cost matter more (sub-agents). Bedrock's IAM policies can enforce this hierarchy.
+
+### Why This Matters
+
+As frontier providers like Anthropic race ahead with new models and capabilities, enterprises need both agility and governance. Bedrock bridges that gap—letting you adopt the latest models while AWS handles identity, access, and security at scale.
+
+---
+
 ## Directory Structure
 
 ```

@@ -1323,6 +1323,82 @@ AWS Coworker supports compliance through:
 | PCI-DSS | Network segmentation validation, logging |
 | FedRAMP | GovCloud region support, compliance checks |
 
+### 10.5 Model Access Patterns
+
+**GenAI sprawl is the new shadow IT.** Just as early cloud adoption saw employees expensing their own cloud subscriptions, today's teams are signing up directly with frontier AI providers. For enterprises, this creates familiar challenges: governance gaps, compliance risks, cost sprawl, and security blind spots.
+
+#### Recommended: Amazon Bedrock
+
+For enterprise deployments, access Claude models through **Amazon Bedrock** rather than direct API integration:
+
+```yaml
+bedrock_benefits:
+  identity_and_access:
+    - IAM integration for user and service access
+    - Principle of least privilege enforcement
+    - Role-based model access control
+
+  governance:
+    - Control which models users can access
+    - Enforce model hierarchy (Opus/Sonnet/Haiku)
+    - Prevent unauthorized model usage
+
+  audit_and_compliance:
+    - CloudTrail logging for all model invocations
+    - Integration with existing SIEM
+    - Compliance certifications (SOC, HIPAA, etc.)
+
+  cost_management:
+    - Consolidated billing across teams
+    - Usage tracking and allocation
+    - Budget alerts and controls
+```
+
+#### Model Hierarchy via Bedrock
+
+AWS Coworker's tiered model strategy becomes governable through Bedrock IAM policies:
+
+| Role | Model | Bedrock Model ID | IAM Consideration |
+|------|-------|------------------|-------------------|
+| **Orchestrator** | Opus 4.6 | `anthropic.claude-opus-*` | Restrict to orchestration roles |
+| **Sub-Agents (Mutations)** | Sonnet | `anthropic.claude-sonnet-*` | Allow for mutation operations |
+| **Sub-Agents (Discovery)** | Haiku | `anthropic.claude-haiku-*` | Broadly available for read-only |
+
+```yaml
+# Example IAM policy pattern
+model_access_policy:
+  statement:
+    - effect: Allow
+      action: bedrock:InvokeModel
+      resource:
+        - arn:aws:bedrock:*:*:model/anthropic.claude-haiku-*
+      condition:
+        StringEquals:
+          aws:PrincipalTag/aws-coworker-role: ["discovery", "audit"]
+
+    - effect: Allow
+      action: bedrock:InvokeModel
+      resource:
+        - arn:aws:bedrock:*:*:model/anthropic.claude-sonnet-*
+      condition:
+        StringEquals:
+          aws:PrincipalTag/aws-coworker-role: ["mutation", "execution"]
+
+    - effect: Allow
+      action: bedrock:InvokeModel
+      resource:
+        - arn:aws:bedrock:*:*:model/anthropic.claude-opus-*
+      condition:
+        StringEquals:
+          aws:PrincipalTag/aws-coworker-role: ["orchestrator"]
+```
+
+#### Why This Matters
+
+As frontier providers like Anthropic race ahead with new models and capabilities, enterprises need both agility and governance. Bedrock bridges that gap—providing access to the latest Claude models while AWS handles identity, access, compliance, and security at scale.
+
+**Recommendation:** Use Opus for orchestration where quality matters most, fall back to Sonnet for mutations and Haiku for discovery where speed and cost matter more—all governed by Bedrock IAM policies that enforce least privilege.
+
 ---
 
 ## 11. Reference Library Specifications

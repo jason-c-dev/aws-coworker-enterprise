@@ -63,6 +63,19 @@ Before starting, ensure you have:
 - [ ] A sandbox/development AWS account for learning
 - [ ] Familiarity with AWS services you'll be working with
 
+### For Enterprise Deployments
+
+For production enterprise use, we recommend accessing Claude models through **Amazon Bedrock** rather than direct API integration:
+
+- **IAM integration** — Control model access with familiar AWS identity tools
+- **Audit trails** — CloudTrail logging for all model invocations
+- **Compliance** — Leverage Bedrock's compliance certifications
+- **Cost governance** — Consolidated billing and usage tracking
+
+AWS Coworker uses a tiered model strategy: **Opus** for orchestration, **Sonnet** for mutations, **Haiku** for discovery. Bedrock's IAM policies can enforce this hierarchy, ensuring teams use appropriate models for each task.
+
+See the [Enterprise Deployment](../../README.md#enterprise-deployment) section in the main README for details.
+
 ---
 
 ## Installation

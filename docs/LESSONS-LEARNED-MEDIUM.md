@@ -293,6 +293,18 @@ AWS Coworker is a working foundation for safe, autonomous AWS infrastructure man
 6. **Use AI to build AI.** The experience of building AWS Coworker with Claude taught us more about trustworthy AI design than any documentation.
 7. **The human-AI loop is the product.** The real value isn't the AI or the human—it's the collaboration pattern.
 
+### A Note for Enterprises: GenAI Sprawl is the New Shadow IT
+
+In the early days of cloud, "shadow IT" emerged as employees bypassed procurement and expensed their own cloud subscriptions. The same pattern is happening today with GenAI. Teams are signing up directly with frontier model providers, creating sprawl that's difficult to govern, audit, or secure.
+
+AWS Coworker is designed to leverage high-quality models like **Claude Opus 4.6** for orchestration and oversight—the "thinking" layer that evaluates plans, makes decisions, and communicates with users. But it also falls back to **Sonnet** for mutations and **Haiku** for discovery, optimizing cost without sacrificing capability where it matters. This tiered approach only works when you have proper model access governance.
+
+*How* you access those models matters for enterprise adoption. Direct API access to Anthropic creates the same governance challenges as shadow IT. **Amazon Bedrock** provides the enterprise layer: IAM integration, principle of least privilege, model access controls, audit trails, and compliance certifications.
+
+As frontier providers like Anthropic race ahead with new models, agents, and capabilities, solutions like AWS Coworker need to keep pace. But enterprises also need stability, governance, and control. Bedrock bridges that gap—letting you adopt the latest models while AWS handles what AWS does best: identity, access, and security at scale.
+
+**Recommendation:** For enterprise deployments, access Claude models through Amazon Bedrock rather than direct API integration. Use Opus for orchestration, Sonnet for mutations, Haiku for discovery—all governed by IAM policies that enforce least privilege.
+
 ### The Future
 
 AWS Coworker demonstrates that AI agents can safely manage cloud infrastructure when properly constrained. The key is not to make the AI "smarter" but to make the guardrails **explicit and unavoidable**.
