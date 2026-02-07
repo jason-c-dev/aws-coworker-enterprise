@@ -38,23 +38,23 @@ AWS Coworker is an experimental system that enables Claude to safely manage AWS 
 
 Before diving into architecture and lessons, here are the core principles that guided AWS Coworker's design:
 
-**1. Human Approval Gates** — No mutation without explicit user approval
+**1. Human Approval Gates** — No mutation without explicit user approval *(See Lessons 5, 6)*
 
-**2. Cost-Aware Model Selection** — Haiku for reads, Sonnet for writes
+**2. Cost-Aware Model Selection** — Haiku for reads, Sonnet for writes *(See Lesson 2)*
 
 **3. Well-Architected by Default** — Every plan assessed against 6 pillars
 
-**4. Governance Compliance as Code** — Rules encoded as skills Claude reads
+**4. Governance Compliance as Code** — Rules encoded as skills Claude reads *(See Lesson 4)*
 
-**5. Production is Sacred** — Non-prod: direct execution. Prod: CI/CD only
+**5. Production is Sacred** — Non-prod: direct execution. Prod: CI/CD only *(See Lesson 5)*
 
-**6. Explicit Over Implicit** — State everything; AI takes path of least resistance
+**6. Explicit Over Implicit** — State everything; AI takes path of least resistance *(See Lessons 3, 7)*
 
-**7. Respect the Agent Architecture** — If you designed agent roles, use them
+**7. Respect the Agent Architecture** — If you designed agent roles, use them *(See Lesson 1)*
 
-**8. Layered Extensibility** — Core → Org (→ BU); customize without forking
+**8. Layered Extensibility** — Core → Org (→ BU); customize without forking *(See Architecture)*
 
-**9. Self-Extending System** — Learn from sessions, codify patterns as skills
+**9. Self-Extending System** — Learn from sessions, codify patterns as skills *(See Architecture)*
 
 These tenets explain *why* certain lessons were hard-won. When I violated a tenet (often unknowingly), things broke. When I enforced them explicitly, things worked.
 
