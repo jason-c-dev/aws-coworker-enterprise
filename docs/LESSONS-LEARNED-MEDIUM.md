@@ -287,7 +287,7 @@ That's the lesson building AWS Coworker taught me. And that's the experience I h
 
 The code is available at [github.com/jason-c-dev/aws-coworker-enterprise](https://github.com/jason-c-dev/aws-coworker-enterprise). It's experimental—expect rough edges—but the patterns are real and the lessons are hard-won. PRs welcome.
 
-For the full version with code examples and tables, see the [GitHub Pages version](https://jason-c-dev.github.io/aws-coworker-enterprise/LESSONS-LEARNED.html).
+For the original blog with code examples and tables, see the [GitHub Pages version](https://jason-c-dev.github.io/aws-coworker-enterprise/LESSONS-LEARNED.html).
 
 ---
 
