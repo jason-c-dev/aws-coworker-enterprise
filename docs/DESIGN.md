@@ -385,14 +385,14 @@ AWS Coworker uses a tiered model strategy for cost efficiency and performance:
 
 | Role | Model | Responsibilities |
 |------|-------|------------------|
-| **Primary Agent (Orchestrator)** | User's selected model (Opus, Sonnet, etc.) | Orchestration, threshold evaluation, user communication, result synthesis |
+| **Primary Agent (Orchestrator)** | Opus (recommended) | Reasoning and orchestration: planning, decisions, user communication, result synthesis |
 | **Sub-Agents (Read-Only)** | `haiku` | Discovery, audits, cost analysis, compliance checks |
 | **Sub-Agents (Mutations)** | `sonnet` | State changes, resource modifications, configuration updates |
 
 **Why this matters:**
 
-- The user's premium model (e.g., Opus 4.5) handles complex orchestration and decision-making
-- Sub-agents use cost-efficient models (Haiku) for parallelized "grunt work"
+- Opus handles reasoning and orchestration—the "thinking" layer that evaluates plans, makes decisions, and communicates with users
+- Sub-agents use cost-efficient models (Haiku) for parallelized discovery
 - Mutations use Sonnet for more thorough analysis where mistakes are costlier
 - Result: Best quality where it counts, optimized cost for scale
 

@@ -194,7 +194,7 @@ AWS Coworker uses a tiered model strategy for cost efficiency:
 
 | Role | Model | Purpose |
 |------|-------|---------|
-| **Primary (Orchestrator)** | Your selected model (Opus, Sonnet, etc.) | Orchestration, threshold evaluation, user communication, result synthesis |
+| **Primary (Orchestrator)** | Opus (recommended) | Reasoning and orchestration: planning, decisions, user communication, result synthesis |
 | **Sub-Agents (Read-Only)** | Haiku | Fast parallel discovery, audits, cost analysis |
 | **Sub-Agents (Mutations)** | Sonnet | Thorough state-change analysis |
 

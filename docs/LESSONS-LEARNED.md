@@ -45,7 +45,7 @@ Before diving into architecture and lessons, here are the core principles that g
 | # | Tenet | One-liner | See |
 |---|-------|-----------|-----|
 | 1 | **Human Approval Gates** | No mutation without explicit user approval | Lesson 5, 6 |
-| 2 | **Cost-Aware Model Selection** | Haiku for reads, Sonnet for writes | Lesson 2 |
+| 2 | **Cost-Aware Model Selection** | Opus for reasoning and orchestration, Haiku for discovery, Sonnet for mutations | Lesson 2 |
 | 3 | **Well-Architected by Default** | Every plan assessed against 6 pillars | Throughout |
 | 4 | **Governance Compliance as Code** | Rules encoded as skills Claude reads | Lesson 4 |
 | 5 | **Production is Sacred** | Non-prod: direct execution. Prod: CI/CD only | Lesson 5 |
@@ -185,6 +185,8 @@ The agent definitions existed for a reason—bypassing them with raw Bash/Task c
 
 ## 2. Model Selection: Cost vs. Capability
 
+AWS Coworker uses a three-tier model strategy: **Opus** handles reasoning and orchestration—the "thinking" layer that evaluates plans, makes decisions, and communicates with users. **Haiku** handles fast, cost-effective discovery. **Sonnet** handles mutations where thoroughness matters. This lesson focuses on getting the sub-agent tier right.
+
 ### What I Tried
 The plan was simple: use Haiku (fast, cheap) for read-only discovery operations, and Sonnet (capable, more expensive) for mutations that modify infrastructure.
 
@@ -205,7 +207,7 @@ Task(Launch EC2 instance) Sonnet 4.5
 ```
 
 ### Key Insight
-AI agent costs can explode quickly. Being intentional about model selection per operation type is essential for production viability.
+AI agent costs can explode quickly. Being intentional about model selection per operation type is essential for production viability. Use the best model (Opus) for reasoning and orchestration where quality matters most, and cost-optimize the sub-agents (Haiku for discovery, Sonnet for mutations) where volume is high.
 
 ---
 
