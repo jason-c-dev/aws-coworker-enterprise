@@ -8,9 +8,13 @@
 
 ## The Origin Story
 
-It started with a simple observation: I (Jason) was using **Claude Cowork** for personal tasks—automating increasingly complex but laborious work like writing documents, analyzing data, and managing files. (Cowork isn't InfoSec-approved for my day job at AWS, but for personal projects it was transformative.) The experience opened my eyes to something important: Cowork's approach of structured workflows, human approval gates, and thoughtful guardrails made me trust the AI to handle work I would never have delegated before.
+It started with curiosity. I wanted to understand **Claude Code**—how it works, how to extend it, what patterns make AI agents reliable. The best way to learn a tool is to build something real with it.
+
+On the side, I'd been using **Claude Cowork** for personal tasks—automating increasingly complex but laborious work like writing documents, analyzing data, and managing files. (Cowork isn't InfoSec-approved for my day job at AWS, but for personal projects it was transformative.) The experience opened my eyes to something important: Cowork's approach of structured workflows, human approval gates, and thoughtful guardrails made me trust the AI to handle work I would never have delegated before.
 
 Then the question hit me: **What if I could bring this same pattern to AWS infrastructure management?**
+
+It was the perfect learning project. I'd get hands-on with Claude Code's primitives—commands, sub-agents, skills—while building something genuinely useful.
 
 Cloud engineers spend enormous time on repetitive tasks: creating EC2 instances, configuring security groups, setting up S3 buckets—all while trying to comply with tagging policies, security requirements, and the AWS Well-Architected Framework. What if Claude could handle the complexity while humans retained control over the critical decisions?
 
@@ -356,10 +360,16 @@ Future directions:
 
 The goal isn't full autonomy—it's **supervised autonomy** where the AI handles the complexity while humans retain control over critical decisions.
 
-That's the lesson building AWS Coworker taught us. And that's the experience we hope it delivers to others.
+That's the lesson building AWS Coworker taught me. And that's the experience I hope it delivers to others.
 
 ---
 
-*AWS Coworker v2.1.25 | Test Suite: 18/20 passing | February 2026*
+**Want to try it yourself?**
 
-*Built by Jason and Claude* 🤝 *Powered by Claude Cowork*
+The code is available at [github.com/jasoncroucher/aws-coworker-enterprise](https://github.com/jasoncroucher/aws-coworker-enterprise). It's experimental—expect rough edges—but the patterns are real and the lessons are hard-won. PRs welcome.
+
+---
+
+*Developed with Claude Code v2.1.25 | Test Suite: 18/20 passing | February 2026*
+
+*The views expressed here are my own and do not represent the views of my employer. AWS Coworker is a personal learning project, not an official AWS product.*
