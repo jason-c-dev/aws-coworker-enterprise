@@ -22,15 +22,13 @@ That's how AWS Coworker was born.
 
 I used Claude Cowork to *build* AWS Coworker—an AI assistant that helps users create high-quality AWS deployments following Well-Architected best practices. The irony isn't lost on me: I used an AI assistant to build an AI assistant. But that meta-experience taught me more about what makes AI agents trustworthy than any whitepaper ever could.
 
-This document captures those lessons—written with a little help from Claude, naturally. 😄
+This blog captures those lessons—written with a little help from Claude, naturally. 😄
 
 ---
 
 ## Executive Summary
 
 AWS Coworker is an experimental system that enables Claude to safely manage AWS infrastructure through a structured planning and approval workflow. Over the course of development and testing, I discovered critical patterns for building reliable AI agents that interact with production systems.
-
-**Final Test Results:** 18/20 tests passing, 2 partial passes, 0 failures
 
 ---
 
@@ -62,13 +60,18 @@ These tenets explain *why* certain lessons were hard-won. When I violated a tene
 
 ---
 
-## How AWS Coworker Works
+## How AWS Coworker Works: The Architecture
 
 Before diving into lessons learned, it helps to understand *how* AWS Coworker is built. The system uses three key Claude Code primitives:
 
 ### Commands (Slash Commands)
 
-Commands are user-invocable workflows stored in `.claude/commands/`. They're like specialized entry points. The main ones are: a **planning workflow** with discovery, governance checks, and approval gates; an **execution command** for non-production environments; a **production prep command** that generates IaC for CI/CD; and a **rollback command** for safely reversing changes.
+Commands are user-invocable workflows stored in `.claude/commands/`. They're like specialized entry points:
+
+- `/aws-coworker-plan-interaction` — Planning workflow with discovery, governance checks, and approval gates
+- `/aws-coworker-execute-nonprod` — Execute approved plans in non-production environments
+- `/aws-coworker-prepare-prod-change` — Generate IaC (Terraform) for production CI/CD
+- `/aws-coworker-rollback-change` — Safely reverse changes in dependency order
 
 When a user says "Create an EC2 instance," Claude routes to the planning command, which orchestrates the entire workflow.
 
