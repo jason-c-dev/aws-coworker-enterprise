@@ -153,7 +153,11 @@ The output showed `"3 Bash agents finished"` instead of `"Task(Discover VPC stat
 - Permission context passing
 - The entire agent definition architecture we had built
 
-My exact words: *"YES! You've bypassed the design which is causing the problem."* 😅
+My exact words to Claude, in a moment of frustration: *"YES! You've bypassed the design which is causing the problem."* 😅
+
+Immediately after, I felt like I'd told off a junior developer—and felt guilty. It wasn't Claude's fault. I alone have the responsibility to ensure the tenets and design principles are followed. Claude is an invaluable companion. I can delegate tasks, but I cannot—*must not*—delegate responsibility.
+
+Ironically, this is a principle of good leadership with human teams: you're accountable for the outcomes, even when others do the work. The same applies to AI agents. There's a lot we learn as leaders that transfers directly to working with GenAI. The AI will take the path of least resistance (Tenet 6). It's my job to make the right path unavoidable.
 
 ### The Fix
 Claude updated the documentation to change from `subagent_type: "Bash"` to `subagent_type: "general-purpose"` with explicit agent identity in the prompt:
