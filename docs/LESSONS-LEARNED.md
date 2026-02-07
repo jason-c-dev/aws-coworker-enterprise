@@ -54,10 +54,16 @@ Non-production environments allow direct execution. Production environments rout
 ### 6. Explicit Over Implicit
 Model selection, permission context, file handling—everything must be explicitly stated. AI models will take the path of least resistance; guardrails must be unavoidable.
 
-### 7. Commands Invoke Commands
-The agent architecture exists for a reason. Sub-agents must go through defined agent identities, not bypass them with raw tool calls.
+### 7. Respect the Agent Architecture
+When you build an agent system with defined identities and behaviors, your orchestration code must *use* that architecture—not bypass it.
 
-These tenets explain *why* certain lessons were hard-won. When we violated a tenet (often unknowingly), things broke. When we enforced them explicitly, things worked.
+In practice: when AWS Coworker needs a sub-agent to run discovery, it spawns a `general-purpose` agent with the identity "You are acting as aws-coworker-planner" and the relevant context. The temptation is to just spawn a raw Bash agent and run commands directly—it's simpler! But that bypasses model selection, permission context, and agent identity. The shortcut breaks the safety model.
+
+If you've designed agent roles, use them.
+
+---
+
+These tenets explain *why* certain lessons were hard-won. When I violated a tenet (often unknowingly), things broke. When I enforced them explicitly, things worked.
 
 ---
 
