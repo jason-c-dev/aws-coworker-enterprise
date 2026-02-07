@@ -329,6 +329,7 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for:
 - [Design Document](docs/DESIGN.md) — Full architectural specification
 - [Getting Started](docs/getting-started/README.md) — Installation and first steps
 - [Customization Guide](docs/customization/README.md) — Extending AWS Coworker
+- [Lessons Learned](docs/LESSONS-LEARNED.md) — Why we made these design choices
 
 ---
 

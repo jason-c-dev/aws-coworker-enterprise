@@ -202,8 +202,8 @@ AWS Coworker uses a tiered model strategy for cost efficiency:
 
 ```
 Task:
-  subagent_type: "Bash"
-  model: "haiku"          ← MUST specify model explicitly
+  subagent_type: "general-purpose"    # NOT "Bash" - Bash bypasses agent context
+  model: "haiku"                      # MUST specify model explicitly
   prompt: "..."
 
 CORRECT:

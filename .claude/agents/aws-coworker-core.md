@@ -359,7 +359,7 @@ When spawning a sub-agent:
 
 ```yaml
 Task:
-  subagent_type: "Bash"  # or "general-purpose" for complex tasks
+  subagent_type: "general-purpose"    # NOT "Bash" - Bash bypasses agent context
   prompt: |
     ## AUTHORIZATION (REQUIRED)
     You are an authorized AWS Coworker sub-agent. You HAVE PERMISSION to run AWS CLI commands.

@@ -405,7 +405,7 @@ That's the lesson building AWS Coworker taught me. And that's the experience I h
 
 **Want to try it yourself?**
 
-The code is available at [github.com/jasoncroucher/aws-coworker-enterprise](https://github.com/jasoncroucher/aws-coworker-enterprise). It's experimental—expect rough edges—but the patterns are real and the lessons are hard-won. PRs welcome.
+The code is available at [github.com/jason-c-dev/aws-coworker-enterprise](https://github.com/jason-c-dev/aws-coworker-enterprise). It's experimental—expect rough edges—but the patterns are real and the lessons are hard-won. PRs welcome.
 
 ---
 
