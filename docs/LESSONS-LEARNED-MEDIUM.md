@@ -4,6 +4,8 @@
 
 *By Jason Croucher and Claude* 🤝
 
+*This is the Medium-friendly version. For the original blog with code examples and tables, see the [GitHub Pages version](https://jason-c-dev.github.io/aws-coworker-enterprise/LESSONS-LEARNED.html).*
+
 ---
 
 ## The Origin Story
