@@ -99,7 +99,7 @@ Skills are markdown files containing specialized knowledge that Claude reads bef
 - **Orchestration config**: Model selection rules, scope assessment thresholds
 - **Well-Architected guidance**: Best practices for each pillar
 
-This architecture mirrors how Cowork itself works—and that's intentional. The patterns that made Cowork trustworthy became the patterns I built into AWS Coworker.
+The experience of using Cowork inspired AWS Coworker. The implementation uses Claude Code's core primitives—commands, sub-agents, and skills.
 
 ---
 
@@ -313,7 +313,7 @@ AI models are generative by nature. When given a task like "deploy this game," t
 
 There's something profound about using an AI assistant to build an AI assistant. Every time Claude helped me debug a problem, refine a prompt, or test a workflow, I was simultaneously learning what makes AI assistance trustworthy.
 
-The patterns that made Cowork effective became the patterns I built into AWS Coworker:
+The patterns that made Cowork *feel* trustworthy became the patterns I built into AWS Coworker:
 - **Structured workflows** that guide users through complex tasks
 - **Approval gates** that keep humans in control of critical decisions
 - **Explicit context passing** so the AI understands what's been authorized
