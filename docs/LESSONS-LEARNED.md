@@ -211,11 +211,11 @@ AI agent costs can explode quickly. Being intentional about model selection per 
 Initially, sub-agents were spawned with just the technical task: "Run these AWS CLI commands and report results."
 
 ### What Went Wrong
-Here's where I fell foul of Claude Code's versioning. The system worked fine during early development—sub-agents would happily execute AWS mutations when asked. Then I updated to the latest Claude Code release with Opus 4.6, and suddenly sub-agents started refusing to execute.
+Here's where I fell foul of Claude Code's versioning. The system worked fine during early development—sub-agents would happily execute AWS mutations when asked. Then one day, without warning, everything broke. Claude Code had auto-updated itself, and suddenly sub-agents started refusing to execute.
 
 The newer Claude models (Opus 4.5/4.6, Sonnet 4.5) have stronger safety behaviors. Sub-agents would refuse to execute mutations because they had no context that the user had approved the operation. From the sub-agent's perspective, it was being asked to modify AWS infrastructure with no authorization—and that's a reasonable thing to refuse.
 
-**A note on Claude Code versions:** During development, I learned the hard way to pin to a stable version. You can control this with:
+**A note on Claude Code versions:** After that surprise breakage, I learned the hard way to pin to a stable version. You can control this with:
 ```bash
 # Use stable version (recommended for development)
 export DISABLE_AUTOUPDATER=1
