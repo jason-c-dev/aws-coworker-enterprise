@@ -8,7 +8,7 @@
 
 ## The Origin Story
 
-It started with a simple observation: I (Jason) was using **Claude Cowork** to help me with complex tasks—writing documents, analyzing code, creating presentations—and the experience was transformative. Cowork's approach of structured workflows, human approval gates, and thoughtful guardrails made me trust the AI to handle increasingly complex work.
+It started with a simple observation: I (Jason) was using **Claude Cowork** for personal tasks—automating increasingly complex but laborious work like writing documents, analyzing data, and managing files. (Cowork isn't InfoSec-approved for my day job at AWS, but for personal projects it was transformative.) The experience opened my eyes to something important: Cowork's approach of structured workflows, human approval gates, and thoughtful guardrails made me trust the AI to handle work I would never have delegated before.
 
 Then the question hit me: **What if I could bring this same pattern to AWS infrastructure management?**
 
