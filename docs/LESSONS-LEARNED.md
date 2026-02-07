@@ -40,17 +40,21 @@ The development process itself—using Claude Cowork to build, test, debug, and 
 
 Before diving into architecture and lessons, here are the core principles that guided AWS Coworker's design:
 
-| # | Tenet | One-liner | See Lesson |
-|---|-------|-----------|------------|
-| 1 | **Human Approval Gates** | No mutation without explicit user approval | 5, 6 |
-| 2 | **Cost-Aware Model Selection** | Haiku for reads, Sonnet for writes | 2 |
+| # | Tenet | One-liner | See |
+|---|-------|-----------|-----|
+| 1 | **Human Approval Gates** | No mutation without explicit user approval | Lesson 5, 6 |
+| 2 | **Cost-Aware Model Selection** | Haiku for reads, Sonnet for writes | Lesson 2 |
 | 3 | **Well-Architected by Default** | Every plan assessed against 6 pillars | Throughout |
-| 4 | **Governance Compliance as Code** | Rules encoded as skills Claude reads | 4 |
-| 5 | **Production is Sacred** | Non-prod: direct execution. Prod: CI/CD only | 5 |
-| 6 | **Explicit Over Implicit** | State everything; AI takes path of least resistance | 3, 7 |
-| 7 | **Respect the Agent Architecture** | If you designed agent roles, use them | 1 |
+| 4 | **Governance Compliance as Code** | Rules encoded as skills Claude reads | Lesson 4 |
+| 5 | **Production is Sacred** | Non-prod: direct execution. Prod: CI/CD only | Lesson 5 |
+| 6 | **Explicit Over Implicit** | State everything; AI takes path of least resistance | Lesson 3, 7 |
+| 7 | **Respect the Agent Architecture** | If you designed agent roles, use them | Lesson 1 |
+| 8 | **Layered Extensibility** | Core → Org (→ BU); customize without forking | Architecture |
+| 9 | **Self-Extending System** | Learn from sessions, codify patterns as skills | Architecture |
 
 These tenets explain *why* certain lessons were hard-won. When I violated a tenet (often unknowingly), things broke. When I enforced them explicitly, things worked.
+
+**Note:** Tenets 8 and 9 are part of the architecture but haven't been thoroughly tested yet. They represent the vision for enterprise extensibility—see the Architecture section for details.
 
 ---
 
@@ -104,6 +108,36 @@ Skills are markdown files containing specialized knowledge that Claude reads bef
 - **Well-Architected guidance**: Best practices for each pillar
 
 The experience of using Cowork inspired AWS Coworker. The implementation uses Claude Code's core primitives—commands, sub-agents, and skills.
+
+### Extensibility: Skill Layers
+
+AWS Coworker is designed for enterprise customization through a multi-layered skill architecture:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    BU/Tenant Layer                          │
+│         (Business unit or tenant-specific overlays)         │
+├─────────────────────────────────────────────────────────────┤
+│                    Organization Layer                       │
+│         (Org-specific policies, patterns, naming)           │
+├─────────────────────────────────────────────────────────────┤
+│                    Core/Base Layer                          │
+│     (Batteries-included library - generic, universal)       │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**How it works:**
+- **Core Layer** provides universal patterns (planning workflows, execution safety, Well-Architected checks)
+- **Org Layer** adds company-specific policies—see `skills/org/aws-governance-guardrails/` for tagging policies, network rules, encryption requirements
+- **BU Layer** (future) would allow team-specific customizations without modifying Org or Core
+
+Each layer can override or extend the layer below without forking the codebase. An enterprise can adopt AWS Coworker's core, add their governance policies at the Org layer, and let individual teams customize at the BU layer.
+
+**Self-extending via sessions:**
+
+The command `/aws-coworker-new-skill-from-session` allows users to capture successful patterns from their sessions and codify them as reusable skills. Instead of repeating complex workflows, the system learns and remembers.
+
+**Honest caveat:** This layered architecture exists but was not the focus of our testing. Consider it part of the vision rather than validated patterns—we'll revisit extensibility in future development and testing.
 
 ---
 
@@ -351,6 +385,7 @@ AWS Coworker demonstrates that AI agents can safely manage cloud infrastructure 
 The vision is clear: just as Claude Cowork helps knowledge workers handle complex document and analysis tasks, AWS Coworker can help cloud engineers create deployments that meet Well-Architected best practices—without sacrificing human oversight.
 
 Future directions:
+- **Enterprise customization** via layered skills (Org policies, BU overlays)
 - **Multi-region orchestration** with parallel sub-agents
 - **Drift detection** comparing actual state to intended state
 - **Cost optimization recommendations** based on usage patterns
