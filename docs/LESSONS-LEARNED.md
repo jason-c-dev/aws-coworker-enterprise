@@ -32,6 +32,35 @@ The development process itself—using Claude Cowork to build, test, debug, and 
 
 ---
 
+## Key Design Tenets
+
+Before diving into architecture and lessons, here are the core principles that guided AWS Coworker's design:
+
+### 1. Human Approval Gates
+No AWS mutation happens without explicit user approval. The AI proposes, the human disposes. This is non-negotiable for infrastructure changes.
+
+### 2. Cost-Aware Model Selection
+Use the cheapest model that can do the job. Haiku for read-only discovery, Sonnet for mutations. AI agent costs can explode without intentional model routing.
+
+### 3. Well-Architected by Default
+Every plan is assessed against AWS's six Well-Architected pillars. Security, reliability, and cost optimization aren't afterthoughts—they're built into the planning workflow.
+
+### 4. Governance Compliance as Code
+Tagging policies, network security rules, and encryption requirements are encoded as "skills" that Claude reads before acting. The agent can't claim ignorance of the rules.
+
+### 5. Production is Sacred
+Non-production environments allow direct execution. Production environments route through CI/CD with generated Terraform. No exceptions, no shortcuts.
+
+### 6. Explicit Over Implicit
+Model selection, permission context, file handling—everything must be explicitly stated. AI models will take the path of least resistance; guardrails must be unavoidable.
+
+### 7. Commands Invoke Commands
+The agent architecture exists for a reason. Sub-agents must go through defined agent identities, not bypass them with raw tool calls.
+
+These tenets explain *why* certain lessons were hard-won. When we violated a tenet (often unknowingly), things broke. When we enforced them explicitly, things worked.
+
+---
+
 ## How AWS Coworker Works: The Architecture
 
 Before diving into lessons learned, it helps to understand *how* AWS Coworker is built. The system uses three key Claude Code primitives:
@@ -142,9 +171,20 @@ AI agent costs can explode quickly. Being intentional about model selection per 
 Initially, sub-agents were spawned with just the technical task: "Run these AWS CLI commands and report results."
 
 ### What Went Wrong
-Newer Claude versions (Opus 4.5, Sonnet 4.5) have stronger safety behaviors. Sub-agents would refuse to execute mutations because they had no context that the user had approved the operation. From the sub-agent's perspective, it was being asked to modify AWS infrastructure with no authorization.
+Here's where I fell foul of Claude Code's versioning. The system worked fine during early development—sub-agents would happily execute AWS mutations when asked. Then I updated to the latest Claude Code release with Opus 4.6, and suddenly sub-agents started refusing to execute.
 
-I flagged this early: *"Remember that sub-agents need to have clear instructions that they have permission from the user passed down, or the latest version of Claude won't work."* Claude's safety training means it won't just execute arbitrary infrastructure changes without knowing someone authorized it.
+The newer Claude models (Opus 4.5/4.6, Sonnet 4.5) have stronger safety behaviors. Sub-agents would refuse to execute mutations because they had no context that the user had approved the operation. From the sub-agent's perspective, it was being asked to modify AWS infrastructure with no authorization—and that's a reasonable thing to refuse.
+
+**A note on Claude Code versions:** During development, I learned the hard way to pin to a stable version. You can control this with:
+```bash
+# Use stable version (recommended for development)
+export DISABLE_AUTOUPDATER=1
+
+# Check your version
+claude --version
+```
+
+When things suddenly break after an update, check if Claude's safety behaviors have been strengthened. It's usually a good thing—but your orchestration code needs to adapt.
 
 ### The Fix
 Pass explicit permission context to every sub-agent:
