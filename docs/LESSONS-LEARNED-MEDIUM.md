@@ -32,6 +32,8 @@ This blog captures those lessons—written with a little help from Claude, natur
 
 AWS Coworker is an experimental system that enables Claude to safely manage AWS infrastructure through a structured planning and approval workflow. Over the course of development and testing, I discovered critical patterns for building reliable AI agents that interact with production systems.
 
+The development process itself—using Claude Cowork to build, test, debug, and iterate—revealed insights that wouldn't have been possible through traditional development alone. When your development assistant and your product share the same DNA, you learn what works at a fundamental level.
+
 ---
 
 ## Key Design Tenets
@@ -58,7 +60,7 @@ Before diving into architecture and lessons, here are the core principles that g
 
 These tenets explain *why* certain lessons were hard-won. When I violated a tenet (often unknowingly), things broke. When I enforced them explicitly, things worked.
 
-**Note:** Tenets 8 and 9 are part of the architecture but haven't been thoroughly tested yet. They represent the vision for enterprise extensibility.
+**Note:** Tenets 8 and 9 are part of the architecture but haven't been thoroughly tested yet. They represent the vision for enterprise extensibility—see the Architecture section for details.
 
 ---
 
@@ -88,6 +90,20 @@ Complex operations are delegated to sub-agents using the Task tool. This is wher
 Skills are markdown files containing specialized knowledge that Claude reads before acting. AWS Coworker uses governance guardrails (tagging policies, network security rules, encryption requirements), orchestration config (model selection rules, scope assessment thresholds), and Well-Architected guidance (best practices for each pillar).
 
 The experience of using Cowork inspired AWS Coworker. The implementation uses Claude Code's core primitives—commands, sub-agents, and skills.
+
+### Extensibility: Skill Layers
+
+AWS Coworker is designed for enterprise customization through a multi-layered skill architecture:
+
+- **Core/Base Layer** — Batteries-included library with universal patterns (planning workflows, execution safety, Well-Architected checks)
+- **Organization Layer** — Org-specific policies, patterns, and naming conventions
+- **BU/Tenant Layer** — Business unit or tenant-specific overlays
+
+Each layer can override or extend the layer below without forking the codebase. An enterprise can adopt AWS Coworker's core, add their governance policies at the Org layer, and let individual teams customize at the BU layer.
+
+**Self-extending via sessions:** The command `/aws-coworker-new-skill-from-session` allows users to capture successful patterns from their sessions and codify them as reusable skills. Instead of repeating complex workflows, the system learns and remembers.
+
+**Honest caveat:** This layered architecture exists but was not the focus of our testing. Consider it part of the vision rather than validated patterns—we'll revisit extensibility in future development and testing.
 
 ---
 
@@ -278,6 +294,8 @@ AWS Coworker is a working foundation for safe, autonomous AWS infrastructure man
 AWS Coworker demonstrates that AI agents can safely manage cloud infrastructure when properly constrained. The key is not to make the AI "smarter" but to make the guardrails **explicit and unavoidable**.
 
 The vision is clear: just as Claude Cowork helps knowledge workers handle complex document and analysis tasks, AWS Coworker can help cloud engineers create deployments that meet Well-Architected best practices—without sacrificing human oversight.
+
+Future directions include enterprise customization via layered skills (Org policies, BU overlays), multi-region orchestration with parallel sub-agents, drift detection comparing actual state to intended state, cost optimization recommendations based on usage patterns, incident response automation with approval gates, integration with existing IaC (Terraform, CloudFormation, CDK), and team collaboration with shared plans and audit trails.
 
 The goal isn't full autonomy—it's **supervised autonomy** where the AI handles the complexity while humans retain control over critical decisions.
 
