@@ -36,32 +36,15 @@ The development process itself—using Claude Cowork to build, test, debug, and 
 
 Before diving into architecture and lessons, here are the core principles that guided AWS Coworker's design:
 
-### 1. Human Approval Gates
-No AWS mutation happens without explicit user approval. The AI proposes, the human disposes. This is non-negotiable for infrastructure changes.
-
-### 2. Cost-Aware Model Selection
-Use the cheapest model that can do the job. Haiku for read-only discovery, Sonnet for mutations. AI agent costs can explode without intentional model routing.
-
-### 3. Well-Architected by Default
-Every plan is assessed against AWS's six Well-Architected pillars. Security, reliability, and cost optimization aren't afterthoughts—they're built into the planning workflow.
-
-### 4. Governance Compliance as Code
-Tagging policies, network security rules, and encryption requirements are encoded as "skills" that Claude reads before acting. The agent can't claim ignorance of the rules.
-
-### 5. Production is Sacred
-Non-production environments allow direct execution. Production environments route through CI/CD with generated Terraform. No exceptions, no shortcuts.
-
-### 6. Explicit Over Implicit
-Model selection, permission context, file handling—everything must be explicitly stated. AI models will take the path of least resistance; guardrails must be unavoidable.
-
-### 7. Respect the Agent Architecture
-When you build an agent system with defined identities and behaviors, your orchestration code must *use* that architecture—not bypass it.
-
-In practice: when AWS Coworker needs a sub-agent to run discovery, it spawns a `general-purpose` agent with the identity "You are acting as aws-coworker-planner" and the relevant context. The temptation is to just spawn a raw Bash agent and run commands directly—it's simpler! But that bypasses model selection, permission context, and agent identity. The shortcut breaks the safety model.
-
-If you've designed agent roles, use them.
-
----
+| # | Tenet | One-liner | See Lesson |
+|---|-------|-----------|------------|
+| 1 | **Human Approval Gates** | No mutation without explicit user approval | 5, 6 |
+| 2 | **Cost-Aware Model Selection** | Haiku for reads, Sonnet for writes | 2 |
+| 3 | **Well-Architected by Default** | Every plan assessed against 6 pillars | Throughout |
+| 4 | **Governance Compliance as Code** | Rules encoded as skills Claude reads | 4 |
+| 5 | **Production is Sacred** | Non-prod: direct execution. Prod: CI/CD only | 5 |
+| 6 | **Explicit Over Implicit** | State everything; AI takes path of least resistance | 3, 7 |
+| 7 | **Respect the Agent Architecture** | If you designed agent roles, use them | 1 |
 
 These tenets explain *why* certain lessons were hard-won. When I violated a tenet (often unknowingly), things broke. When I enforced them explicitly, things worked.
 
@@ -99,6 +82,15 @@ Task:
 ```
 
 Sub-agents handle specific tasks (discovery, creating resources, validation) while the parent orchestrates the workflow.
+
+**Critical: Invoking Sub-Agents Correctly**
+
+The temptation is to spawn a raw `Bash` agent and run commands directly—it's simpler! But that bypasses:
+- **Model selection** (Haiku vs Sonnet)
+- **Agent identity** ("You are acting as aws-coworker-executor")
+- **Permission context** ("User has approved this operation")
+
+The shortcut breaks the safety model. Always use `subagent_type: "general-purpose"` with explicit identity and context in the prompt. See Lesson 1 for what happens when you don't.
 
 ### Skills (Domain Knowledge)
 Skills are markdown files containing specialized knowledge that Claude reads before acting. AWS Coworker uses:
