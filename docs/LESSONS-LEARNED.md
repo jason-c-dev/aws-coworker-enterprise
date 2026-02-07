@@ -32,6 +32,8 @@ AWS Coworker is an experimental system that enables Claude to safely manage AWS 
 
 The development process itself—using Claude Cowork to build, test, debug, and iterate—revealed insights that wouldn't have been possible through traditional development alone. When your development assistant and your product share the same DNA, you learn what works at a fundamental level.
 
+**A key realization:** The non-deterministic nature of generative AI is a double-edged sword. It enables Claude to navigate complexity, adapt to unique situations, and provide nuanced recommendations that brittle rule-based systems cannot. But it also means outputs can vary—and when you need deterministic workflows, rules, and guidelines obeyed consistently, you must make the guardrails explicit and unavoidable. That tension shaped every lesson in this blog.
+
 **Final Test Results:** 18/20 tests passing, 2 partial passes, 0 failures
 
 ---
@@ -47,7 +49,7 @@ Before diving into architecture and lessons, here are the core principles that g
 | 3 | **Well-Architected by Default** | Every plan assessed against 6 pillars | Throughout |
 | 4 | **Governance Compliance as Code** | Rules encoded as skills Claude reads | Lesson 4 |
 | 5 | **Production is Sacred** | Non-prod: direct execution. Prod: CI/CD only | Lesson 5 |
-| 6 | **Explicit Over Implicit** | State everything; AI takes path of least resistance | Lesson 3, 7 |
+| 6 | **Explicit Over Implicit** | State what TO do *and* what NOT to do; AI takes path of least resistance | Lesson 1, 3, 7 |
 | 7 | **Respect the Agent Architecture** | If you designed agent roles, use them | Lesson 1 |
 | 8 | **Layered Extensibility** | Core → Org (→ BU); customize without forking | Architecture |
 | 9 | **Self-Extending System** | Learn from sessions, codify patterns as skills | Architecture |
@@ -173,6 +175,8 @@ Task:
     Operation type: read-only (discovery only)
     ...
 ```
+
+**The "DO NOT" Discovery:** But that wasn't enough. Initially, we thought clear positive instructions would suffice—"use `subagent_type: general-purpose`". Claude obeyed in one call, then reverted to the simpler `Bash` approach in subsequent calls. We learned that AI agents need explicit boundaries on what NOT to do, not just what to do. The fix wasn't complete until we added `# NOT "Bash" - Bash bypasses agent context` directly in the code comments and documentation. Positive guidance drifts; explicit prohibitions stick.
 
 ### Key Insight
 **"Commands invoke commands"** was the original design principle I had established. The agent definitions existed for a reason—bypassing them with raw Bash/Task calls defeats the entire safety architecture. Claude had to learn to respect the architecture rather than take shortcuts.
