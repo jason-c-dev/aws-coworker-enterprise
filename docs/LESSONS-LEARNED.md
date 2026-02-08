@@ -464,10 +464,12 @@ AI agents require testing, but traditional unit tests don't capture the nuance o
 ## 7. Complex Deployments: The File vs. Generate Problem
 
 ### What I Tried (M8 Test)
-Deploy a Space Invaders game to EC2. The prompt said: "The game is located at: tests/assets/space-invaders/space-invaders.html"
+For fun, I asked AWS Coworker to deploy a Space Invaders game to EC2. I already had the game available as a static HTML and JS page. The prompt said: "The game is located at: tests/assets/space-invaders/space-invaders.html"
+
+![The version I wanted deployed - created earlier with Claude Cowork](screenshots/17-space-invaders.png)
 
 ### What Went Wrong
-After deployment, I noticed something odd: *"The Space Invaders looks different. I feel it tried to write its own game."*
+After deployment, which took a VERY long time (~9mins), I noticed something odd: *"The Space Invaders looks different. I feel it tried to write its own game."*
 
 I was right. AWS Coworker had generated its own Space Invaders game instead of reading and embedding my actual file. The deployed game looked different because it *was* a different game. Classic AI move—when in doubt, generate! 😬
 
@@ -522,6 +524,8 @@ AWS Coworker is a working foundation for safe, autonomous AWS infrastructure man
 In the early days of cloud, "shadow IT" emerged as employees bypassed procurement and expensed their own cloud subscriptions. The same pattern is happening today with GenAI. Teams are signing up directly with frontier model providers, creating sprawl that's difficult to govern, audit, or secure.
 
 AWS Coworker is designed to leverage high-quality models like **Claude Opus 4.6** for orchestration and oversight—the "thinking" layer that evaluates plans, makes decisions, and communicates with users. But it also falls back to **Sonnet** for mutations and **Haiku** for discovery, optimizing cost without sacrificing capability where it matters. This tiered approach only works when you have proper model access governance.
+
+![Amazon Bedrock](screenshots/18-bedrock.png)
 
 *How* you access those models matters for enterprise adoption. Direct API access to Anthropic creates the same governance challenges as shadow IT. **Amazon Bedrock** provides the enterprise layer: IAM integration, principle of least privilege, model access controls, audit trails, and compliance certifications.
 
