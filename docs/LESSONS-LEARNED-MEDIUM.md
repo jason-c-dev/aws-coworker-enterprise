@@ -307,16 +307,16 @@ AI agents require testing, but traditional unit tests don't capture the nuance o
 
 ### What I Tried
 
-For fun, I asked AWS Coworker to deploy a Space Invaders game to EC2. I already had the game available as a static HTML and JS page. The prompt said the game file was located at a specific path.
+For fun, I asked AWS Coworker to deploy a retro Space Invaders-style game to EC2. I already had the game available as a static HTML and JS page. The prompt said the game file was located at a specific path.
 
 **[📷 INSERT IMAGE: 17-space-invaders.png]**
 *Caption: The version I wanted deployed - created earlier with Claude Cowork 😬*
 
 ### What Went Wrong
 
-After deployment, which took a VERY long time (~9mins), I noticed something odd: *"The Space Invaders looks different. I feel it tried to write its own game."*
+After deployment, which took a VERY long time (~9mins), I noticed something odd: *"The game looks different. I feel it tried to write its own version."*
 
-I was right. AWS Coworker had generated its own Space Invaders game instead of reading and embedding my actual file. The deployed game looked different because it *was* a different game. Classic AI move—when in doubt, generate! 😬
+I was right. AWS Coworker had generated its own version of the game instead of reading and embedding my actual file. The deployed game looked different because it *was* a different game. Classic AI move—when in doubt, generate! 😬
 
 ### The Fix
 
