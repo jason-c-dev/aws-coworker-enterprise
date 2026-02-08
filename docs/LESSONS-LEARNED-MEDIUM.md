@@ -62,6 +62,9 @@ Before diving into architecture and lessons, here are the core principles that g
 
 These tenets explain *why* certain lessons were hard-won. When I violated a tenet (often unknowingly), things broke. When I enforced them explicitly, things worked.
 
+**[📷 INSERT IMAGE: 01-design-tenets-table.png]**
+*Caption: The 9 design tenets that guided AWS Coworker's development*
+
 **Note:** Tenets 8 and 9 are part of the architecture but haven't been thoroughly tested yet. They represent the vision for enterprise extensibility—see the Architecture section for details.
 
 ---
@@ -81,11 +84,17 @@ Commands are user-invocable workflows stored in `.claude/commands/`. They're lik
 
 When a user says "Create an EC2 instance," Claude routes to the planning command, which orchestrates the entire workflow.
 
+**[📷 INSERT IMAGE: 02-commands-table.png]**
+*Caption: AWS Coworker's slash commands for different workflow stages*
+
 ### Sub-Agents (Task Delegation)
 
 Complex operations are delegated to sub-agents using the Task tool. This is where I spent the most debugging time. Sub-agents handle specific tasks (discovery, creating resources, validation) while the parent orchestrates the workflow.
 
 **Critical insight:** The temptation is to spawn a raw Bash agent and run commands directly—it's simpler! But that bypasses model selection (Haiku vs Sonnet), agent identity, and permission context. The shortcut breaks the safety model. Always use the full agent architecture with explicit identity and context in the prompt.
+
+**[📷 INSERT IMAGE: 03-task-yaml-subagent.png]**
+*Caption: Sub-agent Task definition with model selection and agent identity*
 
 ### Skills (Domain Knowledge)
 
@@ -103,6 +112,9 @@ AWS Coworker is designed for enterprise customization through a multi-layered sk
 
 Each layer can override or extend the layer below without forking the codebase. An enterprise can adopt AWS Coworker's core, add their governance policies at the Org layer, and let individual teams customize at the BU layer.
 
+**[📷 INSERT IMAGE: 04-skill-layers-diagram.png]**
+*Caption: Multi-layered skill architecture for enterprise customization*
+
 **Self-extending via sessions:** The command `/aws-coworker-new-skill-from-session` allows users to capture successful patterns from their sessions and codify them as reusable skills. Instead of repeating complex workflows, the system learns and remembers.
 
 **Honest caveat:** This layered architecture exists but was not the focus of our testing. Consider it part of the vision rather than validated patterns—we'll revisit extensibility in future development and testing.
@@ -117,13 +129,25 @@ To give you a feel for what working with AWS Coworker is actually like, here's a
 
 AWS Coworker first confirmed the requirements: launch a t2.micro instance with Amazon Linux, SSH access needed, environment classified as non-production. It announced the profile and region it would use, then spawned Haiku sub-agents to discover the current state.
 
+**[📷 INSERT IMAGE: 05-ec2-requirements-steps.png]**
+*Caption: AWS Coworker confirms requirements and announces profile/region*
+
 > **Discovery Results:** Found the default VPC and public subnet. Amazon Linux 2023 AMI available. No key pairs or security groups exist—both must be created.
+
+**[📷 INSERT IMAGE: 06-discovery-results-table.png]**
+*Caption: Haiku sub-agents discover existing AWS resources*
 
 After discovery, AWS Coworker presented the execution plan with automatic tagging—all seven required tags applied to every resource:
 
 > **Tags Applied:** Name, Environment, Owner, CostCenter, Application, CreatedBy, CreatedDate
 
+**[📷 INSERT IMAGE: 07-aws-cli-tags.png]**
+*Caption: Automatic tagging—all 7 required tags applied to every resource*
+
 It also included a Well-Architected assessment: Operational Excellence passed (tagged, documented), Security flagged a warning (SSH from 0.0.0.0/0), Reliability passed (public subnet with auto-assign IP), and Cost Optimization passed (t2.micro eligible for free tier).
+
+**[📷 INSERT IMAGE: 08-well-architected-assessment.png]**
+*Caption: Built-in Well-Architected assessment with pass/warning indicators*
 
 > **Next Step:** Run `/aws-coworker-execute-nonprod` to execute.
 
@@ -145,6 +169,9 @@ The output showed "3 Bash agents finished" instead of "Task(Discover VPC state) 
 
 Here's what I saw in Claude Code's output: three Bash agents had finished—one to verify AWS identity, one to discover the default VPC, and one to find the Amazon Linux AMI. But they were labeled as "Bash agents," not "Task agents."
 
+**[📷 INSERT IMAGE: 09-bash-agents-bug.png]**
+*Caption: The bug—"3 Bash agents" instead of named Task agents with model info*
+
 **Me:** *"I canceled it but the output suggests bash agents finished but not task agents specifically."*
 
 **Claude (after investigation):** *"You're right—the agent documentation uses `subagent_type: 'Bash'` which spawns a Bash-only agent that can only run shell commands. This bypasses the entire agent architecture! The sub-agents aren't loading skills, reading governance policies, or following the safety model—they're just raw Bash executors."*
@@ -158,6 +185,9 @@ Ironically, this is a principle of good leadership with human teams: you're acco
 ### The Fix
 
 Changed from `subagent_type: "Bash"` to `subagent_type: "general-purpose"` with explicit agent identity in the prompt.
+
+**[📷 INSERT IMAGE: 10-task-yaml-fix.png]**
+*Caption: The fix—general-purpose with "# NOT Bash" comment*
 
 **The "DO NOT" Discovery:** But that wasn't enough. Initially, we thought clear positive instructions would suffice—"use `subagent_type: general-purpose`". Claude obeyed in one call, then reverted to the simpler Bash approach in subsequent calls. We learned that AI agents need explicit boundaries on what NOT to do, not just what to do. The fix wasn't complete until we added "NOT Bash — Bash bypasses agent context" directly in the code comments and documentation. Positive guidance drifts; explicit prohibitions stick.
 
@@ -187,6 +217,9 @@ Explicit model selection in every Task invocation: Discovery uses Haiku, mutatio
 
 After fixes, output correctly showed the model being used for each task type.
 
+**[📷 INSERT IMAGE: 11-model-selection-output.png]**
+*Caption: Correct output—Haiku for discovery, Sonnet for mutations*
+
 ### Key Insight
 
 AI agent costs can explode quickly. Being intentional about model selection per operation type is essential for production viability. Use the best model (Opus) for reasoning and orchestration where quality matters most, and cost-optimize the sub-agents (Haiku for discovery, Sonnet for mutations) where volume is high.
@@ -207,9 +240,15 @@ The newer Claude models (Opus 4.5/4.6, Sonnet 4.5) have stronger safety behavior
 
 **A note on Claude Code versions:** After that surprise breakage, I learned the hard way to pin to a stable version using `DISABLE_AUTOUPDATER=1`. When things suddenly break after an update, check if Claude's safety behaviors have been strengthened. It's usually a good thing—but your orchestration code needs to adapt.
 
+**[📷 INSERT IMAGE: 12-disable-autoupdater.png]**
+*Caption: Pin Claude Code version to avoid surprise breakages*
+
 ### The Fix
 
 Pass explicit permission context to every sub-agent, including statements like "User has approved this operation" and "This permission has been explicitly granted by the user."
+
+**[📷 INSERT IMAGE: 13-permission-context.png]**
+*Caption: Explicit permission context passed to sub-agents*
 
 ### Key Insight
 
@@ -232,6 +271,9 @@ The answer was uncomfortable: the EC2 instance was tagged, but the key pair, sec
 ### The Fix
 
 Updated documentation to explicitly require tagging on every resource type at creation time.
+
+**[📷 INSERT IMAGE: 14-required-tags-table.png]**
+*Caption: Required tags for each AWS resource type*
 
 ### Key Insight
 
@@ -268,6 +310,9 @@ What happened next was visible in Claude Code's thinking panel—AWS Coworker's 
 > **IaC Analysis:** Selected Terraform. Files to create include main.tf, variables.tf, outputs.tf, and provider.tf.
 >
 > **Next Step:** Create a Git branch and generate Terraform files for PR review.
+
+**[📷 INSERT IMAGE: 15-production-gate-plan.png]**
+*Caption: Production gate in action—IaC generation instead of direct CLI*
 
 The production gate worked exactly as designed. No direct CLI execution—only IaC generation for CI/CD.
 
@@ -314,6 +359,9 @@ I was right. AWS Coworker had generated its own Space Invaders game instead of r
 ### The Fix
 
 Made the prompt explicit: "Read the actual game file content and embed it. Do NOT generate your own game—use MY game file exactly as it exists."
+
+**[📷 INSERT IMAGE: 16-do-not-generate-warning.png]**
+*Caption: Explicit instruction to use existing files, not generate new ones*
 
 ### Key Insight
 
