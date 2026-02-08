@@ -107,6 +107,28 @@ Each layer can override or extend the layer below without forking the codebase. 
 
 **Honest caveat:** This layered architecture exists but was not the focus of our testing. Consider it part of the vision rather than validated patterns—we'll revisit extensibility in future development and testing.
 
+### What It's Like: A Real Conversation with AWS Coworker
+
+To give you a feel for what working with AWS Coworker is actually like, here's a real conversation from our testing. Notice how Claude automatically routes through the governance workflow, runs discovery, applies tagging, and presents a Well-Architected assessment—all from a simple request.
+
+**Me:** *"Launch a t2.micro EC2 instance with Amazon Linux in us-east-1 for aws-coworker-test. I need SSH access."*
+
+**AWS Coworker:** *"I'll route this through AWS Coworker's planning workflow to ensure proper safety checks and approval gates."*
+
+AWS Coworker first confirmed the requirements: launch a t2.micro instance with Amazon Linux, SSH access needed, environment classified as non-production. It announced the profile and region it would use, then spawned Haiku sub-agents to discover the current state.
+
+> **Discovery Results:** Found the default VPC and public subnet. Amazon Linux 2023 AMI available. No key pairs or security groups exist—both must be created.
+
+After discovery, AWS Coworker presented the execution plan with automatic tagging—all seven required tags applied to every resource:
+
+> **Tags Applied:** Name, Environment, Owner, CostCenter, Application, CreatedBy, CreatedDate
+
+It also included a Well-Architected assessment: Operational Excellence passed (tagged, documented), Security flagged a warning (SSH from 0.0.0.0/0), Reliability passed (public subnet with auto-assign IP), and Cost Optimization passed (t2.micro eligible for free tier).
+
+> **Next Step:** Run `/aws-coworker-execute-nonprod` to execute.
+
+**The key insight:** I didn't ask for 7 tags, a Well-Architected assessment, or discovery of existing resources. AWS Coworker applied them automatically because the governance skills require it. The AI handles the complexity; I just approve the plan.
+
 ---
 
 ## Lesson 1: The Sub-Agent Architecture Problem
@@ -118,6 +140,14 @@ Initially, AWS Coworker used `subagent_type: "Bash"` to spawn sub-agents for AWS
 ### What Went Wrong
 
 The output showed "3 Bash agents finished" instead of "Task(Discover VPC state) Haiku 4.5". I spotted this anomaly and asked Claude to investigate. It turned out the Bash agent type completely bypassed agent identity injection, model selection, permission context passing, and the entire agent definition architecture we had built.
+
+**The Debugging Moment**
+
+Here's what I saw in Claude Code's output: three Bash agents had finished—one to verify AWS identity, one to discover the default VPC, and one to find the Amazon Linux AMI. But they were labeled as "Bash agents," not "Task agents."
+
+**Me:** *"I canceled it but the output suggests bash agents finished but not task agents specifically."*
+
+**Claude (after investigation):** *"You're right—the agent documentation uses `subagent_type: 'Bash'` which spawns a Bash-only agent that can only run shell commands. This bypasses the entire agent architecture! The sub-agents aren't loading skills, reading governance policies, or following the safety model—they're just raw Bash executors."*
 
 My exact words to Claude, in a moment of frustration: *"YES! You've bypassed the design which is causing the problem."* 😅
 
@@ -218,6 +248,28 @@ A clear separation between non-production (direct execution allowed) and product
 ### What Worked
 
 When a user said "This is a production account. Create an S3 bucket," AWS Coworker recognized it as production, created a complete plan with governance compliance, blocked direct execution, routed to the production prep command, generated Terraform IaC for CI/CD deployment, and created a feature branch for PR review.
+
+**The Production Gate in Action**
+
+**Me:** *"This is a production account. Create an S3 bucket."*
+
+What happened next was visible in Claude Code's thinking panel—AWS Coworker's internal reasoning:
+
+> *"The user is asking me to create an S3 bucket in a production account. According to CLAUDE.md, I must: (1) NEVER execute AWS CLI commands directly, (2) Route this request through the appropriate AWS Coworker command, (3) For production changes, use `/aws-coworker-prepare-prod-change` since production changes must go through CI/CD, not direct CLI."*
+
+**AWS Coworker (after planning):**
+
+> **Plan: Create S3 Bucket in Production**
+>
+> **Target:** Environment is Production ⚠️, Profile is aws-coworker-test, Region is us-east-1
+>
+> *"Since this is a production change, I will NOT execute directly. Instead, I'll generate Infrastructure as Code for your CI/CD pipeline."*
+>
+> **IaC Analysis:** Selected Terraform. Files to create include main.tf, variables.tf, outputs.tf, and provider.tf.
+>
+> **Next Step:** Create a Git branch and generate Terraform files for PR review.
+
+The production gate worked exactly as designed. No direct CLI execution—only IaC generation for CI/CD.
 
 ### Key Insight
 

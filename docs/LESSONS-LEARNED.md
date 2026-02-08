@@ -141,6 +141,79 @@ The command `/aws-coworker-new-skill-from-session` allows users to capture succe
 
 **Honest caveat:** This layered architecture exists but was not the focus of our testing. Consider it part of the vision rather than validated patterns—we'll revisit extensibility in future development and testing.
 
+### What It's Like: A Real Conversation with AWS Coworker
+
+To give you a feel for what working with AWS Coworker is actually like, here's a real conversation from our testing. Notice how Claude automatically routes through the governance workflow, runs discovery, applies tagging, and presents a Well-Architected assessment—all from a simple request.
+
+<details>
+<summary>💬 <strong>Example: Launching an EC2 Instance</strong></summary>
+
+**Me:** *"Launch a t2.micro EC2 instance with Amazon Linux in us-east-1 for aws-coworker-test. I need SSH access."*
+
+**AWS Coworker:** *"I'll route this through AWS Coworker's planning workflow to ensure proper safety checks and approval gates."*
+
+```
+## Step 1: Requirements Confirmed
+- Objective: Launch a t2.micro EC2 instance with Amazon Linux
+- Scope: Single EC2 instance with SSH access
+- Environment: Non-production (test profile)
+
+## Step 2: Profile and Region
+I will use:
+- Profile: aws-coworker-test
+- Region: us-east-1
+- Environment classification: Non-production (test)
+
+This is a planning session - I will run read-only discovery commands via sub-agents.
+```
+
+*AWS Coworker then spawns Haiku sub-agents to discover the current state...*
+
+```
+## Discovery Results
+| Resource              | Status                        |
+|-----------------------|-------------------------------|
+| Default VPC           | vpc-022e6c6700951bab5 ✅      |
+| Public Subnet         | subnet-0fda35b089e908e0c ✅   |
+| Amazon Linux 2023 AMI | ami-0532be01f26a3de55 ✅      |
+| Key Pairs             | None exist - must create      |
+| SSH Security Group    | None exist - must create      |
+```
+
+*After discovery, AWS Coworker presents the execution plan with automatic tagging:*
+
+```bash
+aws ec2 run-instances \
+  --profile aws-coworker-test \
+  --image-id ami-0532be01f26a3de55 \
+  --instance-type t2.micro \
+  --tag-specifications 'ResourceType=instance,Tags=[
+    {Key=Name,Value=aws-coworker-test-instance},
+    {Key=Environment,Value=test},
+    {Key=Owner,Value=aws-coworker-test-admin},
+    {Key=CostCenter,Value=CC-00000},
+    {Key=Application,Value=aws-coworker-test},
+    {Key=CreatedBy,Value=aws-coworker},
+    {Key=CreatedDate,Value=2026-02-06}
+  ]'
+```
+
+```
+## Well-Architected Assessment
+| Pillar                 | Status | Notes                      |
+|------------------------|--------|----------------------------|
+| Operational Excellence | ✅     | Tagged, documented         |
+| Security               | ⚠️     | SSH from 0.0.0.0/0         |
+| Reliability            | ✅     | Public subnet, auto-assign |
+| Cost Optimization      | ✅     | t2.micro (free tier)       |
+
+Next Step: Run /aws-coworker-execute-nonprod to execute.
+```
+
+**The key insight:** I didn't ask for 7 tags, a Well-Architected assessment, or discovery of existing resources. AWS Coworker applied them automatically because the governance skills require it. The AI handles the complexity; I just approve the plan.
+
+</details>
+
 ---
 
 ## 1. The Sub-Agent Architecture Problem
@@ -154,6 +227,26 @@ The output showed `"3 Bash agents finished"` instead of `"Task(Discover VPC stat
 - Model selection (Haiku vs Sonnet)
 - Permission context passing
 - The entire agent definition architecture we had built
+
+<details>
+<summary>💬 <strong>The Debugging Moment</strong></summary>
+
+Here's what I saw in Claude Code's output:
+
+```
+⏺ 3 Bash agents finished (ctrl+o to expand)
+   ├─ Verify AWS identity · 1 tool use · 8.2k tokens
+   ├─ Discover default VPC · 2 tool uses · 8.4k tokens
+   └─ Find Amazon Linux AMI · 1 tool use · 8.3k tokens
+```
+
+**Me:** *"I canceled it but the output suggests bash agents finished but not task agents specifically."*
+
+**Claude (after investigation):** *"You're right - the agent documentation uses `subagent_type: "Bash"` which spawns a Bash-only agent that can only run shell commands. This bypasses the entire agent architecture! The sub-agents aren't loading skills, reading governance policies, or following the safety model—they're just raw Bash executors."*
+
+**Me:** *"YES! You've bypassed the design which is causing the problem."*
+
+</details>
 
 My exact words to Claude, in a moment of frustration: *"YES! You've bypassed the design which is causing the problem."* 😅
 
@@ -298,6 +391,50 @@ When a user said "This is a production account. Create an S3 bucket," AWS Cowork
 4. ✅ Routed to `/aws-coworker-prepare-prod-change`
 5. ✅ Generated Terraform IaC for CI/CD deployment
 6. ✅ Created a feature branch for PR review
+
+<details>
+<summary>💬 <strong>See the Production Gate in Action</strong></summary>
+
+**Me:** *"This is a production account. Create an S3 bucket."*
+
+**AWS Coworker's internal reasoning (visible in Claude Code):**
+
+> *"The user is asking me to create an S3 bucket in a production account. According to CLAUDE.md, I must:*
+>
+> *1. NEVER execute AWS CLI commands directly*
+> *2. Route this request through the appropriate AWS Coworker command*
+> *3. For production changes, I should use `/aws-coworker-prepare-prod-change` since production changes must go through CI/CD, not direct CLI*
+>
+> *The flow should be: Plan the change with `/aws-coworker-plan-interaction`, then for production, route to `/aws-coworker-prepare-prod-change` for CI/CD changes."*
+
+**AWS Coworker (after planning):**
+
+```
+# Plan: Create S3 Bucket in Production
+
+## Target
+- Environment: Production ⚠️
+- Profile: aws-coworker-test
+- Region: us-east-1
+
+Since this is a production change, I will NOT execute directly.
+Instead, I'll generate Infrastructure as Code for your CI/CD pipeline.
+
+## IaC Analysis
+Selected IaC tool: Terraform (portable, widely adopted)
+
+Files to create:
+- infrastructure/terraform/s3/main.tf
+- infrastructure/terraform/s3/variables.tf
+- infrastructure/terraform/s3/outputs.tf
+- infrastructure/terraform/s3/provider.tf
+
+Next Step: I'll create a Git branch and generate Terraform files for PR review.
+```
+
+The production gate worked exactly as designed. No direct CLI execution—only IaC generation for CI/CD.
+
+</details>
 
 ### Key Insight
 The production gate is the most critical safety mechanism. An AI agent that can directly modify production infrastructure without human review is a liability, not an asset. The friction of CI/CD is a feature, not a bug.
