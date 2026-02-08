@@ -1,6 +1,6 @@
-# AWS Coworker: Lessons Learned
+# I Used Claude Cowork to Build a Claude Code Agent for AWS. Here's What Broke
 
-**Building a Safe, Autonomous AWS Agent with Claude**
+**Lessons in agent architecture, guardrails, and AWS best practices**
 
 *By Jason Croucher and Claude* 🤝
 
