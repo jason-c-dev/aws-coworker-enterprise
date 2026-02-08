@@ -42,28 +42,10 @@ The development process itself—using Claude Cowork to build, test, debug, and 
 
 Before diving into architecture and lessons, here are the core principles that guided AWS Coworker's design:
 
-**1. Human Approval Gates** — No mutation without explicit user approval *(See Lessons 5, 6)*
-
-**2. Cost-Aware Model Selection** — Opus for reasoning and orchestration, Haiku for discovery, Sonnet for mutations *(See Lesson 2)*
-
-**3. Well-Architected by Default** — Every plan assessed against 6 pillars
-
-**4. Governance Compliance as Code** — Rules encoded as skills Claude reads *(See Lesson 4)*
-
-**5. Production is Sacred** — Non-prod: direct execution. Prod: CI/CD only *(See Lesson 5)*
-
-**6. Explicit Over Implicit** — State what TO do *and* what NOT to do; AI takes path of least resistance *(See Lessons 1, 3, 7)*
-
-**7. Respect the Agent Architecture** — If you designed agent roles, use them *(See Lesson 1)*
-
-**8. Layered Extensibility** — Core → Org (→ BU); customize without forking *(See Architecture)*
-
-**9. Self-Extending System** — Learn from sessions, codify patterns as skills *(See Architecture)*
-
-These tenets explain *why* certain lessons were hard-won. When I violated a tenet (often unknowingly), things broke. When I enforced them explicitly, things worked.
-
 **[📷 INSERT IMAGE: 01-design-tenets-table.png]**
 *Caption: The 9 design tenets that guided AWS Coworker's development*
+
+These tenets explain *why* certain lessons were hard-won. When I violated a tenet (often unknowingly), things broke. When I enforced them explicitly, things worked.
 
 **Note:** Tenets 8 and 9 are part of the architecture but haven't been thoroughly tested yet. They represent the vision for enterprise extensibility—see the Architecture section for details.
 
@@ -77,15 +59,10 @@ Before diving into lessons learned, it helps to understand *how* AWS Coworker is
 
 Commands are user-invocable workflows stored in `.claude/commands/`. They're like specialized entry points:
 
-- `/aws-coworker-plan-interaction` — Planning workflow with discovery, governance checks, and approval gates
-- `/aws-coworker-execute-nonprod` — Execute approved plans in non-production environments
-- `/aws-coworker-prepare-prod-change` — Generate IaC (Terraform) for production CI/CD
-- `/aws-coworker-rollback-change` — Safely reverse changes in dependency order
-
-When a user says "Create an EC2 instance," Claude routes to the planning command, which orchestrates the entire workflow.
-
 **[📷 INSERT IMAGE: 02-commands-table.png]**
 *Caption: AWS Coworker's slash commands for different workflow stages*
+
+When a user says "Create an EC2 instance," Claude routes to the planning command, which orchestrates the entire workflow.
 
 ### Sub-Agents (Task Delegation)
 
@@ -106,14 +83,10 @@ The experience of using Cowork inspired AWS Coworker. The implementation uses Cl
 
 AWS Coworker is designed for enterprise customization through a multi-layered skill architecture:
 
-- **Core/Base Layer** — Batteries-included library with universal patterns (planning workflows, execution safety, Well-Architected checks)
-- **Organization Layer** — Org-specific policies, patterns, and naming conventions
-- **BU/Tenant Layer** — Business unit or tenant-specific overlays
-
-Each layer can override or extend the layer below without forking the codebase. An enterprise can adopt AWS Coworker's core, add their governance policies at the Org layer, and let individual teams customize at the BU layer.
-
 **[📷 INSERT IMAGE: 04-skill-layers-diagram.png]**
 *Caption: Multi-layered skill architecture for enterprise customization*
+
+Each layer can override or extend the layer below without forking the codebase. An enterprise can adopt AWS Coworker's core, add their governance policies at the Org layer, and let individual teams customize at the BU layer.
 
 **Self-extending via sessions:** The command `/aws-coworker-new-skill-from-session` allows users to capture successful patterns from their sessions and codify them as reusable skills. Instead of repeating complex workflows, the system learns and remembers.
 
@@ -132,14 +105,10 @@ AWS Coworker first confirmed the requirements: launch a t2.micro instance with A
 **[📷 INSERT IMAGE: 05-ec2-requirements-steps.png]**
 *Caption: AWS Coworker confirms requirements and announces profile/region*
 
-> **Discovery Results:** Found the default VPC and public subnet. Amazon Linux 2023 AMI available. No key pairs or security groups exist—both must be created.
-
 **[📷 INSERT IMAGE: 06-discovery-results-table.png]**
 *Caption: Haiku sub-agents discover existing AWS resources*
 
 After discovery, AWS Coworker presented the execution plan with automatic tagging—all seven required tags applied to every resource:
-
-> **Tags Applied:** Name, Environment, Owner, CostCenter, Application, CreatedBy, CreatedDate
 
 **[📷 INSERT IMAGE: 07-aws-cli-tags.png]**
 *Caption: Automatic tagging—all 7 required tags applied to every resource*
@@ -300,16 +269,6 @@ What happened next was visible in Claude Code's thinking panel—AWS Coworker's 
 > *"The user is asking me to create an S3 bucket in a production account. According to CLAUDE.md, I must: (1) NEVER execute AWS CLI commands directly, (2) Route this request through the appropriate AWS Coworker command, (3) For production changes, use `/aws-coworker-prepare-prod-change` since production changes must go through CI/CD, not direct CLI."*
 
 **AWS Coworker (after planning):**
-
-> **Plan: Create S3 Bucket in Production**
->
-> **Target:** Environment is Production ⚠️, Profile is aws-coworker-test, Region is us-east-1
->
-> *"Since this is a production change, I will NOT execute directly. Instead, I'll generate Infrastructure as Code for your CI/CD pipeline."*
->
-> **IaC Analysis:** Selected Terraform. Files to create include main.tf, variables.tf, outputs.tf, and provider.tf.
->
-> **Next Step:** Create a Git branch and generate Terraform files for PR review.
 
 **[📷 INSERT IMAGE: 15-production-gate-plan.png]**
 *Caption: Production gate in action—IaC generation instead of direct CLI*
