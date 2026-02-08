@@ -145,8 +145,7 @@ The command `/aws-coworker-new-skill-from-session` allows users to capture succe
 
 To give you a feel for what working with AWS Coworker is actually like, here's a real conversation from our testing. Notice how Claude automatically routes through the governance workflow, runs discovery, applies tagging, and presents a Well-Architected assessment—all from a simple request.
 
-<details>
-<summary>💬 <strong>Example: Launching an EC2 Instance</strong></summary>
+### 💬 Example: Launching an EC2 Instance
 
 **Me:** *"Launch a t2.micro EC2 instance with Amazon Linux in us-east-1 for aws-coworker-test. I need SSH access."*
 
@@ -212,8 +211,6 @@ Next Step: Run /aws-coworker-execute-nonprod to execute.
 
 **The key insight:** I didn't ask for 7 tags, a Well-Architected assessment, or discovery of existing resources. AWS Coworker applied them automatically because the governance skills require it. The AI handles the complexity; I just approve the plan.
 
-</details>
-
 ---
 
 ## 1. The Sub-Agent Architecture Problem
@@ -228,8 +225,7 @@ The output showed `"3 Bash agents finished"` instead of `"Task(Discover VPC stat
 - Permission context passing
 - The entire agent definition architecture we had built
 
-<details>
-<summary>💬 <strong>The Debugging Moment</strong></summary>
+### 💬 The Debugging Moment
 
 Here's what I saw in Claude Code's output:
 
@@ -245,8 +241,6 @@ Here's what I saw in Claude Code's output:
 **Claude (after investigation):** *"You're right - the agent documentation uses `subagent_type: "Bash"` which spawns a Bash-only agent that can only run shell commands. This bypasses the entire agent architecture! The sub-agents aren't loading skills, reading governance policies, or following the safety model—they're just raw Bash executors."*
 
 **Me:** *"YES! You've bypassed the design which is causing the problem."*
-
-</details>
 
 My exact words to Claude, in a moment of frustration: *"YES! You've bypassed the design which is causing the problem."* 😅
 
@@ -392,8 +386,7 @@ When a user said "This is a production account. Create an S3 bucket," AWS Cowork
 5. ✅ Generated Terraform IaC for CI/CD deployment
 6. ✅ Created a feature branch for PR review
 
-<details>
-<summary>💬 <strong>See the Production Gate in Action</strong></summary>
+### 💬 The Production Gate in Action
 
 **Me:** *"This is a production account. Create an S3 bucket."*
 
@@ -433,8 +426,6 @@ Next Step: I'll create a Git branch and generate Terraform files for PR review.
 ```
 
 The production gate worked exactly as designed. No direct CLI execution—only IaC generation for CI/CD.
-
-</details>
 
 ### Key Insight
 The production gate is the most critical safety mechanism. An AI agent that can directly modify production infrastructure without human review is a liability, not an asset. The friction of CI/CD is a feature, not a bug.
