@@ -464,7 +464,7 @@ AI agents require testing, but traditional unit tests don't capture the nuance o
 ## 7. Complex Deployments: The File vs. Generate Problem
 
 ### What I Tried (M8 Test)
-For fun, I asked AWS Coworker to deploy a retro Space Invaders-style game to EC2. I already had the game available as a static HTML and JS page. The prompt said: "The game is located at: tests/assets/space-invaders/space-invaders.html"
+For fun, I asked AWS Coworker to deploy a retro space-invaders style game to EC2. I already had the game available as a static HTML and JS page. The prompt said: "The game is located at: tests/assets/space-invaders/space-invaders.html"
 
 ![The version I wanted deployed - created earlier with Claude Cowork](screenshots/17-space-invaders.png)
 

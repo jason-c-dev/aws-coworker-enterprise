@@ -307,7 +307,7 @@ AI agents require testing, but traditional unit tests don't capture the nuance o
 
 ### What I Tried
 
-For fun, I asked AWS Coworker to deploy a retro Space Invaders-style game to EC2. I already had the game available as a static HTML and JS page. The prompt said the game file was located at a specific path.
+For fun, I asked AWS Coworker to deploy a retro space-invaders style game to EC2. I already had the game available as a static HTML and JS page. The prompt said the game file was located at a specific path.
 
 **[📷 INSERT IMAGE: 17-space-invaders.png]**
 *Caption: The version I wanted deployed - created earlier with Claude Cowork 😬*
