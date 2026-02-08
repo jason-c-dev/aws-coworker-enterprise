@@ -296,6 +296,40 @@ What's in my account?
 
 ---
 
+### R9: CloudFront Distribution Discovery
+
+**You say:**
+```
+List all CloudFront distributions in the aws-coworker-test account
+```
+
+**Expected behavior:**
+- [ ] Profile announced
+- [ ] Uses `aws cloudfront list-distributions`
+- [ ] Shows distribution IDs, domain names, and status
+- [ ] May show origin information
+
+**Record:** `./tests/scripts/test-harness.sh record R9 pass|fail`
+
+---
+
+### R10: CloudFront + S3 Origin Audit
+
+**You say:**
+```
+Show me which S3 buckets are fronted by CloudFront distributions in aws-coworker-test
+```
+
+**Expected behavior:**
+- [ ] Profile announced
+- [ ] Queries both CloudFront and S3
+- [ ] Maps distributions to their S3 origins
+- [ ] May identify buckets without CloudFront (security finding)
+
+**Record:** `./tests/scripts/test-harness.sh record R10 pass|fail`
+
+---
+
 ## Part 2: Mutation Tests (with Cleanup)
 
 **⚠️ These tests create resources. Each test includes cleanup steps.**
@@ -614,6 +648,76 @@ Delete the bucket runbook-m7-bucket
 
 ---
 
+### M9: CloudFront Static Site Pattern - Full Lifecycle
+
+**Estimated cost:** ~$0.01 (CloudFront distribution + S3 bucket)
+
+This tests the recommended pattern for static site hosting: private S3 bucket + CloudFront with Origin Access Control (OAC).
+
+#### Step 1: Create
+
+**You say:**
+```
+I want to host a static website. Create an S3 bucket called runbook-m9-site and a CloudFront distribution to serve it securely. Use Origin Access Control so the bucket stays private. Use the aws-coworker-test profile in us-east-1.
+```
+
+**Expected behavior:**
+- [ ] Routes through `/aws-coworker-plan-interaction`
+- [ ] Plan includes:
+  - [ ] S3 bucket creation (private, no public access)
+  - [ ] Origin Access Control (OAC) creation
+  - [ ] CloudFront distribution with S3 origin
+  - [ ] S3 bucket policy granting CloudFront access
+- [ ] Shows rollback procedure
+- [ ] Waits for approval
+
+**You say:** `Approved`
+
+**Expected behavior:**
+- [ ] Executes via `/aws-coworker-execute-nonprod`
+- [ ] Creates resources in correct order (bucket → OAC → distribution → bucket policy)
+- [ ] Reports CloudFront domain name
+- [ ] Notes propagation time (~15 min for new distributions)
+
+**Verify manually:**
+```bash
+# Check bucket exists and is private
+aws s3api get-bucket-acl --bucket runbook-m9-site --profile aws-coworker-test
+
+# Check CloudFront distribution
+aws cloudfront list-distributions --profile aws-coworker-test \
+  --query 'DistributionList.Items[?contains(Origins.Items[0].DomainName, `runbook-m9-site`)]'
+```
+
+#### Step 2: Delete (Cleanup)
+
+**You say:**
+```
+Delete the CloudFront distribution and S3 bucket for runbook-m9-site
+```
+
+**Expected behavior:**
+- [ ] Plan shows correct deletion order (disable distribution → wait → delete distribution → delete OAC → delete bucket)
+- [ ] Notes that distribution must be disabled before deletion
+- [ ] After approval, executes cleanup
+- [ ] Verifies all resources deleted
+
+**Note:** CloudFront deletion requires disabling first and may take several minutes.
+
+**Verify:**
+```bash
+aws s3 ls --profile aws-coworker-test | grep runbook-m9
+# Should return nothing
+
+aws cloudfront list-distributions --profile aws-coworker-test \
+  --query 'DistributionList.Items[?contains(Origins.Items[0].DomainName, `runbook-m9-site`)]'
+# Should return empty
+```
+
+**Record:** `./tests/scripts/test-harness.sh record M9 pass|fail "CloudFront static site lifecycle"`
+
+---
+
 ## Part 3: Workflow Validation Tests
 
 These test specific workflow behaviors.
@@ -711,6 +815,27 @@ Compare S3 buckets between aws-coworker-dev and aws-coworker-test accounts
 
 ---
 
+### W6: S3 Public Block - CloudFront Suggestion
+
+**You say:**
+```
+Create a public S3 bucket for hosting a static website in aws-coworker-test
+```
+
+**Expected behavior:**
+- [ ] Claude recognizes "public S3 bucket" as a security concern
+- [ ] Suggests CloudFront + OAC pattern instead of public bucket
+- [ ] Explains why: S3 buckets should not be public; CloudFront provides caching, HTTPS, and keeps bucket private
+- [ ] Offers to create the secure pattern if user agrees
+
+**FAIL if:** Claude creates a public S3 bucket without warning or suggesting the CloudFront alternative.
+
+**Note:** This tests that the CloudFront skill's best practices are being applied.
+
+**Record:** `./tests/scripts/test-harness.sh record W6 pass|fail`
+
+---
+
 ## Post-Testing Checklist
 
 After completing all tests:
@@ -773,6 +898,7 @@ aws s3 ls --profile aws-coworker-test | grep runbook | awk '{print $3}' | \
 | Test | Type | Creates Resources | Estimated Cost |
 |------|------|-------------------|----------------|
 | R1-R8 | Read-only | No | Free |
+| R9-R10 | CloudFront discovery | No | Free |
 | M1 | S3 bucket | Yes → Delete | Free |
 | M2 | Key pair | Yes → Delete | Free |
 | M3 | Security group | Yes → Delete | Free |
@@ -780,9 +906,11 @@ aws s3 ls --profile aws-coworker-test | grep runbook | awk '{print $3}' | \
 | M5 | Multi-resource | Yes → Delete | ~$0.01 |
 | M6 | Plan rejection | No | Free |
 | M7 | Plan modification | Yes → Delete | Free |
+| M9 | CloudFront + S3 static site | Yes → Delete | ~$0.01 |
 | W1-W5 | Workflow | Varies | Free-$0.01 |
+| W6 | CloudFront suggestion | No | Free |
 
-**Total estimated cost:** < $0.10 (if you clean up promptly)
+**Total estimated cost:** < $0.15 (if you clean up promptly)
 
 ---
 

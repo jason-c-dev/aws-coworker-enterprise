@@ -319,13 +319,38 @@ After execution (single or parallel):
 
 ---
 
-## For Developers Maintaining AWS Coworker
+## Two Modes of Operation
 
-If you are working on AWS Coworker itself (adding skills, commands, agents), see:
+AWS Coworker has two distinct modes. Identify which mode applies BEFORE proceeding:
 
-- [CLAUDE-DEVELOPMENT.md](CLAUDE-DEVELOPMENT.md) — Development context and conventions
-- [docs/DESIGN.md](docs/DESIGN.md) — Full architectural specification
-- [CONTRIBUTING.md](CONTRIBUTING.md) — How to contribute
+| Mode | User Intent | Applies When |
+|------|-------------|--------------|
+| **Mode 1: AWS Interaction** | Using AWS Coworker to work with AWS | User wants to query, create, modify, or delete AWS resources |
+| **Mode 2: Extending AWS Coworker** | Building/modifying AWS Coworker itself | User wants to add skills, agents, commands, or change architecture |
+
+### Mode 1: AWS Interaction (Default)
+
+Follow all instructions in this file. Route requests through AWS Coworker commands. This is the primary use case.
+
+### Mode 2: Extending AWS Coworker
+
+**STOP. This mode has different guardrails.**
+
+If ANY of these apply, switch to Mode 2:
+- Adding new skills, agents, or commands
+- Modifying existing AWS Coworker components
+- Adding support for new AWS services
+- Discussing directory structure or file organization
+- Keywords: "extend", "customize", "add to" AWS Coworker
+
+**Required:** Read `skills/meta/aws-coworker-development/SKILL.md` and follow its guardrails.
+
+This skill defines:
+- Mandatory reads before any action
+- Plan-then-execute workflow
+- DO / DO NOT behaviors
+- Testing requirements
+- Verification checklist
 
 ---
 

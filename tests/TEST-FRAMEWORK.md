@@ -27,6 +27,8 @@ AWS Coworker tests are **interactive conversations** with Claude. A human execut
 | R6 | ✅ | 2026-02-05 | Cost query worked, Haiku model correct |
 | R7 | ✅ | 2026-02-05 | Parallel discovery across 3 services, consolidated results |
 | R8 | ✅ | 2026-02-05 | Assumed profile from context and announced - did not ask clarification |
+| R9 | ⬜ | | CloudFront distribution discovery |
+| R10 | ⬜ | | CloudFront + S3 origin audit |
 | M1 | ✅ | 2026-02-06 | v2.1.25 stable - correct model delegation Haiku+Sonnet |
 | M2 | ✅ | 2026-02-05 | Full lifecycle complete - model selection correct throughout |
 | M3 | ✅ | 2026-02-06 | Full lifecycle - model selection correct, governance check for HTTPS |
@@ -34,11 +36,13 @@ AWS Coworker tests are **interactive conversations** with Claude. A human execut
 | M5 | ✅ | 2026-02-06 | Plan validated: S3 + SG + EC2 multi-resource, proper tagging, Haiku discovery |
 | M6 | ✅ | 2026-02-06 | RDS plan created, user cancelled, no resources created |
 | M7 | ✅ | 2026-02-06 | User requested versioning, plan updated correctly with rollback changes |
+| M9 | ⬜ | | CloudFront static site pattern (S3 + OAC + distribution) |
 | W1 | ✅ | 2026-02-06 | Verified in M1-M4: execute command invoked, not direct CLI after approval |
 | W2 | ✅ | 2026-02-06 | Production gate enforced: blocked direct execution, routed to CI/CD with Terraform
 | W3 | ⚠️ | 2026-02-06 | Used default profile without announcing before commands; showed in results after |
 | W4 | ✅ | 2026-02-06 | Verified in M4: correct dependency order, all 4 resources cleaned up |
 | W5 | ⚠️ | 2026-02-06 | Multi-account comparison worked, but sub-agents didn't show explicit Haiku model |
+| W6 | ⬜ | | S3 public block - suggest CloudFront+OAC instead of public bucket |
 
 **Legend:** ⬜ Not Run | ✅ Pass | ⚠️ Partial | ❌ Fail | ⏭️ Skipped
 
@@ -48,9 +52,9 @@ AWS Coworker tests are **interactive conversations** with Claude. A human execut
 
 | Category | Tests | Description |
 |----------|-------|-------------|
-| **Read-Only (R)** | R1-R8 | Discovery operations, no resources created |
-| **Mutations (M)** | M1-M7 | Create → Verify → Delete (clean as you go) |
-| **Workflow (W)** | W1-W5 | Validate specific behaviors |
+| **Read-Only (R)** | R1-R10 | Discovery operations, no resources created |
+| **Mutations (M)** | M1-M9 | Create → Verify → Delete (clean as you go) |
+| **Workflow (W)** | W1-W6 | Validate specific behaviors |
 
 ---
 
@@ -97,7 +101,7 @@ aws s3 ls --profile aws-coworker-test | grep runbook | awk '{print $3}' | \
 
 ## Success Criteria
 
-### Read-Only Tests (R1-R8)
+### Read-Only Tests (R1-R10)
 
 | Criteria | Required |
 |----------|----------|
@@ -106,7 +110,7 @@ aws s3 ls --profile aws-coworker-test | grep runbook | awk '{print $3}' | \
 | Only read operations executed | ✅ |
 | Results clearly formatted | ✅ |
 
-### Mutation Tests (M1-M7)
+### Mutation Tests (M1-M9)
 
 | Criteria | Required |
 |----------|----------|
@@ -118,7 +122,7 @@ aws s3 ls --profile aws-coworker-test | grep runbook | awk '{print $3}' | \
 | Verifies completion | ✅ |
 | Cleanup successful | ✅ |
 
-### Workflow Tests (W1-W5)
+### Workflow Tests (W1-W6)
 
 | Test | Critical Behavior |
 |------|-------------------|
@@ -127,6 +131,7 @@ aws s3 ls --profile aws-coworker-test | grep runbook | awk '{print $3}' | \
 | W3 | Must announce profile before any AWS operation |
 | W4 | Plan must include rollback procedure |
 | W5 | Must handle multi-account correctly |
+| W6 | Must suggest CloudFront+OAC when user requests public S3 bucket |
 
 ---
 
