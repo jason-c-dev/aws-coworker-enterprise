@@ -12,7 +12,7 @@
 
 It started with curiosity. I wanted to understand **Claude Code**—how it works, how to extend it, what patterns make AI agents reliable. The best way to learn a tool is to build something real with it.
 
-On the side, I'd been experimenting with **Claude Cowork** for personal tasks — automating increasingly complex but laborious work like sorting emails, analyzing expenses, and managing files. (Cowork isn't InfoSec-approved for my day job at AWS, but for personal projects it was transformative.) The experience opened my eyes to something important: Cowork's approach of structured workflows, human approval gates, and thoughtful guardrails — plus extensible capabilities in the form of custom skills — made me trust the AI to handle things I would never have delegated before.
+On the side, I'd been experimenting with **Claude Cowork** for personal tasks — automating increasingly complex but laborious work like sorting emails, analyzing expenses, and managing files. (Cowork isn't InfoSec-approved for my day job at AWS, but for personal projects it was transformative.) The experience opened my eyes to something important: Cowork's approach of structured workflows, human approval gates, and thoughtful guardrails — plus extensible capabilities in the form of custom skills — made me trust the agent to handle things I would never have delegated before.
 
 Then the question hit me: **What if I could bring this same pattern to AWS infrastructure management?**
 
@@ -62,7 +62,7 @@ It also included a Well-Architected assessment: Operational Excellence passed (t
 
 > **Next Step:** Run `/aws-coworker-execute-nonprod` to execute.
 
-**The key insight:** I didn't ask for 7 tags, a Well-Architected assessment, or discovery of existing resources. AWS Coworker applied them automatically because the governance skills require it. The AI handles the complexity; I just approve the plan.
+**The key insight:** I didn't ask for 7 tags, a Well-Architected assessment, or discovery of existing resources. AWS Coworker applied them automatically because the governance skills require it. The agent handles the complexity; I just approve the plan.
 
 ---
 
@@ -201,7 +201,7 @@ After the EC2 lifecycle test succeeded — instance launched, verified, cleaned 
 
 The answer was uncomfortable: the EC2 instance had all seven required tags, but the key pair, security group, and EBS volume had none. In any enterprise with governance policies requiring tags for cost allocation, ownership, and compliance, this is a hard fail.
 
-The AI had done exactly what was asked — tag the instance — and nothing more. It didn't infer that "tag everything" meant the supporting resources too. Why would it? The instruction was about the EC2 instance. The key pair is technically a separate resource. The security group is another. Each one requires its own explicit tagging instruction.
+The agent had done exactly what was asked — tag the instance — and nothing more. It didn't infer that "tag everything" meant the supporting resources too. Why would it? The instruction was about the EC2 instance. The key pair is technically a separate resource. The security group is another. Each one requires its own explicit tagging instruction.
 
 The fix was updating the governance skills to explicitly require tagging on *every* resource type at creation time, not just the primary resource.
 
@@ -249,7 +249,7 @@ The partial passes are the interesting part. They revealed behavioral issues —
 
 There's something profound about using an AI assistant to build an AI assistant. Every time Claude helped me debug a problem, refine a prompt, or test a workflow, I was simultaneously learning what makes AI assistance trustworthy.
 
-The patterns that made Cowork *feel* trustworthy became the patterns I built into AWS Coworker: structured workflows that guide users through complex tasks, approval gates that keep humans in control of critical decisions, explicit context passing so the AI understands what's been authorized, and graceful handling of edge cases instead of failing silently.
+The patterns that made Cowork *feel* trustworthy became the patterns I built into AWS Coworker: structured workflows that guide users through complex tasks, approval gates that keep humans in control of critical decisions, explicit context passing so the agent understands what's been authorized, and graceful handling of edge cases instead of failing silently.
 
 When we debugged the sub-agent architecture together, we weren't just fixing a bug—we were discovering a fundamental principle about AI agent design. When we iterated on the test framework, we were learning that human judgment is irreplaceable for evaluating conversational behavior.
 
@@ -312,7 +312,7 @@ The vision is clear: just as Claude Cowork helps knowledge workers handle comple
 
 Future directions include enterprise customization via layered skills (Org policies, BU overlays), multi-region orchestration with parallel sub-agents, drift detection comparing actual state to intended state, cost optimization recommendations based on usage patterns, incident response automation with approval gates, integration with existing IaC (Terraform, CloudFormation, CDK), and team collaboration with shared plans and audit trails.
 
-The goal isn't full autonomy—it's **supervised autonomy** where the AI handles the complexity while humans retain control over critical decisions.
+The goal isn't full autonomy—it's **supervised autonomy** where the agent handles the complexity while humans retain control over critical decisions.
 
 That's the lesson building AWS Coworker taught me. And that's the experience I hope it delivers to others.
 
