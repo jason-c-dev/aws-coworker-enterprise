@@ -28,6 +28,8 @@ This document captures those lessons—written with a little help from Claude, n
 
 Early on, I hit a fundamental tension that shaped everything: the non-deterministic nature of generative AI is a double-edged sword. It enables Claude to navigate complexity, adapt to unique situations, and provide nuanced recommendations that brittle rule-based systems cannot. But it also means outputs can vary — and when you need deterministic workflows, rules, and guidelines obeyed consistently, you must make the guardrails explicit and unavoidable. That tension runs through every lesson in this blog.
 
+This tension has a name: the **[AI trust paradox](https://en.wikipedia.org/wiki/AI_trust_paradox)**. As AI becomes more capable, its outputs become more convincing — but not necessarily more accurate. The very fluency that makes AI useful also makes errors harder to spot. You can't solve this by trying harder to evaluate AI outputs. You solve it by designing systems where trust in the AI's judgment isn't required.
+
 ---
 
 ## What It Feels Like: A Real Conversation
@@ -145,6 +147,8 @@ The fix required explicit prohibition:
 *Caption: Explicit instruction to use existing files, not generate new ones*
 
 **The lesson:** AI models are generative by nature. When the task involves existing files — deploying them, embedding them, transforming them — you must explicitly instruct the agent to *read and use* the source material, not create its own version. This applies far beyond game files: config templates, policy documents, IaC modules, anything where fidelity to the original matters. Without explicit "use this file, do not generate" instructions, the AI will default to what it does best — create something new. That's the right behavior for many tasks, but catastrophically wrong when the whole point is to use what already exists.
+
+This is the AI trust paradox in action: the generated game was fluent, functional, and convincing — just not what I asked for. The better AI gets at producing plausible outputs, the harder it becomes to catch when those outputs are wrong.
 
 **Edit (February 2026):** The astute reader will notice that deploying a static HTML game to an EC2 instance is overkill. The correct approach would be an S3 bucket fronted by CloudFront with Origin Access Control — keeping the bucket private while serving content securely at the edge. At the time of writing, AWS Coworker didn't have a CloudFront skill. It does now. The journey to add it — and how it nearly broke the design — is the subject of a follow-up post. But if you can't wait to play it, [here it is](https://d1ej4vdt8zp6cx.cloudfront.net/). In the interests of frugality, I may need to take it down if this blog goes viral — but I'm confident that won't happen anytime soon, but do comment your high score.
 
@@ -264,6 +268,7 @@ AWS Coworker is a working foundation for safe, autonomous AWS infrastructure man
 5. **Production is sacred.** The friction of CI/CD is a feature that protects against AI-induced incidents.
 6. **Use AI to build AI.** The experience of building AWS Coworker with Claude taught us more about trustworthy AI design than any documentation.
 7. **The human-AI loop is the product.** The real value isn't the AI or the human—it's the collaboration pattern.
+8. **Sidestep the trust paradox.** Don't ask "can I trust this AI?" — ask "have I designed constraints that make trust unnecessary?" AWS Coworker doesn't ask you to trust AI. It asks you to trust the architecture that constrains it.
 
 ### The Design Tenets
 
