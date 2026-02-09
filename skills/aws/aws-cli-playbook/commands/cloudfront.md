@@ -145,10 +145,19 @@ aws cloudfront publish-function \
 # Associate function with distribution
 # (Requires updating distribution cache behavior)
 
-# Add tags to distribution
+# REQUIRED: Tag distribution immediately after creation
+# Apply all 7 core governance tags (do NOT skip this step)
 aws cloudfront tag-resource \
-  --resource arn:aws:cloudfront::123456789012:distribution/E1234567890ABC \
-  --tags 'Items=[{Key=Environment,Value=production},{Key=Project,Value=website}]'
+  --resource arn:aws:cloudfront::ACCOUNT_ID:distribution/DIST_ID \
+  --tags 'Items=[
+    {Key=Environment,Value=test},
+    {Key=Owner,Value=aws-coworker-test-admin},
+    {Key=CostCenter,Value=CC-00000},
+    {Key=Application,Value=my-app},
+    {Key=CreatedBy,Value=aws-coworker},
+    {Key=CreatedDate,Value=2026-02-08},
+    {Key=Name,Value=my-distribution}
+  ]'
 
 # Create public key (for signed URLs)
 aws cloudfront create-public-key \
@@ -198,6 +207,7 @@ aws cloudfront create-invalidation \
 
 ## Best Practices
 
+- **Tag at Creation Time**: Apply all 7 core governance tags to distributions immediately after creation. CloudFront distributions support tagging via `tag-resource`. Do NOT skip this step—untagged distributions violate governance compliance.
 - **S3 Static Hosting Pattern**: Use private S3 bucket + CloudFront with Origin Access Control (OAC). Never make S3 buckets public; OAC allows CloudFront to access private bucket securely. Add bucket policy granting CloudFront access.
 - **HTTPS Everywhere**: Set `ViewerProtocolPolicy` to `redirect-to-https` for all behaviors
 - **Default Root Object**: Set `DefaultRootObject` to `index.html` for static sites
