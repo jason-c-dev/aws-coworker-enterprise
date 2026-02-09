@@ -483,6 +483,8 @@ Do NOT generate your own game - use MY game file exactly as it exists.
 ### Key Insight
 AI models are generative by nature. When given a task like "deploy this game," the path of least resistance is often to generate new content rather than faithfully reproduce existing content. Explicit instructions about **using existing files** are essential when that's the requirement.
 
+**Edit (February 2026):** The astute reader will notice that deploying a static HTML game to an EC2 instance is overkill. The correct approach would be an S3 bucket fronted by CloudFront with Origin Access Control—keeping the bucket private while serving content securely at the edge. At the time of writing, AWS Coworker didn't have a CloudFront skill. It does now. The journey to add it—and how it nearly broke the design—is the subject of a follow-up post.
+
 ---
 
 ## Conclusion
