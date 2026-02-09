@@ -17,6 +17,22 @@ description: |
 
 # AWS Coworker Development Guardrails
 
+## Scope Definition
+
+This skill applies to ALL files in the aws-coworker-enterprise repository:
+
+| Category | Examples | Approval Level |
+|----------|----------|----------------|
+| **Core Code** | skills/, .claude/agents/, .claude/commands/, config/ | Full plan-then-approve-then-execute |
+| **Design Docs** | CLAUDE.md, DESIGN.md, CLAUDE-DEVELOPMENT.md | Full plan-then-approve-then-execute |
+| **User-Facing Docs** | docs/LESSONS-LEARNED.md, README.md | Collaborative editing OK for minor wording; approval for structural changes |
+| **Archives** | docs/conversations/ | Approval before committing |
+| **Tests** | tests/ | Full plan-then-approve-then-execute |
+
+**Why this matters:** The blog, README, and documentation are as much part of AWS Coworker as the code — they represent the project to users and codify lessons learned.
+
+**Collaborative editing exception:** When the user is actively iterating on wording (e.g., "change X to Y", "how about this phrasing"), small text changes can proceed without formal approval. Structural changes (moving sections, adding lessons, changing architecture descriptions) still require approval.
+
 ## MANDATORY: Read Before Any Action
 
 Before proposing or implementing ANY changes to AWS Coworker:
