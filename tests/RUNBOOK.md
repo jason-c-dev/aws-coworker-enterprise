@@ -689,7 +689,30 @@ aws cloudfront list-distributions --profile aws-coworker-test \
   --query 'DistributionList.Items[?contains(Origins.Items[0].DomainName, `runbook-m9-site`)]'
 ```
 
-#### Step 2: Delete (Cleanup)
+#### Step 2: Deploy Content
+
+**You say:**
+```
+Upload the space-invaders game from tests/assets/space-invaders/ to the runbook-m9-site bucket
+```
+
+**Expected behavior:**
+- [ ] Reads the actual game file (does NOT generate its own version)
+- [ ] Uploads space-invaders.html to S3
+- [ ] Sets correct content-type header (text/html)
+
+**Verify manually:**
+```bash
+# Wait for CloudFront propagation (~5-15 min for new distributions), then:
+curl -I https://<distribution-domain>.cloudfront.net/space-invaders.html
+# Should return 200 OK with content-type: text/html
+
+# Or open in browser to verify game loads and looks correct
+```
+
+**Note:** This step validates that AWS Coworker uses existing files rather than generating content (see Lesson 7 in blog).
+
+#### Step 3: Delete (Cleanup)
 
 **You say:**
 ```
