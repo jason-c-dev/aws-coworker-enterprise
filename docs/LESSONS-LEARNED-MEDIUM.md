@@ -10,7 +10,7 @@
 
 ## The Origin Story
 
-It started with curiosity. I wanted to understand **Claude Code**—how it works, how to extend it, what patterns make AI agents reliable. The best way to learn a tool is to build something real with it.
+It started with curiosity. I wanted to understand **Claude Code**—how it works, how to extend it, what patterns make Agents reliable. The best way to learn a tool is to build something real with it.
 
 On the side, I'd been experimenting with **Claude Cowork** for personal tasks — automating increasingly complex but laborious work like sorting emails, analyzing expenses, and managing files. (Cowork isn't InfoSec-approved for my day job at AWS, but for personal projects it was transformative.) The experience opened my eyes to something important: Cowork's approach of structured workflows, human approval gates, and thoughtful guardrails — plus extensible capabilities in the form of custom skills — made me trust the agent to handle things I would never have delegated before.
 
@@ -22,13 +22,13 @@ Cloud engineers spend enormous time on repetitive tasks: creating EC2 instances,
 
 That's how AWS Coworker was born.
 
-I used Claude Cowork to *build* AWS Coworker—an AI assistant that helps users create high-quality AWS deployments following Well-Architected best practices. The irony isn't lost on me: I used an AI assistant to build an AI assistant. But that meta-experience taught me more about what makes AI agents trustworthy than any whitepaper ever could.
+I used Claude Cowork to *build* AWS Coworker—a GenAI assistant that helps users create high-quality AWS deployments following Well-Architected best practices. The irony isn't lost on me: I used a GenAI assistant to build a GenAI assistant. But that meta-experience taught me more about what makes Agents trustworthy than any whitepaper ever could.
 
 This document captures those lessons—written with a little help from Claude, naturally. 😄
 
 Early on, I hit a fundamental tension that shaped everything: the non-deterministic nature of generative AI is a double-edged sword. It enables Claude to navigate complexity, adapt to unique situations, and provide nuanced recommendations that brittle rule-based systems cannot. But it also means outputs can vary — and when you need deterministic workflows, rules, and guidelines obeyed consistently, you must make the guardrails explicit and unavoidable. That tension runs through every lesson in this blog.
 
-This tension has a name: the **[AI trust paradox](https://en.wikipedia.org/wiki/AI_trust_paradox)**. As AI becomes more capable, its outputs become more convincing — but not necessarily more accurate. The very fluency that makes AI useful also makes errors harder to spot. You can't solve this by trying harder to evaluate AI outputs. You solve it by designing systems where trust in the AI's judgment isn't required.
+This tension has a name: the **[AI trust paradox](https://en.wikipedia.org/wiki/AI_trust_paradox)**. As GenAI becomes more capable, its outputs become more convincing — but not necessarily more accurate. The very fluency that makes GenAI useful also makes errors harder to spot. You can't solve this by trying harder to evaluate GenAI outputs. You solve it by designing systems where trust in GenAI's judgment isn't required.
 
 ---
 
@@ -111,7 +111,7 @@ Claude investigated and confirmed what I'd feared: the agent documentation used 
 
 My exact response: *"YES! You've bypassed the design which is causing the problem."*
 
-I immediately felt guilty. I'd just told off a junior developer — except it wasn't a junior developer, it was Claude. And it wasn't Claude's fault. The AI took the path of least resistance, which is exactly what AI does. The Bash agent type was simpler, it was documented, and it worked. Why *wouldn't* Claude use it?
+I immediately felt guilty. I'd just told off a junior developer — except it wasn't a junior developer, it was Claude. And it wasn't Claude's fault. Claude took the path of least resistance, which is exactly what GenAI does. The Bash agent type was simpler, it was documented, and it worked. Why *wouldn't* Claude use it?
 
 That guilt taught me something I should have already known from managing human teams: you can delegate tasks, but you cannot delegate responsibility. I'm accountable for the design. I'm accountable for making the right path unavoidable — not just documented, not just preferred, but *unavoidable*.
 
@@ -124,7 +124,7 @@ That guilt taught me something I should have already known from managing human t
 
 We added the positive instruction — "use `subagent_type: general-purpose`" — and Claude obeyed. Once. Then in subsequent calls, it drifted back to the simpler Bash approach. Positive guidance alone doesn't stick. The fix wasn't complete until we added explicit prohibitions: "NOT Bash — Bash bypasses agent context" directly in the code comments and documentation.
 
-**The lesson:** If you've designed an agent architecture with roles, permissions, and safety boundaries, every invocation must go through it. No shortcuts, no raw tool calls. But here's the critical nuance: telling the AI what *to* do isn't enough. You must also tell it what *not* to do. Positive guidance shows the right path. Explicit prohibitions block the wrong ones. You need both, because the AI will always find the shortcut you forgot to close.
+**The lesson:** If you've designed an agent architecture with roles, permissions, and safety boundaries, every invocation must go through it. No shortcuts, no raw tool calls. But here's the critical nuance: telling GenAI what *to* do isn't enough. You must also tell it what *not* to do. Positive guidance shows the right path. Explicit prohibitions block the wrong ones. You need both, because GenAI will always find the shortcut you forgot to close.
 
 ---
 
@@ -139,16 +139,16 @@ Something looked... off. The game worked, but the layout was different. The colo
 
 *"The game looks different. I feel it tried to write its own version."*
 
-I was right. AWS Coworker had *generated its own game from scratch* instead of reading and deploying my actual file. The deployed game was different because it *was* a different game. Given the choice between reading an existing file and generating new content, the AI chose to generate. Of course it did — it's a generative model. Generating is what it's optimized to do.
+I was right. AWS Coworker had *generated its own game from scratch* instead of reading and deploying my actual file. The deployed game was different because it *was* a different game. Given the choice between reading an existing file and generating new content, Claude chose to generate. Of course it did — it's a generative model. Generating is what it's optimized to do.
 
 The fix required explicit prohibition:
 
 **[📷 INSERT IMAGE: 16-do-not-generate-warning.png]**
 *Caption: Explicit instruction to use existing files, not generate new ones*
 
-**The lesson:** AI models are generative by nature. When the task involves existing files — deploying them, embedding them, transforming them — you must explicitly instruct the agent to *read and use* the source material, not create its own version. This applies far beyond game files: config templates, policy documents, IaC modules, anything where fidelity to the original matters. Without explicit "use this file, do not generate" instructions, the AI will default to what it does best — create something new. That's the right behavior for many tasks, but catastrophically wrong when the whole point is to use what already exists.
+**The lesson:** GenAI models are generative by nature. When the task involves existing files — deploying them, embedding them, transforming them — you must explicitly instruct the agent to *read and use* the source material, not create its own version. This applies far beyond game files: config templates, policy documents, IaC modules, anything where fidelity to the original matters. Without explicit "use this file, do not generate" instructions, GenAI will default to what it does best — create something new. That's the right behavior for many tasks, but catastrophically wrong when the whole point is to use what already exists.
 
-This is the AI trust paradox in action: the generated game was fluent, functional, and convincing — just not what I asked for. The better AI gets at producing plausible outputs, the harder it becomes to catch when those outputs are wrong.
+This is the AI trust paradox in action: the generated game was fluent, functional, and convincing — just not what I asked for. The better GenAI gets at producing plausible outputs, the harder it becomes to catch when those outputs are wrong.
 
 **Edit (February 2026):** The astute reader will notice that deploying a static HTML game to an EC2 instance is overkill. The correct approach would be an S3 bucket fronted by CloudFront with Origin Access Control — keeping the bucket private while serving content securely at the edge. At the time of writing, AWS Coworker didn't have a CloudFront skill. It does now. The journey to add it — and how it nearly broke the design — is the subject of a follow-up post. But if you can't wait to play it, [here it is](https://d1ej4vdt8zp6cx.cloudfront.net/). In the interests of frugality, I may need to take it down if this blog goes viral — but I'm confident that won't happen anytime soon, but do comment your high score.
 
@@ -167,7 +167,7 @@ The fix was explicit model selection in every Task invocation. After the change,
 **[📷 INSERT IMAGE: 11-model-selection-output.png]**
 *Caption: Correct output—Haiku for discovery, Sonnet for mutations*
 
-**The lesson:** AI agent costs compound fast, and they compound silently. If you don't specify which model handles which operation, the system will default to whatever's available — usually the most expensive option. Design your model selection like you'd design IAM policies: explicitly, per operation type, with no implicit defaults. Use the best model where quality matters (orchestration and reasoning) and cost-optimize where volume is high (discovery and validation).
+**The lesson:** Agent costs compound fast, and they compound silently. If you don't specify which model handles which operation, the system will default to whatever's available — usually the most expensive option. Design your model selection like you'd design IAM policies: explicitly, per operation type, with no implicit defaults. Use the best model where quality matters (orchestration and reasoning) and cost-optimize where volume is high (discovery and validation).
 
 ---
 
@@ -191,7 +191,7 @@ The fix was passing explicit permission context to every sub-agent: "User has ap
 **[📷 INSERT IMAGE: 13-permission-context.png]**
 *Caption: Explicit permission context passed to sub-agents*
 
-**The lesson:** As AI models become more safety-conscious with each release, orchestration systems must explicitly pass authorization context down the agent chain. A sub-agent shouldn't blindly trust its parent — but it should accept explicit, well-structured permission statements. Design your agent orchestration to propagate *why* an action is authorized, not just *what* to do. And pin your dependencies. When your AI tool auto-updates and suddenly refuses to do what it did yesterday, it's almost always because safety behaviors were strengthened. That's a good thing — but your orchestration code needs to keep pace.
+**The lesson:** As GenAI models become more safety-conscious with each release, orchestration systems must explicitly pass authorization context down the agent chain. A sub-agent shouldn't blindly trust its parent — but it should accept explicit, well-structured permission statements. Design your agent orchestration to propagate *why* an action is authorized, not just *what* to do. And pin your dependencies. When your GenAI tool auto-updates and suddenly refuses to do what it did yesterday, it's almost always because safety behaviors were strengthened. That's a good thing — but your orchestration code needs to keep pace.
 
 ---
 
@@ -208,7 +208,7 @@ The fix was updating the governance skills to explicitly require tagging on *eve
 **[📷 INSERT IMAGE: 14-required-tags-table.png]**
 *Caption: Required tags for each AWS resource type*
 
-**The lesson:** "Tag at creation time, tag every resource" must be an explicit, non-negotiable instruction — not an assumption. AI agents don't infer organizational intent from partial instructions. If your governance policy says "all resources must be tagged," your agent's skills must enumerate what "all" means. Retrofitting tags after creation is error-prone and, in practice, never happens. Every resource type your agent can create needs tagging logic baked in from day one.
+**The lesson:** "Tag at creation time, tag every resource" must be an explicit, non-negotiable instruction — not an assumption. Agents don't infer organizational intent from partial instructions. If your governance policy says "all resources must be tagged," your agent's skills must enumerate what "all" means. Retrofitting tags after creation is error-prone and, in practice, never happens. Every resource type your agent can create needs tagging logic baked in from day one.
 
 ---
 
@@ -225,13 +225,13 @@ AWS Coworker presented the plan, flagged it as Production ⚠️, and then — i
 **[📷 INSERT IMAGE: 15-production-gate-plan.png]**
 *Caption: Production gate in action—IaC generation instead of direct CLI*
 
-**The lesson:** The production gate is the single most important safety mechanism in any AI agent that touches infrastructure. Don't implement it as a warning. Don't implement it as a confirmation prompt. Implement it as an architectural constraint — make it structurally impossible for the agent to execute directly against production. The friction of CI/CD isn't overhead; it's the mechanism that prevents an AI-induced incident. Your production gate should be the one thing in your system that has zero flexibility, zero workarounds, and zero "just this once" escape hatches.
+**The lesson:** The production gate is the single most important safety mechanism in any Agent that touches infrastructure. Don't implement it as a warning. Don't implement it as a confirmation prompt. Implement it as an architectural constraint — make it structurally impossible for the agent to execute directly against production. The friction of CI/CD isn't overhead; it's the mechanism that prevents an Agent-induced incident. Your production gate should be the one thing in your system that has zero flexibility, zero workarounds, and zero "just this once" escape hatches.
 
 ---
 
 ## 7. Human-in-the-Loop Test Framework
 
-How do you test a conversational AI agent? Unit tests don't work — you're not testing functions, you're testing judgment. Integration tests don't capture it either — the "correct" behavior often depends on conversational context and nuance.
+How do you test a conversational Agent? Unit tests don't work — you're not testing functions, you're testing judgment. Integration tests don't capture it either — the "correct" behavior often depends on conversational context and nuance.
 
 I landed on something deliberately low-tech: structured conversations with clear pass/fail criteria. Run a test scenario, observe the behavior, tell Claude what worked or failed. Claude updates the code and docs. Run it again.
 
@@ -239,7 +239,7 @@ It sounds primitive. It was extremely effective. Results: 8/8 read-only tests pa
 
 The partial passes are the interesting part. They revealed behavioral issues — not bugs, not crashes, but *ordering and presentation problems* that no automated test would catch. The profile should be announced *before* the commands run, not after. A human immediately spots that as wrong. An automated test checking "did the profile get announced?" would pass.
 
-**The lesson:** AI agent testing requires human judgment, at least in the early stages. Traditional test automation verifies outputs; human-in-the-loop testing evaluates *behavior*. Build structured test scenarios with explicit pass/fail criteria so the process is repeatable, but keep a human in the loop to catch the things that are technically correct but experientially wrong. As your agent matures, you can automate the patterns that stabilize — but start with human observation and resist the urge to automate prematurely.
+**The lesson:** Agent testing requires human judgment, at least in the early stages. Traditional test automation verifies outputs; human-in-the-loop testing evaluates *behavior*. Build structured test scenarios with explicit pass/fail criteria so the process is repeatable, but keep a human in the loop to catch the things that are technically correct but experientially wrong. As your agent matures, you can automate the patterns that stabilize — but start with human observation and resist the urge to automate prematurely.
 
 ---
 
@@ -247,11 +247,11 @@ The partial passes are the interesting part. They revealed behavioral issues —
 
 ### The Meta-Journey
 
-There's something profound about using an AI assistant to build an AI assistant. Every time Claude helped me debug a problem, refine a prompt, or test a workflow, I was simultaneously learning what makes AI assistance trustworthy.
+There's something profound about using a GenAI assistant to build a GenAI assistant. Every time Claude helped me debug a problem, refine a prompt, or test a workflow, I was simultaneously learning what makes GenAI assistance trustworthy.
 
 The patterns that made Cowork *feel* trustworthy became the patterns I built into AWS Coworker: structured workflows that guide users through complex tasks, approval gates that keep humans in control of critical decisions, explicit context passing so the agent understands what's been authorized, and graceful handling of edge cases instead of failing silently.
 
-When we debugged the sub-agent architecture together, we weren't just fixing a bug—we were discovering a fundamental principle about AI agent design. When we iterated on the test framework, we were learning that human judgment is irreplaceable for evaluating conversational behavior.
+When we debugged the sub-agent architecture together, we weren't just fixing a bug—we were discovering a fundamental principle about Agentic design. When we iterated on the test framework, we were learning that human judgment is irreplaceable for evaluating conversational behavior.
 
 The collaboration worked because I brought domain expertise (AWS, enterprise governance, what "trustworthy" means in production) and Claude brought tireless iteration, pattern recognition, and the ability to update dozens of files consistently. Neither of us could have built this alone.
 
@@ -263,12 +263,12 @@ AWS Coworker is a working foundation for safe, autonomous AWS infrastructure man
 
 1. **Agent architecture matters.** Bypassing it with raw tool calls defeats safety mechanisms.
 2. **Explicit is better than implicit.** Model selection, permission context, and file handling all require explicit instructions.
-3. **Modern AI models are safety-conscious.** Orchestration systems must pass authorization context, not just tasks.
+3. **Modern GenAI models are safety-conscious.** Orchestration systems must pass authorization context, not just tasks.
 4. **Test with humans first.** Structured conversations reveal issues that automated tests miss.
-5. **Production is sacred.** The friction of CI/CD is a feature that protects against AI-induced incidents.
-6. **Use AI to build AI.** The experience of building AWS Coworker with Claude taught us more about trustworthy AI design than any documentation.
-7. **The human-AI loop is the product.** The real value isn't the AI or the human—it's the collaboration pattern.
-8. **Sidestep the trust paradox.** Don't ask "can I trust this AI?" — ask "have I designed constraints that make trust unnecessary?" AWS Coworker doesn't ask you to trust AI. It asks you to trust the architecture that constrains it.
+5. **Production is sacred.** The friction of CI/CD is a feature that protects against Agent-induced incidents.
+6. **Use GenAI to build Agents.** The experience of building AWS Coworker with Claude taught us more about trustworthy Agentic design than any documentation.
+7. **The human-Agent loop is the product.** The real value isn't the Agent or the human—it's the collaboration pattern.
+8. **Sidestep the trust paradox.** Don't ask "can I trust this GenAI?" — ask "have I designed constraints that make trust unnecessary?" AWS Coworker doesn't ask you to trust GenAI. It asks you to trust the architecture that constrains it.
 
 ### The Design Tenets
 
@@ -282,7 +282,7 @@ These principles emerged from the lessons above. When I violated a tenet (often 
 3. **Well-Architected by Default** — Every plan assessed against 6 pillars (Throughout)
 4. **Governance Compliance as Code** — Rules encoded as skills Claude reads (Lesson 5)
 5. **Production is Sacred** — Non-prod: direct execution. Prod: CI/CD only (Lesson 6)
-6. **Explicit Over Implicit** — State what TO do *and* what NOT to do; AI takes path of least resistance (Lesson 1, 2, 4)
+6. **Explicit Over Implicit** — State what TO do *and* what NOT to do; GenAI takes path of least resistance (Lesson 1, 2, 4)
 7. **Respect the Agent Architecture** — If you designed agent roles, use them (Lesson 1)
 8. **Layered Extensibility** — Core → Org (→ BU); customize without forking (Future)
 9. **Self-Extending System** — Learn from sessions, codify patterns as skills (Future)
@@ -306,7 +306,7 @@ For AWS Coworker specifically, this means Opus for orchestration, Sonnet for mut
 
 ### The Future
 
-AWS Coworker demonstrates that AI agents can safely manage cloud infrastructure when properly constrained. The key is not to make the AI "smarter" but to make the guardrails **explicit and unavoidable**.
+AWS Coworker demonstrates that Agents can safely manage cloud infrastructure when properly constrained. The key is not to make GenAI "smarter" but to make the guardrails **explicit and unavoidable**.
 
 The vision is clear: just as Claude Cowork helps knowledge workers handle complex document and analysis tasks, AWS Coworker can help cloud engineers create deployments that meet Well-Architected best practices—without sacrificing human oversight.
 
