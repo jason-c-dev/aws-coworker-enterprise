@@ -32,7 +32,7 @@ For ANY change to AWS Coworker:
 2. **Wait for approval** — Do NOT proceed until user explicitly approves
 3. **Execute** — Only after approval, make the changes
 
-This applies to ALL modifications: skills, agents, commands, tests, documentation.
+This applies to ALL modifications: skills, agents, commands, tests, documentation, **and git commits**.
 
 ## DO (Required Behaviors)
 
