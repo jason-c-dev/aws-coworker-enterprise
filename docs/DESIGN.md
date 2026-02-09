@@ -131,6 +131,24 @@ All agents, skills, and workflows align with the six pillars:
 - **Advanced capabilities available** — Complex governance, multi-tenancy when needed
 - **Graceful degradation** — Works with minimal setup, improves with configuration
 
+### 2.6 Design Tenets
+
+These tenets guide all AWS Coworker development and usage:
+
+| # | Tenet | One-liner |
+|---|-------|-----------|
+| 1 | **Human Approval Gates** | No mutation without explicit user approval |
+| 2 | **Cost-Aware Model Selection** | Opus for orchestration, Haiku for discovery, Sonnet for mutations |
+| 3 | **Well-Architected by Default** | Every plan assessed against 6 pillars |
+| 4 | **Governance Compliance as Code** | Rules encoded as skills Claude reads |
+| 5 | **Production is Sacred** | Non-prod: direct execution. Prod: CI/CD only |
+| 6 | **Explicit Over Implicit** | State what TO do *and* what NOT to do |
+| 7 | **Respect the Agent Architecture** | If you designed agent roles, use them |
+| 8 | **Layered Extensibility** | Core → Org → BU; customize without forking |
+| 9 | **Self-Extending System** | Learn from sessions, codify patterns as skills |
+
+When a tenet is violated, things break. When tenets are enforced explicitly, things work.
+
 ---
 
 ## 3. Architecture Overview
