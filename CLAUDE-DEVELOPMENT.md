@@ -192,6 +192,28 @@ AWS Coworker uses three layers with clear precedence:
 
 ---
 
+## Writing Guardrails
+
+When defining rules or guardrails (in skills, agents, or documentation):
+
+- **DO** use explicit prohibitions (DO NOT statements)
+- **DO NOT** try to enumerate or categorize what counts as X
+
+**Why:** Prohibitions stick; positive guidance and categorizations drift. This is Tenet 6 (Explicit Over Implicit) in practice.
+
+**Example - Wrong approach:**
+```markdown
+Mutations include: create, delete, update, tag, configure...
+```
+
+**Example - Right approach:**
+```markdown
+DO NOT execute any state-changing operation without user approval.
+DO NOT treat "small" changes as exempt from the workflow.
+```
+
+---
+
 ## Quick Reference Commands
 
 ```bash

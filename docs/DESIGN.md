@@ -149,6 +149,8 @@ These tenets guide all AWS Coworker development and usage:
 
 When a tenet is violated, things break. When tenets are enforced explicitly, things work.
 
+**Tenet 6 Implementation:** When defining rules or guardrails, prefer explicit prohibitions (DO NOT) over trying to enumerate or categorize. Prohibitions stick; positive guidance and categorizations drift.
+
 ---
 
 ## 3. Architecture Overview

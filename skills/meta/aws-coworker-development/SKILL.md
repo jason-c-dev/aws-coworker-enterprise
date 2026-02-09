@@ -34,6 +34,22 @@ For ANY change to AWS Coworker:
 
 This applies to ALL modifications: skills, agents, commands, tests, documentation, **and git commits**.
 
+## MANDATORY: Validate Proposals Against Tenets
+
+Before presenting ANY plan, validate it against ALL Design Tenets (docs/DESIGN.md section 2.6):
+
+- [ ] **Tenet 1 (Human Approval Gates)**: Does the proposal maintain user approval before mutations?
+- [ ] **Tenet 2 (Cost-Aware Model Selection)**: Does the proposal respect model tiers (Opus/Sonnet/Haiku)?
+- [ ] **Tenet 3 (Well-Architected by Default)**: Does the proposal align with the 6 pillars?
+- [ ] **Tenet 4 (Governance Compliance as Code)**: Are rules encoded in skills, not prose?
+- [ ] **Tenet 5 (Production is Sacred)**: Does the proposal respect prod vs non-prod boundaries?
+- [ ] **Tenet 6 (Explicit Over Implicit)**: Am I using DO NOT statements rather than enumerating categories?
+- [ ] **Tenet 7 (Respect the Agent Architecture)**: Does the proposal use existing agent roles?
+- [ ] **Tenet 8 (Layered Extensibility)**: Does the proposal fit Core → Org → BU model?
+- [ ] **Tenet 9 (Self-Extending System)**: Should this lesson be codified into skills/design?
+
+If a proposal violates any tenet, revise it before presenting to the user.
+
 ## DO (Required Behaviors)
 
 - **DO** verify file locations against DESIGN.md before proposing new files

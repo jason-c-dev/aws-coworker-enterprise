@@ -29,6 +29,13 @@ AWS Coworker gives Claude the right context, guardrails, and patterns for enterp
 - Production changes go through CI/CD, not direct CLI
 - Rollback procedures are considered
 
+### DO NOT (Prohibited Without Approval)
+
+- **DO NOT** execute any AWS CLI command that changes state without user approval
+- **DO NOT** delegate mutations to sub-agents without first presenting a plan
+- **DO NOT** treat "small" changes (tagging, config updates) as exempt from approval
+- **DO NOT** assume user intent implies approval—wait for explicit confirmation
+
 ---
 
 ## How to Handle AWS Requests

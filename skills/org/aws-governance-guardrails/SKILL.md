@@ -92,6 +92,12 @@ This skill encodes organizational governance and compliance rules for AWS operat
 - Do not terminate production instances without AMI/snapshot
 - Do not delete databases without verified backup
 - Do not empty S3 buckets without lifecycle consideration
+
+### NEVER: Skip Plan-Execute Workflow
+- Do not execute any state-changing operation without presenting a plan first
+- Do not delegate mutations to sub-agents before user approval
+- Do not treat tagging, config changes, or "fixes" as exempt from the workflow
+- Exception: None. All state changes require explicit approval.
 ```
 
 ### Cost - Important
