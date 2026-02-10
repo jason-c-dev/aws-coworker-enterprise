@@ -20,7 +20,7 @@ Cloud engineers spend enormous time on repetitive tasks: creating EC2 instances,
 
 That's how AWS Coworker was born.
 
-I used Claude Cowork to *build* AWS Coworker—a GenAI assistant that helps users create high-quality AWS deployments following Well-Architected best practices. The irony isn't lost on me: I used a GenAI assistant to build a GenAI assistant. But that meta-experience taught me more about what makes Agents trustworthy than any whitepaper ever could. This document captures those lessons—written with a little help from Claude, naturally. 😄
+I used Claude Cowork to *build* AWS Coworker—a GenAI assistant that helps users create high-quality AWS deployments following Well-Architected best practices. The irony isn't lost on me: I used a GenAI assistant to build a GenAI assistant. But that meta-experience taught me more about what makes Agents trustworthy than any whitepaper ever could. This blog captures those lessons (as well as a retro style video game for the first 100 readers) — written with a little help from Claude, naturally. 😄
 
 Early on, I hit a fundamental tension that shaped everything: the non-deterministic nature of generative AI is a double-edged sword. It enables Claude to navigate complexity, adapt to unique situations, and provide nuanced recommendations that brittle rule-based systems cannot. But it also means outputs can vary — and when you need deterministic workflows, rules, and guidelines obeyed consistently, you must make the guardrails explicit and unavoidable. That tension runs through every lesson in this blog.
 
@@ -155,7 +155,7 @@ The experience of using Cowork inspired AWS Coworker. The implementation uses Cl
 
 ## 1. The Sub-Agent Architecture Problem
 
-Three Bash agents had finished. Not three Task agents — three *Bash* agents.
+Three Bash agents had finished. Not three **AWS Coworker Task agents** — just three *Bash* agents.
 
 I almost missed it. The output scrolled past in Claude Code's terminal, and everything *looked* like it was working:
 
@@ -223,7 +223,7 @@ Do NOT generate your own game - use MY game file exactly as it exists.
 
 This is the AI trust paradox in action: the generated game was fluent, functional, and convincing — just not what I asked for. The better GenAI gets at producing plausible outputs, the harder it becomes to catch when those outputs are wrong.
 
-**Edit (February 2026):** The astute reader will notice that deploying a static HTML game to an EC2 instance is overkill. The correct approach would be an S3 bucket fronted by CloudFront with Origin Access Control — keeping the bucket private while serving content securely at the edge. At the time of writing, AWS Coworker didn't have a CloudFront skill. It does now. The journey to add it — and how it nearly broke the design — is the subject of a follow-up post. But if you can't wait to play it, [here it is](https://d1ej4vdt8zp6cx.cloudfront.net/). In the interests of frugality, I may need to take it down if this blog goes viral — but I'm confident that won't happen anytime soon, but do comment your high score.
+**Edit (February 2026):** The astute reader will notice that deploying a static HTML game to an EC2 instance is overkill. The correct approach would be an S3 bucket fronted by CloudFront with Origin Access Control — keeping the bucket private while serving content securely at the edge. At the time of writing, AWS Coworker didn't have a CloudFront skill. It does now. The journey to add it — and how it nearly broke the design — is the subject of a follow-up post. But if you can't wait to play it, [here it is](https://d1ej4vdt8zp6cx.cloudfront.net/). In the interests of frugality, I may need to take it down if this blog goes viral — I'm confident that won't happen anytime soon. So, go ahead, relive those retro gaming years, and comment your high score. 😄
 
 ---
 
@@ -360,7 +360,7 @@ Next Step: I'll create a Git branch and generate Terraform files for PR review.
 
 No direct CLI execution. No "are you sure?" prompt that a tired engineer might click through at 2 AM. Just a hard architectural boundary between intent and execution.
 
-**The lesson:** The production gate is the single most important safety mechanism in any Agent that touches infrastructure. Don't implement it as a warning. Don't implement it as a confirmation prompt. Implement it as an architectural constraint — make it structurally impossible for the agent to execute directly against production. The friction of CI/CD isn't overhead; it's the mechanism that prevents an Agent-induced incident. Your production gate should be the one thing in your system that has zero flexibility, zero workarounds, and zero "just this once" escape hatches.
+**The lesson:** The production gate is the single most important safety mechanism in any Agent that touches infrastructure. Don't implement it as a warning. Don't implement it as a confirmation prompt ([Security Theater](https://en.wikipedia.org/wiki/Security_theater)). Implement it as an architectural constraint — make it structurally impossible for the agent to execute directly against production. The friction of CI/CD isn't overhead; it's the mechanism that prevents an Agent-induced incident. Your production gate should be the one thing in your system that has zero flexibility, zero workarounds, and zero "just this once" escape hatches.
 
 ---
 
