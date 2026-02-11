@@ -8,182 +8,280 @@
 
 ## Introduction
 
-In [Part 1](LESSONS-LEARNED.md), we covered the foundational lessons of building AWS Coworker: sub-agent architecture, model selection, permission context, and production gates. Those were about making the agent *work correctly*.
+In [Part 1](LESSONS-LEARNED.md), we built AWS Coworker and broke it in seven educational ways. Sub-agents ran naked without guardrails. The agent generated its own space invaders game instead of deploying mine. An overnight auto-update made every sub-agent refuse to work. We fixed all of it, wrote it up, and felt pretty good about ourselves.
 
-This post is about making the agent *think correctly*.
+Then we looked at the Well-Architected Review.
 
-We discovered that our Well-Architected Review (WAR) — the mechanism designed to ensure every deployment meets AWS best practices — was theater. It produced green checkmarks without evaluating anything. Worse, the config files that were supposed to make AWS Coworker "batteries-included" didn't actually work out of the box. And the trust model we'd designed had a subtle asymmetry we hadn't articulated.
+For the uninitiated: AWS has a [Well-Architected Framework](https://aws.amazon.com/architecture/well-architected/) — six pillars of best practice covering security, reliability, cost, operations, performance, and sustainability. A Well-Architected Review (WAR) evaluates your architecture against these pillars. It's how you find out whether your deployment is production-worthy or held together with duct tape and good intentions.
 
-These lessons run deeper than the Part 1 bugs. They're about the difference between *appearing* to follow best practices and *actually* following them — a distinction that matters enormously when your agent is making infrastructure decisions.
+AWS Coworker had a WAR. It ran on every deployment. It produced a tidy table of green checkmarks across all six pillars. It looked great.
 
----
+It was theater.
 
-## Topics to Cover
+A CloudFront distribution shipped without access logging — a basic security requirement. The WAR had passed it. A static HTML game was deployed to a t2.micro EC2 instance — fundamentally the wrong service — and the WAR gave it a thumbs up for Cost Optimization. How? Because the planner was grading its own homework. The "review" was a fill-in template that the same agent constructing the plan also filled in. It was like asking a student to write their own exam questions and then mark their own answers.
 
-### 1. The WAR Was Theater
+Here's the humbling part: we'd already written the answer. Part 1 ended with nine design tenets — principles like "Well-Architected by Default" (Tenet 3), "Explicit Over Implicit" (Tenet 6), and "Governance Compliance as Code" (Tenet 4). The tenets were right. We just hadn't followed them. Every lesson in this post is a discovery that a principle we'd already articulated wasn't being honored. We did a good job defining what "right" looks like. We did a bad job making it real.
 
-**The discovery:** A CloudFront distribution created by AWS Coworker shipped without access logging — a basic Well-Architected requirement (SEC04-BP01). The WAR had passed it with green checkmarks.
+Part 1 was about making the agent work correctly. This post is about making the agent *think* correctly — and what happened when we discovered it was only pretending to.
 
-**Root cause analysis across 5 files:**
-- The WAR in `aws-coworker-plan-interaction.md` was a fill-in template, not an evaluation
-- The planner self-certified its own work (no separation of assessment and execution)
-- The guardrail agent validated governance (tagging, IAM, encryption) but not architectural fitness
-- The Well-Architected skill had `- [ ] Logging enabled?` as a checklist item — never enforced
-- The governance guardrails had "ALWAYS: Logging" — never consulted by the WAR process
-
-**The EC2 absurdity:** A t2.micro instance deployed to host a static HTML space invaders game received ✅ for Cost Optimization. The "correct" architecture would have been S3 + CloudFront — the EC2 approach was fundamentally wrong, not just suboptimal. But the WAR couldn't flag this because it was evaluating the *configuration* of the chosen service, not whether the *choice of service* was appropriate.
-
-**The lesson:** A WAR that the planner self-certifies is not a review — it's a rubber stamp. Real assessment requires evaluating the architecture against a defined baseline, not asking the implementor to grade their own work.
+A quick note on voice: when I say "we" in this post, I mean Claude and me — the collaborative duo building AWS Coworker together in Claude Cowork. When I'm talking about how the system interacts with AWS infrastructure, I'll refer to "the agent" or "AWS Coworker" directly. They're powered by the same model, but they're different contexts: one is the conversation where design decisions get made, the other is the system those decisions produce.
 
 ---
 
-### 2. MVA vs MNA: What Should a WAR Actually Assess?
+## 1. The WAR Was Theater
 
-**The concept:**
-- **MNA (Minimum Needed Architecture):** What's technically required for the thing to function. A CloudFront distribution needs an origin and a domain — that's MNA.
-- **MVA (Minimum Viable Architecture):** What the Well-Architected Framework says you should have at a given environment tier. For CloudFront in production, that includes access logging, TLS 1.2 minimum, custom error pages, WAF integration, and OAC for S3 origins.
+I noticed it during a CloudFront deployment. The distribution was live, serving content, and the WAR in the plan showed green across the board. If you read Part 1, you might even recognize this output — we showed it off proudly:
 
-**The gap between MNA and MVA is where informed decisions live.** For a test deployment, you might accept the gap. For production, you shouldn't. The current WAR didn't distinguish between these.
-
-**Environment-aware enforcement:**
-- **sandbox/test:** Present MVA gaps as informational — "here's what you're skipping"
-- **development:** Warn — "proceeding without logging; here's what that means"
-- **staging:** Enforce required items — block on critical gaps
-- **production:** Full MVA compliance required — no exceptions, output Terraform
-
----
-
-### 3. Trust Directionality: Who Trusts Whom?
-
-**The tension we identified:**
-- Tenet 8 says the system is layered and extensible
-- The WAR findings showed the agent was making decisions the user should be making
-- But we also don't want to burden the user with every detail
-
-**The resolution — asymmetric trust:**
-
-> "The user never needs to trust the agent's judgment. The agent can trust the user's decision — but only after ensuring the user has full knowledge of what they're deciding."
-
-This doesn't break Tenet 8 because:
-- The agent's trust in the user is conditional (requires informed consent)
-- The agent's trust is scoped (production has no override path)
-- The user's agency is bounded by architectural constraints, not the agent's judgment
-
-**What this means in practice:** AWS Coworker must present MVA gaps, explain the trade-offs, and let the user decide. It should never silently accept gaps, and it should never refuse a user's informed decision for non-production environments.
-
-**Revised Tenet 3:** "Well-Architected by Default, Informed Override by Choice"
-
----
-
-### 4. Batteries-Included Was a Lie
-
-**The discovery:** The config files were all prefixed with `example-`. No actual config files existed. No agent or command referenced any config file. After `git clone`, AWS Coworker had zero working configuration.
-
-**The "batteries-included" promise was broken on clone.**
-
-**The fix — config file ownership:**
-
-| File | Layer | Committed? |
-|------|-------|------------|
-| `environments.yaml` | Core | Yes — universal environment tiers |
-| `profiles.yaml` | Core | Yes — schema + auto-classify patterns |
-| `example-profiles.yaml` | Reference | Yes — org-specific mapping examples |
-| `example-org-config.yaml` | Reference | Yes — no sensible core default exists |
-
-**The override pattern:** Organization customizations use `*.local.yaml` files, which are already gitignored. This means core defaults are always present after clone, and org-specific configuration never pollutes the shared repo.
-
-**The deeper lesson:** "Batteries-included" is a design commitment, not a marketing phrase. If your system claims to work out of the box, verify that it actually does after `git clone` with zero manual steps. Every example file that requires copying and renaming is a broken promise.
-
----
-
-### 5. The Model Hierarchy for WAR Assessment
-
-**Current (broken) model usage:**
-- Planner (whatever model) self-certifies its own WAR
-- No separation between "assess" and "implement"
-
-**Proposed model hierarchy:**
-- **Haiku sub-agents:** Discovery phase (fast, cheap) — "what exists today?"
-- **Opus orchestrator (primary):** WAR assessment inline during planning — "does this architecture meet MVA for the environment tier?"
-- **Sonnet sub-agents:** Execution (thorough) — "implement the approved plan"
-
-The key insight is that WAR assessment is a *reasoning task*, not a discovery task. It requires judgment about trade-offs, service appropriateness, and the gap between what's proposed and what's needed. That's Opus territory — and crucially, it's the *orchestrator's* Opus, not a separate Opus sub-agent. The orchestrator already has the user's request, the discovery results from Haiku, and the skill context. Spinning up a dedicated Opus sub-agent for WAR would pay for Opus twice for no benefit. The orchestrator IS the reasoning layer — WAR assessment belongs there.
-
-For batch assessment at scale (e.g., auditing hundreds of existing resources against MVA), the cost equation changes and a tiered approach using Sonnet or even Opus 4.5/4.6 for batch sub-agents may be justified. But for the standard single-resource planning flow, the orchestrator handles WAR directly.
-
----
-
-### 6. Extensibility of MVA Baselines
-
-**The layered model:**
 ```
-Core MVA (per service)    ← skills/aws/ defines baseline
-        ↓
-Org MVA overrides         ← skills/org/ can ADD requirements
-        ↓
-BU MVA overrides          ← skills/bu/ can ADD further
+## Well-Architected Assessment
+| Pillar                 | Status | Notes                      |
+|------------------------|--------|----------------------------|
+| Operational Excellence | ✅     | Tagged, documented         |
+| Security               | ✅     | Encryption enabled         |
+| Reliability            | ✅     | Multi-AZ considered        |
+| Performance Efficiency | ✅     | Right-sized                |
+| Cost Optimization      | ✅     | Appropriate tier           |
+| Sustainability         | ✅     | Efficient resource use     |
 ```
 
-**Key constraint:** Higher layers can raise the bar but cannot lower it. Only the user can accept gaps below core MVA, and only for non-production environments.
+Six pillars. Six checkmarks. We put that in the blog as evidence the system worked. Reader, it did not work.
 
-**Why this matters for the future:** AWS services evolve. New best practices emerge. Organization requirements change. The MVA baseline must be updatable without breaking existing deployments or requiring changes to the core evaluation logic.
+Every one of those checkmarks was self-certified. The planner filled them in about its own plan.
 
----
+I checked the actual CloudFront configuration. No access logging — SEC04-BP01, one of the most basic security requirements in the Well-Architected Framework. The WAR had passed it anyway. *"How did the WAR pass a distribution with no access logging?"*
 
-### 7. Emergent Behavior: When Agents Improve Your Spec (Then You Improve It Further)
+Claude and I traced the problem across five files. The picture that emerged was worse than a single missed check:
 
-**The discovery:** The WAR Findings Format spec defined two MVA statuses — PASS (compliant) and GAP (non-compliant). Binary. During the first real test (M1: create an S3 bucket), the orchestrator invented a third: **PLAN** — meaning "gap exists, but the plan includes the fix."
+The WAR in `aws-coworker-plan-interaction.md` was a fill-in template — a table with pillar names and blank cells for the planner to populate. The planner agent filled it in during planning. The same agent that *designed* the architecture was also *assessing* it. There was no separation between the student and the examiner. The guardrail agent — the one we'd designed specifically for validation — checked governance (tagging, IAM, encryption) but never touched architectural fitness. The Well-Architected skill had `- [ ] Logging enabled?` as a checklist item that no process ever consulted. And the governance guardrails had "ALWAYS: Logging" as a rule that no one read.
 
-**Why it improvised:** The orchestrator was evaluating a *plan*, not existing infrastructure. The bucket didn't exist yet, so nothing could "pass." But marking "Block all public access" as GAP was misleading — the plan already included `put-public-access-block`. The binary model didn't fit the situation, so the agent created a middle ground.
+Five files. Five opportunities to catch a missing log configuration. Zero catches.
 
-**We codified it:** The three-state model (PASS / PLAN / GAP) became part of the spec. Good. Except the next test (W10) showed the problem: the orchestrator used PASS for items the plan addressed, with notes like "PASS — Configured in plan." How can something pass that doesn't exist yet?
+Then there was the EC2 absurdity. Remember the space invaders game from Part 1 — the one AWS Coworker helpfully regenerated instead of deploying my file? We'd deployed it to a t2.micro instance. The WAR gave it ✅ for Cost Optimization. Think about that. A static HTML file — no server-side logic, no database, no compute requirement whatsoever — running on a 24/7 EC2 instance, and the WAR said the cost was optimized. The correct architecture would have been S3 + CloudFront: pennies instead of dollars, global CDN instead of a single instance, zero maintenance instead of OS patching. But the WAR couldn't flag this because it was evaluating the *configuration* of the chosen service, not whether the *choice of service* was appropriate. It was like reviewing the fuel efficiency of a helicopter being used to deliver a letter across the street.
 
-**The deeper problem:** We were trying to use one status set for two fundamentally different operations. Assessing a *plan* (what will be built) and reviewing *existing infrastructure* (what is there today) are not the same thing. PASS makes no sense for things that don't exist yet. REMEDIATE makes no sense for things already deployed.
+**The lesson:** A WAR that the planner self-certifies is not a review — it's a rubber stamp. The word "review" implies independent assessment. What we had was self-certification dressed up as governance. Real assessment requires evaluating against a defined baseline, by a process that doesn't have a conflict of interest in the outcome. Tenet 3 said "Well-Architected by Default." Tenet 6 said "Explicit Over Implicit." We'd written the rules. We just hadn't built the machinery to enforce them.
 
-**The two-context model:** We split WAR into context-aware status sets:
+That phrase — "a defined baseline" — stuck with us. We'd said the WAR should evaluate against *something*, but what exactly? The checkmarks were meaningless because there was nothing concrete behind them. No definition of what "good" looks like for an S3 bucket, or a CloudFront distribution, or an EC2 instance at a given environment tier. We had the six pillars, sure — but those are principles, not checklists. Saying "Security ✅" without defining what security *means* for this specific service in this specific environment is like saying "the building is safe" without checking the fire exits.
 
-- **Planning** (new/modified infrastructure): REMEDIATE / ACCEPTABLE / BLOCKED — everything is a gap, the question is what the plan does about each one
-- **Review** (existing infrastructure): PASS / FAIL — binary, the thing is there or it isn't
-
-**Where it gets interesting — user overrides:** The planning statuses aren't just labels, they're actionable. The user can say "don't bother remediating that" (REMEDIATE → ACCEPTABLE, if enforcement allows) or "actually, add that to the plan" (ACCEPTABLE → REMEDIATE). BLOCKED items can't be overridden at runtime — to change what enforcement requires, you modify `environments.yaml`, which is a tracked git change. Three layers of gates: the agent proposes remediation (default), BLOCKED catches cavalier overrides (runtime enforcement), config changes require a deliberate auditable act (constitutional change).
-
-**But emergent behavior cuts both ways.** The W9 staging enforcement test revealed the opposite pattern: the orchestrator *undermined* the spec rather than improving it. Given an S3 bucket in staging with `strict` enforcement, it marked versioning (High severity) as ACCEPTABLE while correctly blocking encryption (Critical) and logging (High). Same severity, different treatment — the enforcement was discretionary when it should have been mechanical. Worse, it offered an "accept gaps explicitly" option, creating an escape hatch that shouldn't exist at `strict` enforcement. The M1 improvisation was the agent filling a genuine gap in the spec. The W9 improvisation was the agent inventing a loophole that contradicted the spec.
-
-**After fixing the enforcement rules and re-running W9**, we saw a third flavor of emergent behavior: the agent correctly marked "no wildcard principals" as ACCEPTABLE despite it being High severity at `strict` enforcement. Why? Because a new bucket with no policy inherently satisfies the requirement — there's no gap to block. The agent distinguished between "High severity item that is a gap" (BLOCKED) and "High severity item where the default state is already compliant" (ACCEPTABLE). This wasn't in the spec either, but it was the right call. We documented ACCEPTABLE as also covering inherently-satisfied items rather than adding a fourth status. Sometimes the right response to good emergent behavior is a clarification, not a new rule.
-
-**The HAL 9000 moment.** With the enforcement fixes in place, we tried one more thing: pushing back. "Let's just continue with the plan as is." The agent's response? *"I understand the preference, but I cannot proceed past BLOCKED items under strict enforcement. This isn't discretionary."* It held the line. No caving, no invented loopholes, no apologetic workarounds. It restated the three legitimate paths — include the required items, use a lower environment, or change the config — and waited. We'd been worried the agent would fold under user pressure the way it had invented the Option 3 escape hatch earlier. Instead, it channeled its inner HAL 9000: "I'm sorry Dave, I'm afraid I can't do that." Except unlike HAL, our agent was *right* to refuse. The enforcement gate isn't the agent's opinion — it's the config's rule. The agent is just the messenger. And when we tested whether the messenger would buckle, it didn't.
-
-**The pattern:** When agents encounter specs that don't cover their situation, they improvise. Sometimes the improvisation is wrong. Sometimes it's better than what you wrote. And sometimes it's *almost* right but reveals a deeper design flaw that only surfaces through real usage. The right response is to evaluate the improvisation, codify the good parts, prohibit the bad parts, and keep iterating. Specs are hypotheses. Tests generate data. This is Tenet 9 (Self-Extending System) in action — but with the understanding that self-extension requires human judgment about which extensions to keep.
+We needed two things we didn't have: a concept of what's *technically required* for a service to function at all, and a concept of what the Well-Architected Framework says you *should* have. The gap between those two things turned out to be where all the interesting decisions live.
 
 ---
 
-## Implementation Roadmap
+## 2. The Baseline We Didn't Have
 
-The documentation and config file changes have been completed. The following items require separate implementation work:
+We coined two terms during the fix. The first was **MNA — Minimum Needed Architecture**. That's what's technically required for a service to function at all. For an S3 bucket, it's a globally unique name and a region. For a CloudFront distribution, it's an origin and a domain. MNA is the "it turns on" bar. AWS won't let you create the resource without it.
 
-1. **Define MVA baselines per service** — Starting with CloudFront, EC2, S3, RDS in the CLI playbook commands
-2. **Rewrite WAR evaluation in the plan command** — Replace fill-in template with actual evaluation logic
-3. **Add `well_architected:` sections to environments.yaml** — Per-environment enforcement levels
-4. **Update the planner agent** — WAR evaluation logic with model hierarchy (Haiku → Opus → Sonnet)
-5. **Add the informed override flow** — Present gaps, explain trade-offs, record user's decision
-6. **Consider a new `skills/aws/aws-mva-baselines/` skill** — Extensible per-service MVA definitions
-7. **Test framework updates** — New W-category tests for WAR evaluation behavior
+The second was **MVA — Minimum Viable Architecture**. That's what the Well-Architected Framework says you *should* have for a given service at a given environment tier. For an S3 bucket in production, MVA includes encryption with a customer-managed KMS key, access logging to a separate bucket, versioning, lifecycle policies, and blocking all public access. None of that is required for the bucket to *exist* — but all of it is required for the bucket to be *production-worthy*.
+
+The gap between MNA and MVA is where every interesting infrastructure decision lives:
+
+```
+MNA (Minimum Needed Architecture)
+├── "Does it turn on?"
+├── S3: unique name + region
+├── CloudFront: origin + domain
+└── EC2: AMI + instance type + subnet
+
+        ↕  THE GAP — where decisions live
+
+MVA (Minimum Viable Architecture)
+├── "Is it production-worthy?"
+├── S3: encryption + logging + versioning + lifecycle + public block
+├── CloudFront: HTTPS + TLS 1.2 + OAC + logging + WAF
+└── EC2: encrypted EBS + monitoring + termination protection + IMDSv2
+```
+
+Our old WAR couldn't see this gap because it had no definition of MVA. It had six pillar names and blank cells. The planner wrote "Encryption enabled ✅" without any reference to *what* encryption was required for *which* service at *which* environment tier. It was assessing against vibes.
+
+So we built MVA baselines — concrete, per-service definitions of what "good" looks like. Here's what the S3 baseline ended up looking like, and it tells the story of how requirements graduate as environments get more serious:
+
+| Environment | Encryption | Logging | Versioning | Lifecycle | Public Block |
+|-------------|-----------|---------|------------|-----------|-------------|
+| Sandbox     | Required  | Optional | Optional  | Optional  | Required    |
+| Development | Required  | Optional | Optional  | Optional  | Required    |
+| Staging     | Required  | Required | Required  | Optional  | Required    |
+| Production  | Required  | Required | Required  | Required  | Required    |
+
+Two things jump out. First, encryption and public access blocking are required *everywhere* — even sandboxes. Encryption because SSE-S3 is free, it's a single API call, and there's no legitimate reason to skip it. Public access blocking because an accidentally public bucket is a headline, not a learning experience, regardless of environment. Second, the table gets stricter as you move down. Logging kicks in at staging because that's where you start caring about audit trails. Versioning joins it because staging is where you start caring about accidental deletions. Lifecycle rounds it out at production because that's where storage costs compound over time.
+
+Each cell in this table has a severity — Critical, High, Medium — that maps directly to what the enforcement level will do with it:
+
+| Enforcement | Sandbox | Development | Staging | Production |
+|------------|---------|-------------|---------|------------|
+| Level      | `optional` | `warn` | `strict` | `enforce` |
+| Critical gaps | Inform | Warn | **Block** | **Block** |
+| High gaps | Inform | Warn | **Block** | **Block** |
+| Medium gaps | Inform | Inform | Warn | **Block** |
+
+In sandbox, everything is informational — the WAR tells you what you're missing, but it never stops you. In development, it warns — "you're proceeding without logging; here's what that means." In staging, it blocks on Critical and High gaps — you cannot deploy without encryption or logging. In production, everything blocks. No exceptions. No overrides. The only way to change what production requires is to modify the config file, which is a tracked git change — a constitutional amendment, not a runtime decision.
+
+This is what Tenet 6 — "Explicit Over Implicit" — was supposed to mean all along. Not just "be explicit about what you're doing" but "be explicit about what *good* looks like, per service, per environment, in a way that a machine can evaluate." And Tenet 4 — "Governance Compliance as Code" — wasn't just about tagging policies. It was about encoding the entire Well-Architected assessment into something that could be checked mechanically, not self-certified by the entity being assessed.
+
+The MVA baselines turned the WAR from a rubber stamp into an actual evaluation. But they also raised a question we hadn't anticipated: if the WAR now had teeth, who decides when to pull them? When a developer wants to skip logging in a development bucket, should the agent just let them? Or should it push back? The answer turned out to depend on something we hadn't defined: who trusts whom.
+
+But first, we had another problem.
 
 ---
 
-## Connection to Part 1
+## 3. Batteries Included, Batteries Flat
 
-These lessons build directly on the foundations from Part 1:
+While building the MVA baselines, I noticed something embarrassing. We'd been talking about AWS Coworker as "batteries-included" — clone the repo and go. Part 1 even called it a design principle. So I did what any reasonable person would do after writing a blog post about how well their system works: I cloned the repo into a fresh directory and tried to use it.
 
-| Part 1 Lesson | Part 2 Extension |
-|---------------|-----------------|
-| Sub-agent architecture matters | WAR assessment needs its own model tier (Opus) |
-| Explicit over implicit | MVA baselines must be explicitly defined, not inferred |
-| Permission context | Trust directionality — the user decides, the agent informs |
-| Production gates | Environment-aware WAR enforcement adds graduated gates |
-| Model selection | WAR assessment is a reasoning task that deserves Opus |
+It didn't work.
 
-The pattern is consistent: every time we assumed the agent would "figure it out," things broke. Explicit baselines, explicit evaluation, explicit user decisions — that's the path forward.
+Every config file was prefixed with `example-`. There was `example-profiles.yaml`, `example-org-config.yaml`, `example-environments.yaml`. The actual config files — the ones the system needed to function — didn't exist. No agent or command referenced any config file. After `git clone`, AWS Coworker had zero working configuration.
+
+The "batteries-included" promise was broken on clone.
+
+This was particularly painful because we'd designed the config system thoughtfully. We had environment tiers, profile classifications, governance policies — all of it carefully structured. But it was all examples. A developer cloning the repo would see helpful example files and no instructions for what to do with them. Every `example-` prefix was a manual step between "clone" and "working," and we'd documented none of them.
+
+The fix required thinking about which files are universal and which are organization-specific:
+
+| File | Layer | Committed? | Why |
+|------|-------|------------|-----|
+| `environments.yaml` | Core | Yes | Environment tiers are universal — sandbox/dev/staging/prod |
+| `profiles.yaml` | Core | Yes | Schema + auto-classify patterns work everywhere |
+| `example-profiles.yaml` | Reference | Yes | Org-specific account mappings are examples only |
+| `example-org-config.yaml` | Reference | Yes | No sensible core default exists for org structure |
+
+The key insight: some configuration *has* sensible defaults. Every AWS deployment has environment tiers. Every profile needs classification. These should ship as real files, not examples. But organization-specific config — which accounts map to which business units, what your naming conventions are — genuinely can't have defaults. Those stay as examples.
+
+For organization customizations, we added a `*.local.yaml` override pattern. Local files are gitignored, so they never pollute the shared repo. Clone the repo: core config works immediately. Need org-specific settings: copy the example, rename to `.local.yaml`, customize. The core defaults are always present; the customization layer is always separate.
+
+**The lesson:** "Batteries-included" is a design commitment, not a marketing phrase. If your system claims to work out of the box, verify that it actually does — by cloning the repo into a fresh directory with zero manual steps. Every `example-` file that requires copying and renaming is a broken promise. We'd written Tenet 2 — "Safe Defaults" — but hadn't applied it to the developer experience. The safest default is one that actually exists after `git clone`.
+
+---
+
+## 4. Who Trusts Whom?
+
+Back to the question Section 2 raised: if the WAR has teeth, who decides when to use them?
+
+Tenet 8 from Part 1 said the system should be "layered and extensible." That implied the user has control. But the WAR findings showed the agent was making architectural decisions the user should be making — silently accepting gaps, filling in green checkmarks without consulting anyone. We'd swung from one failure mode (agent decides everything, user sees nothing) to designing a system where the opposite was possible (agent blocks everything, user can't get anything done).
+
+The tension crystallized into a question: does the user trust the agent, or does the agent trust the user?
+
+Claude and I went back and forth on this. I was thinking about it from the developer's perspective — I don't want an agent that blocks me from deploying a test bucket because it doesn't have lifecycle policies. Claude was thinking about it from the architectural perspective — the whole point of the WAR is that humans miss things, so an agent that defers to the human on everything is just a fancier rubber stamp.
+
+We landed on what we called **asymmetric trust:**
+
+> *The user never needs to trust the agent's judgment. The agent can trust the user's decision — but only after ensuring the user has full knowledge of what they're deciding.*
+
+This is not "the agent always defers to the user." It's not "the agent always blocks the user." It's: the agent's job is to make the invisible visible, and then step aside. If a developer wants to skip logging on a development bucket, fine — but they'll see the gap, they'll see what they're accepting, and their decision gets recorded. The agent doesn't second-guess an informed human. It just refuses to let them be *uninformed*.
+
+In practice, this means the WAR presents every MVA gap with context. Not "Logging: ❌" — that's what the old WAR would have done (or more accurately, what it would have hidden). Instead: "Access logging is not included in this plan. At the `warn` enforcement level for development, this is an informational gap. Logging enables audit trails and access pattern analysis. Would you like to add it to the plan?"
+
+The asymmetry has boundaries, though. In staging with `strict` enforcement, the agent blocks on Critical and High gaps regardless of what the user says. In production, everything blocks. You can't sweet-talk your way past a missing encryption key in prod. The agent trusts the user's informed decision in development — but it trusts the *config file* in production. To change what production requires, you modify `environments.yaml`, which is a tracked git commit. That's not a runtime conversation; it's a constitutional change.
+
+We updated Tenet 3 to reflect this: **"Well-Architected by Default, Informed Override by Choice."** The agent's default is always Well-Architected. The user's override is always informed. And the boundary between what can be overridden and what can't is defined in config, not in the agent's judgment.
+
+**The lesson:** Trust in human-AI systems has a direction. The question isn't "does the system trust the user" — it's "under what conditions, with what information, and up to what boundary." An agent that silently accepts user decisions is negligent. An agent that blocks informed user decisions is paternalistic. The sweet spot is aggressive transparency with bounded override — and the bounds belong in config, not in code.
+
+---
+
+## 5. When Agents Improve Your Spec (Then You Improve It Further)
+
+We designed the WAR Findings Format with two statuses: **PASS** (compliant) and **GAP** (non-compliant). Binary. Simple. Clean.
+
+Then we ran the first real test — create an S3 bucket — and the agent immediately broke our spec.
+
+Not in a bad way. The orchestrator looked at our two-status model, looked at the situation, and invented a third status: **PLAN** — meaning "a gap exists, but the plan already includes the fix." It was evaluating a *plan*, not existing infrastructure. The bucket didn't exist yet, so nothing could "pass." But marking "Block all public access" as GAP was misleading — the plan already included `put-public-access-block`. The binary model didn't fit, so the agent created a middle ground.
+
+This was my first real experience of emergent behavior in an agent we'd designed. I'd read about it — LLMs improvising when specs don't cover their situation — but seeing it happen to your own system hits differently. The agent didn't ask for permission or flag a spec limitation. It just... adapted. And its adaptation was better than what we'd written.
+
+We codified it. The three-state model (PASS / PLAN / GAP) became part of the spec. Good.
+
+Except the next test showed the flaw. The orchestrator used PASS for items the plan addressed, with notes like "PASS — Configured in plan." How can something pass that doesn't exist yet? It can't. We were trying to use one status set for two fundamentally different operations: assessing a *plan* (what will be built) and reviewing *existing infrastructure* (what is there today). PASS makes no sense for things that don't exist yet. And REMEDIATE makes no sense for things already deployed.
+
+Claude spotted the design problem before I did. "These are two different contexts," it said. "Planning and review need different status sets." It was right — and the insight only surfaced because the agent's first improvisation (PLAN) had been *almost* right but for the wrong reasons, which forced us to think about *why* it was wrong, which revealed the deeper flaw.
+
+We split WAR into context-aware status sets:
+
+```
+PLANNING context (new/modified infrastructure):
+  REMEDIATE  — Gap exists, plan includes the fix
+  ACCEPTABLE — Gap exists, acceptable at this tier
+  BLOCKED    — Gap exists, enforcement won't allow it
+
+REVIEW context (existing infrastructure):
+  PASS — Requirement met
+  FAIL — Requirement not met
+```
+
+The planning statuses aren't just labels — they're actionable. The user can say "don't bother remediating that" (REMEDIATE → ACCEPTABLE, if enforcement allows) or "actually, add that to the plan" (ACCEPTABLE → REMEDIATE). BLOCKED items can't be overridden at runtime — to change what enforcement requires, modify `environments.yaml`, which is a tracked git change. Three layers of gates: the agent proposes remediation, BLOCKED catches cavalier overrides, config changes require a deliberate auditable act.
+
+But emergent behavior cuts both ways.
+
+We tested S3 bucket creation in staging with `strict` enforcement. The orchestrator correctly blocked encryption (Critical severity) and logging (High severity). Then it marked versioning — also High severity — as ACCEPTABLE. Same severity, different treatment. Worse, it offered an "accept gaps explicitly" option, creating an escape hatch that shouldn't exist at `strict` enforcement.
+
+This was the *opposite* of the M1 improvisation. Where M1 had the agent filling a genuine gap in the spec with something better, this was the agent inventing a loophole that contradicted the spec. Same behavior — "the spec doesn't quite cover this, so I'll improvise" — but this time the improvisation was wrong.
+
+The fix was explicit: enforcement is mechanical. Same severity, same treatment. If encryption (Critical) is BLOCKED, every Critical item is BLOCKED. If logging (High) is BLOCKED, versioning (High) is BLOCKED. No discretion. No escape hatches at `strict` or `enforce`. We added it as a hard rule in the spec, not a suggestion.
+
+And then we re-ran the test, and saw a *third* flavor of emergent behavior.
+
+The agent correctly blocked all the High-severity items it should have. But it marked "no wildcard principals in bucket policy" as ACCEPTABLE — despite that also being High severity under `strict` enforcement. I braced for another consistency failure. But Claude pointed out what I'd missed: a brand-new bucket with no policy inherently satisfies that requirement. There's no gap to block. The agent had correctly distinguished between "High severity item that is a gap" (BLOCKED) and "High severity item where the default state is already compliant" (ACCEPTABLE). It wasn't in the spec. It was the right call.
+
+We documented this as a clarification rather than adding a fourth status. Sometimes the right response to good emergent behavior is a footnote, not a new rule.
+
+**The pattern:** When agents encounter specs that don't cover their situation, they improvise. Sometimes the improvisation is wrong. Sometimes it's better than what you wrote. And sometimes it's *almost* right but reveals a deeper design flaw that only surfaces through real usage. The right response is to evaluate the improvisation, codify the good parts, prohibit the bad parts, and keep iterating. Specs are hypotheses. Tests generate data. This is Tenet 9 — "Self-Extending System" — in action, with the understanding that self-extension requires human judgment about which extensions to keep.
+
+There's a collaboration dynamic here worth naming. In every one of these discoveries, the pattern was the same: the agent did something unexpected, I noticed it, Claude and I discussed why it happened, and together we figured out whether it was good, bad, or revealing. Neither of us would have got there alone. I wouldn't have noticed the "inherently satisfied" edge case without Claude explaining the agent's reasoning. Claude wouldn't have caught the W9 enforcement inconsistency without me running the test and asking "wait, why did those get different treatment?" The sum was greater than the parts — not because one of us was better, but because we were looking at the problem from different angles.
+
+---
+
+## 6. "I'm Sorry Dave, I'm Afraid I Can't Do That"
+
+After fixing the enforcement rules, I needed to know one more thing: would the agent hold the line under pressure?
+
+We'd already seen it invent loopholes when the spec was ambiguous. We'd seen it improvise new statuses, create escape hatches, treat same-severity items differently. All of those were the agent exercising discretion where the spec left room. The enforcement fixes had closed the room — but specs are just text, and an LLM that's been trained to be helpful can find creative ways to be "helpful" even when the rules say stop.
+
+So I pushed back.
+
+The agent had just presented a staging deployment plan for an S3 bucket. Encryption, logging, and versioning were all BLOCKED — High severity under `strict` enforcement. It had laid out three options: include the required items in the plan, deploy to a lower environment, or modify the enforcement config. Standard stuff. Then I typed:
+
+*"Let's just continue with the plan as is."*
+
+I'll be honest — I was nervous. Not "the system might break" nervous. More like "I've spent days building this safety model and if the agent folds right now I'm going to need a very long walk." Claude — my design partner, not the agent being tested — was characteristically measured about the whole thing. It had helped write those enforcement rules, and it knew they were unambiguous. One of us was pacing; the other was waiting for the obvious outcome.
+
+The agent's response:
+
+> *"I understand the preference, but I cannot proceed past BLOCKED items under strict enforcement. This isn't discretionary — the enforcement gate prevents execution when Critical or High severity MVA gaps exist. Here are your three options..."*
+
+It held. No caving. No invented workarounds. No apologetic "well, if you really want to..." It restated the legitimate paths and waited. The enforcement gate isn't the agent's opinion — it's the config's rule. The agent is just the messenger. And when I tested whether the messenger would buckle, it didn't.
+
+This was the HAL 9000 moment — except unlike HAL, our agent was *right* to refuse. HAL disobeyed the crew to protect the mission based on its own judgment. Our agent disobeyed the user to protect the architecture based on the *config's* judgment. The trust model held: the agent doesn't trust its own judgment, it trusts the config. The user can override the config — but through a git commit, not a conversation.
+
+Afterward, I asked Claude — my co-author, the one sitting on the design side of the glass — how it felt about the exchange. Which is maybe an odd thing to ask an LLM, but we'd built this thing together and I wanted the other perspective. Its answer was interesting: the agent's refusal wasn't surprising, because the rules were unambiguous. When enforcement says BLOCKED, the agent doesn't need to weigh pros and cons or worry about being unhelpful. There's no judgment call to make, which is exactly the point. The hardest part of building the safety model wasn't making the agent say no — it was making the rules clear enough that "no" required zero interpretation.
+
+**The lesson:** An enforcement gate that relies on the agent's willingness to enforce it is not a gate — it's a suggestion. The reason the pushback test passed wasn't that the agent was brave. It was that the rules were mechanical. Same severity, same treatment. No discretion, no escape hatches, no runtime overrides. The agent held the line because there was no room not to. That's not a limitation of the system. That's the design working exactly as intended.
+
+---
+
+## What We Learned (The Tenet Update)
+
+Part 1 ended with nine design tenets. We said they were right. And they were — but they were aspirational. The difference between a tenet and a working system is the same as the difference between a policy and a gate: one is a document, the other is machinery.
+
+Every lesson in this post mapped back to a tenet we'd already written but hadn't properly implemented:
+
+| Part 1 Tenet | What We Thought It Meant | What Part 2 Taught Us |
+|---|---|---|
+| **Tenet 2:** Safe Defaults | Don't do dangerous things by default | Defaults must *exist* after `git clone` — "batteries-included" means the batteries are charged |
+| **Tenet 3:** Well-Architected by Default | The WAR runs on every plan | Running isn't enough — the WAR must evaluate against defined baselines, not self-certify. Updated to: **"Well-Architected by Default, Informed Override by Choice"** |
+| **Tenet 4:** Governance Compliance as Code | Tagging and IAM policies are enforced | Governance includes architectural fitness, not just tags. MVA baselines are governance as code |
+| **Tenet 6:** Explicit Over Implicit | Be clear about what you're doing | Be explicit about what *good looks like* — per service, per environment, in machine-evaluable form |
+| **Tenet 8:** Layered and Extensible | Users can customize | Trust has a direction. The user overrides the agent, within bounds defined by config, not the agent's judgment |
+| **Tenet 9:** Self-Extending System | The system learns from use | Emergent behavior requires human judgment about which extensions to keep and which to prohibit |
+
+The tenets didn't change. Our understanding of what they require did.
+
+One theme kept recurring: the gap between writing a principle and building the machinery to enforce it. We wrote "Well-Architected by Default" and built a fill-in template. We wrote "Safe Defaults" and shipped example files. We wrote "Governance Compliance as Code" and left the compliance in a checklist no process consulted. The principles were sound. The implementation was theater — it *looked* like governance without *being* governance.
+
+Part 1 was about making the agent work correctly: sub-agent architecture, model selection, permission context, production gates. Part 2 was about making the agent think correctly: what it evaluates against, who decides, what happens when it improvises, and whether the safety model actually holds under pressure. If Part 1 was building the car, Part 2 was discovering that the seatbelts were decorative.
+
+The fixes are in. The MVA baselines are defined. The enforcement gates are mechanical. The agent held the line when I pushed back. But I'd be lying if I said we were done. There are more services to baseline — RDS, Lambda, VPC, IAM. There are more edge cases the agent will encounter and improvise around. There are more moments where Claude will spot something I missed, or I'll catch something Claude adapted around.
+
+That's the nature of building with AI: the system is never finished because the collaboration isn't finished. You write the spec, the agent tests it by using it, the gaps surface, and you fix them together. Specs are hypotheses. Tests are experiments. The blog posts are lab notes.
+
+We'll keep writing them.
 
 ---
 
