@@ -130,6 +130,22 @@ BU MVA overrides          ← skills/bu/ can ADD further
 
 ---
 
+### 7. Emergent Behavior: When Agents Improve Your Spec
+
+**The discovery:** The WAR Findings Format spec defined two MVA statuses — PASS (compliant) and GAP (non-compliant). Binary. During the first real test (M1: create an S3 bucket), the orchestrator invented a third: **PLAN**.
+
+**Why it improvised:** The orchestrator was evaluating a *plan*, not existing infrastructure. The bucket didn't exist yet, so nothing could "pass." But marking "Block all public access" as GAP was misleading — the plan already included `put-public-access-block`. The binary model didn't fit the situation, so the agent created a middle ground.
+
+**What PLAN means:** The item is a gap in the *current state*, but the plan remediates it. This lets you distinguish at a glance between three things: items the plan addresses (PLAN), items that already comply (PASS), and items the plan leaves unresolved (GAP). Critically, the execution gate only evaluates GAPs — PLAN items are considered addressed because the user approves the full plan including those remediations.
+
+**The pattern:** When agents encounter specs that don't cover their situation, they improvise. Sometimes the improvisation is wrong. Sometimes it's better than what you wrote. The right response isn't to prevent improvisation — it's to evaluate whether it's good, then codify it so it's consistent across sessions rather than leaving it to chance.
+
+**What we codified:** The three-state model (PASS / PLAN / GAP) is now part of the WAR Findings Format spec, with guidance on when each status applies depending on context — planning new resources, reviewing existing infrastructure, or modifying existing resources.
+
+**The deeper lesson:** Specs are hypotheses. Real usage generates data. If your agent invents something useful that your spec didn't anticipate, that's not a bug — it's a signal that the spec was incomplete. Codify the good emergent behavior; suppress the bad. This is Tenet 9 (Self-Extending System) in action, except the extension came from the agent at runtime, not from a meta-designer at design time.
+
+---
+
 ## Implementation Roadmap
 
 The documentation and config file changes have been completed. The following items require separate implementation work:

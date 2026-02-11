@@ -515,8 +515,8 @@ All WAR assessments MUST use this structured format. Emoji-only assessments with
 
 | Pillar | MVA Item | Status | Gap | Severity | Remediation |
 |--------|----------|--------|-----|----------|-------------|
-| Security | Access logging enabled | PASS / GAP | {description if gap} | Critical/High/Medium/Low | {how to fix} |
-| Security | TLS 1.2 minimum | PASS / GAP | ... | ... | ... |
+| Security | Access logging enabled | PASS / PLAN / GAP | {description if gap} | Critical/High/Medium/Low | {how to fix} |
+| Security | TLS 1.2 minimum | PASS / PLAN / GAP | ... | ... | ... |
 | ... | ... | ... | ... | ... | ... |
 
 ### Execution Gate
@@ -528,6 +528,24 @@ All WAR assessments MUST use this structured format. Emoji-only assessments with
   1. {gap description}
   2. ...
 ```
+
+### MVA Status Definitions
+
+The Status column uses three states to distinguish between items that are already compliant, items the plan remediates, and items that remain unresolved:
+
+| Status | Meaning | Affects Execution Gate? |
+|--------|---------|------------------------|
+| **PASS** | Compliant — item is already in place or inherently satisfied | No |
+| **PLAN** | Gap remediated — item is not currently in place, but the plan includes the fix | No |
+| **GAP** | Unresolved — item is required at this environment tier but neither present nor planned | Yes — enforcement gate evaluates GAPs only |
+
+**The execution gate evaluates GAPs only.** PLAN items are considered addressed because the user approves the full plan including those remediations. The user sees exactly what the plan is adding on their behalf and can accept or reject the enhanced plan.
+
+**Context-dependent usage:**
+
+- **Planning new resources:** Most items will be PLAN (the plan addresses them) or GAP. PASS is rare — only when an item is inherently satisfied (e.g., "no wildcard principals" passes when no bucket policy exists).
+- **Reviewing existing resources:** Most items will be PASS or GAP. PLAN only appears if a remediation plan is being generated alongside the review.
+- **Modifying existing resources:** Mix of all three — PASS for items already configured, PLAN for items the change addresses, GAP for items still unresolved.
 
 ### Severity Definitions
 
