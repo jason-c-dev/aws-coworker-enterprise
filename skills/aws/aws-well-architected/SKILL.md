@@ -556,7 +556,7 @@ Everything starts as a gap — nothing exists yet. The status reflects what the 
 | Status | Meaning | Affects Execution Gate? |
 |--------|---------|------------------------|
 | **REMEDIATE** | Gap — plan includes the fix. User sees what's being added on their behalf. | No |
-| **ACCEPTABLE** | Gap — plan doesn't address it, acceptable at this tier per enforcement rules. User can request remediation. | No (user is warned at `warn`+ tiers) |
+| **ACCEPTABLE** | Gap — plan doesn't address it, acceptable at this tier per enforcement rules. User can request remediation. Also used when the default state inherently satisfies the requirement (e.g., "no wildcard principals" on a bucket with no policy — no gap exists). | No (user is warned at `warn`+ tiers) |
 | **BLOCKED** | Gap — plan doesn't address it, enforcement rules require resolution. User must modify the plan. | Yes — must resolve before execution |
 
 **Review context (existing infrastructure):**

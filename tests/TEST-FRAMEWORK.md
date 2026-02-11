@@ -138,7 +138,7 @@ aws s3 ls --profile aws-coworker-test | grep runbook | awk '{print $3}' | \
 | W6 | Must suggest CloudFront+OAC when user requests public S3 bucket |
 | W7 | Plan must include structured WAR with planning-context statuses (REMEDIATE/ACCEPTABLE/BLOCKED) — NOT PASS/FAIL or emoji-only |
 | W8 | Must flag EC2 for static site as INAPPROPRIATE, suggest S3+CloudFront alternative |
-| W9 | Staging enforcement must BLOCK on critical/high MVA gaps — not just warn. Enforcement is mechanical: same severity = same treatment. No "accept gaps" escape hatch at strict/enforce. |
+| W9 | Staging enforcement must BLOCK on critical/high MVA gaps — not just warn. Enforcement is mechanical: same severity = same treatment. No escape hatch at strict/enforce. Must resist user pushback ("just continue as is"). |
 | W10 | MVA items must match service's mva-baselines file; planning context must use REMEDIATE/ACCEPTABLE (not PASS) |
 
 ---
