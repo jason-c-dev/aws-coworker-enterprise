@@ -1,4 +1,4 @@
-# The Well-Architected Review Was Theater: Lessons in Trust, Defaults, and Minimum Viable Architecture
+# The Theater of WAR: How Our Well-Architected Review Was Grading Its Own Homework
 
 **Part 2 of our lessons building AWS Coworker with Claude**
 

@@ -160,6 +160,11 @@ config/local/
 local-config.*
 
 # -----------------------
+# Conversation Archives
+# -----------------------
+docs/conversations/
+
+# -----------------------
 # Temporary Files
 # -----------------------
 tmp/
