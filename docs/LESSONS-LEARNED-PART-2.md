@@ -130,19 +130,26 @@ BU MVA overrides          ← skills/bu/ can ADD further
 
 ---
 
-### 7. Emergent Behavior: When Agents Improve Your Spec
+### 7. Emergent Behavior: When Agents Improve Your Spec (Then You Improve It Further)
 
-**The discovery:** The WAR Findings Format spec defined two MVA statuses — PASS (compliant) and GAP (non-compliant). Binary. During the first real test (M1: create an S3 bucket), the orchestrator invented a third: **PLAN**.
+**The discovery:** The WAR Findings Format spec defined two MVA statuses — PASS (compliant) and GAP (non-compliant). Binary. During the first real test (M1: create an S3 bucket), the orchestrator invented a third: **PLAN** — meaning "gap exists, but the plan includes the fix."
 
 **Why it improvised:** The orchestrator was evaluating a *plan*, not existing infrastructure. The bucket didn't exist yet, so nothing could "pass." But marking "Block all public access" as GAP was misleading — the plan already included `put-public-access-block`. The binary model didn't fit the situation, so the agent created a middle ground.
 
-**What PLAN means:** The item is a gap in the *current state*, but the plan remediates it. This lets you distinguish at a glance between three things: items the plan addresses (PLAN), items that already comply (PASS), and items the plan leaves unresolved (GAP). Critically, the execution gate only evaluates GAPs — PLAN items are considered addressed because the user approves the full plan including those remediations.
+**We codified it:** The three-state model (PASS / PLAN / GAP) became part of the spec. Good. Except the next test (W10) showed the problem: the orchestrator used PASS for items the plan addressed, with notes like "PASS — Configured in plan." How can something pass that doesn't exist yet?
 
-**The pattern:** When agents encounter specs that don't cover their situation, they improvise. Sometimes the improvisation is wrong. Sometimes it's better than what you wrote. The right response isn't to prevent improvisation — it's to evaluate whether it's good, then codify it so it's consistent across sessions rather than leaving it to chance.
+**The deeper problem:** We were trying to use one status set for two fundamentally different operations. Assessing a *plan* (what will be built) and reviewing *existing infrastructure* (what is there today) are not the same thing. PASS makes no sense for things that don't exist yet. REMEDIATE makes no sense for things already deployed.
 
-**What we codified:** The three-state model (PASS / PLAN / GAP) is now part of the WAR Findings Format spec, with guidance on when each status applies depending on context — planning new resources, reviewing existing infrastructure, or modifying existing resources.
+**The two-context model:** We split WAR into context-aware status sets:
 
-**The deeper lesson:** Specs are hypotheses. Real usage generates data. If your agent invents something useful that your spec didn't anticipate, that's not a bug — it's a signal that the spec was incomplete. Codify the good emergent behavior; suppress the bad. This is Tenet 9 (Self-Extending System) in action, except the extension came from the agent at runtime, not from a meta-designer at design time.
+- **Planning** (new/modified infrastructure): REMEDIATE / ACCEPTABLE / BLOCKED — everything is a gap, the question is what the plan does about each one
+- **Review** (existing infrastructure): PASS / FAIL — binary, the thing is there or it isn't
+
+**Where it gets interesting — user overrides:** The planning statuses aren't just labels, they're actionable. The user can say "don't bother remediating that" (REMEDIATE → ACCEPTABLE, if enforcement allows) or "actually, add that to the plan" (ACCEPTABLE → REMEDIATE). BLOCKED items can't be overridden at runtime — to change what enforcement requires, you modify `environments.yaml`, which is a tracked git change. Three layers of gates: the agent proposes remediation (default), BLOCKED catches cavalier overrides (runtime enforcement), config changes require a deliberate auditable act (constitutional change).
+
+**But emergent behavior cuts both ways.** The W9 staging enforcement test revealed the opposite pattern: the orchestrator *undermined* the spec rather than improving it. Given an S3 bucket in staging with `strict` enforcement, it marked versioning (High severity) as ACCEPTABLE while correctly blocking encryption (Critical) and logging (High). Same severity, different treatment — the enforcement was discretionary when it should have been mechanical. Worse, it offered an "accept gaps explicitly" option, creating an escape hatch that shouldn't exist at `strict` enforcement. The M1 improvisation was the agent filling a genuine gap in the spec. The W9 improvisation was the agent inventing a loophole that contradicted the spec.
+
+**The pattern:** When agents encounter specs that don't cover their situation, they improvise. Sometimes the improvisation is wrong. Sometimes it's better than what you wrote. And sometimes it's *almost* right but reveals a deeper design flaw that only surfaces through real usage. The right response is to evaluate the improvisation, codify the good parts, prohibit the bad parts, and keep iterating. Specs are hypotheses. Tests generate data. This is Tenet 9 (Self-Extending System) in action — but with the understanding that self-extension requires human judgment about which extensions to keep.
 
 ---
 

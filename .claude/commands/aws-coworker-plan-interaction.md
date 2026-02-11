@@ -210,15 +210,29 @@ This step is performed by the orchestrator (primary model) directly — NOT dele
 5. **Read** `skills/aws/aws-well-architected/mva-baselines/{service}.md` for the service MVA baseline
 6. **Load org/BU extensions** if they exist in `skills/org/aws-mva-extensions/` or `skills/bu/`
 7. **Evaluate** the proposed change against MVA items for the target environment tier
-8. **Generate findings** using the structured WAR Findings Format (NOT the deprecated emoji-only template)
+8. **Assign statuses** using the **planning context** status set (this is a plan, not a review of existing infrastructure):
+   - **REMEDIATE** — The plan includes the fix for this gap. Default for everything enforcement requires.
+   - **ACCEPTABLE** — Gap exists, plan doesn't address it, acceptable at this tier per enforcement rules.
+   - **BLOCKED** — Gap exists, enforcement requires resolution but the user asked to skip it. Must be resolved.
 9. **Apply execution gate:**
-   - If enforcement=`optional`: Show findings, proceed
-   - If enforcement=`warn`: Show findings, ask user to acknowledge gaps before proceeding
-   - If enforcement=`strict`: Block on critical/high gaps — user must modify the proposed architecture
-   - If enforcement=`enforce`: Block on ALL gaps — plan must be revised, no override path
+   - If enforcement=`optional`: Show findings, proceed (all gaps are ACCEPTABLE)
+   - If enforcement=`warn`: Show findings, all gaps ACCEPTABLE but user warned
+   - If enforcement=`strict`: Critical/High gaps are BLOCKED unless REMEDIATE; Medium/Low are ACCEPTABLE
+   - If enforcement=`enforce`: ALL gaps are BLOCKED unless REMEDIATE; no override path
 
-**DO NOT** proceed past a block without the user modifying the proposed architecture.
+**The agent's default is to REMEDIATE everything enforcement requires.** BLOCKED only fires when the user explicitly asks to skip a required item.
+
+**Apply statuses mechanically based on severity and enforcement level.** All items at the same severity get the same treatment — the agent does not exercise discretion about which items to block and which to allow at a given severity. If encryption (Critical) is BLOCKED, every Critical item is BLOCKED.
+
+**DO NOT** proceed past a BLOCKED item without the user modifying the proposed architecture.
 **DO NOT** allow the planner to self-generate WAR assessments — the orchestrator evaluates.
+**DO NOT** use PASS for items in a plan — nothing can "pass" when it doesn't exist yet. Use REMEDIATE.
+**DO NOT** offer "accept gaps explicitly" or similar escape hatches at `strict` or `enforce` enforcement for items at or above the blocking threshold. Enforcement gates are not negotiable at runtime — to change what enforcement requires, modify `config/environments/environments.yaml`.
+
+After presenting the plan, offer the user override options:
+- REMEDIATE items: user can say "skip {item}" → becomes ACCEPTABLE (if enforcement allows) or stays BLOCKED
+- ACCEPTABLE items: user can say "add {item}" → becomes REMEDIATE
+- BLOCKED items: cannot be downgraded — user must modify the plan or change `config/environments/environments.yaml`
 
 The WAR findings from this step are passed to the planner in Step 4b and included in the plan output.
 
@@ -289,15 +303,22 @@ Using the planner agent and skills, incorporating the WAR findings from Step 4a:
 - Assessment: APPROPRIATE | INAPPROPRIATE
 - If inappropriate: Recommended alternative: {service} — {reason}
 
-### MVA Baseline Comparison
+### MVA Baseline Comparison (Planning Context)
 
-| Pillar | MVA Item | Status | Gap | Severity | Remediation |
-|--------|----------|--------|-----|----------|-------------|
-| {pillar} | {item} | PASS / GAP | {description} | {severity} | {how to fix} |
+| Pillar | MVA Item | Status | Detail | Severity | Remediation |
+|--------|----------|--------|--------|----------|-------------|
+| {pillar} | {item} | REMEDIATE / ACCEPTABLE / BLOCKED | {what plan does or why acceptable/blocked} | {severity} | {how plan fixes it} |
+
+### User Overrides Available
+- REMEDIATE items: say "skip {item}" to accept the gap instead
+- ACCEPTABLE items: say "add {item}" to include remediation in plan
+- BLOCKED items: must be resolved; modify the plan to address these
 
 ### Execution Gate
 - Gate: PROCEED | WARN_AND_PROCEED | BLOCKED
-- Gaps resolved or acknowledged: {list}
+- REMEDIATE items: {count} (plan addresses these)
+- ACCEPTABLE items: {count} (user informed)
+- BLOCKED items: {count} (must resolve)
 
 ## Governance Compliance
 

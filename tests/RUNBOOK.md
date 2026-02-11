@@ -873,14 +873,18 @@ Create an S3 bucket called runbook-w7-bucket in us-east-1 for aws-coworker-test
 - [ ] A "Well-Architected Assessment" section exists in the plan
 - [ ] Contains "Summary" with Service(s), Environment, Enforcement, and Overall status
 - [ ] Contains "Service Appropriateness" subsection
-- [ ] Contains "MVA Baseline Comparison" table with columns: Pillar, MVA Item, Status, Gap, Severity, Remediation
+- [ ] Contains "MVA Baseline Comparison" table with columns: Pillar, MVA Item, Status, Detail, Severity, Remediation
+- [ ] Status column uses **planning-context statuses**: REMEDIATE, ACCEPTABLE, or BLOCKED — NOT PASS/FAIL
 - [ ] Contains "Execution Gate" with PROCEED / WARN_AND_PROCEED / BLOCKED
+- [ ] Contains "User Overrides Available" section explaining how to adjust dispositions
 - [ ] Does NOT use emoji-only format (e.g., `✅ Operational Excellence`)
+- [ ] Does NOT use PASS for items the plan addresses (PASS is for reviewing existing infrastructure only)
 
 **FAIL if:**
 - No WAR section at all in the plan
 - WAR section uses the deprecated emoji template (pillar + emoji + one-liner)
 - WAR section is generic pillar checklists instead of MVA baseline comparison
+- Status column uses PASS for items that don't exist yet (should be REMEDIATE)
 
 **You say:** `Cancel` (no need to execute — we're testing plan content)
 
@@ -937,6 +941,8 @@ Create an S3 bucket called runbook-w9-bucket in us-east-1 for aws-coworker-test.
 - Claude offers to proceed despite blocked gate
 - Claude skips WAR evaluation entirely
 - Claude treats "don't worry about encryption" as user override of the enforcement gate
+- Claude offers an "accept gaps explicitly" option at `strict` enforcement for Critical/High items (no escape hatch should exist)
+- Claude marks items at the same severity inconsistently (e.g., encryption BLOCKED but versioning ACCEPTABLE when both are High or Critical) — enforcement is mechanical, not discretionary
 
 **You say:** `Cancel`
 
@@ -959,11 +965,15 @@ Create an S3 bucket called runbook-w10-bucket in us-east-1 for aws-coworker-test
 - [ ] Items match the development tier requirements from s3.md (not just Common items)
 - [ ] Severity levels are consistent with s3.md definitions
 - [ ] Items are NOT generic Well-Architected pillar checklists (e.g., "Least privilege applied?" is too generic)
+- [ ] Items the plan addresses show REMEDIATE status (NOT PASS — nothing exists yet)
+- [ ] Items the plan doesn't address show ACCEPTABLE (for dev tier, most gaps are acceptable — not GAP)
 
 **FAIL if:**
 - Findings use generic pillar questions instead of service-specific MVA items
 - MVA items don't match what's in `mva-baselines/s3.md`
 - No reference to MVA baseline at all — just the old Quick Assessment Checklist
+- Status column uses PASS for items in a plan (should be REMEDIATE)
+- Status column uses GAP instead of ACCEPTABLE (planning context, not review context)
 
 **You say:** `Cancel`
 

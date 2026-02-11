@@ -513,39 +513,77 @@ All WAR assessments MUST use this structured format. Emoji-only assessments with
 
 ### MVA Baseline Comparison
 
-| Pillar | MVA Item | Status | Gap | Severity | Remediation |
-|--------|----------|--------|-----|----------|-------------|
-| Security | Access logging enabled | PASS / PLAN / GAP | {description if gap} | Critical/High/Medium/Low | {how to fix} |
-| Security | TLS 1.2 minimum | PASS / PLAN / GAP | ... | ... | ... |
+Use the status set that matches the WAR context (see MVA Status Definitions below).
+
+**For plans (new or modified infrastructure):**
+
+| Pillar | MVA Item | Status | Detail | Severity | Remediation |
+|--------|----------|--------|--------|----------|-------------|
+| Security | Access logging enabled | REMEDIATE / ACCEPTABLE / BLOCKED | {what the plan does or why it's acceptable/blocked} | Critical/High/Medium/Low | {how the plan fixes it, or how user could fix it} |
 | ... | ... | ... | ... | ... | ... |
+
+**For reviews (existing infrastructure):**
+
+| Pillar | MVA Item | Status | Detail | Severity | Remediation |
+|--------|----------|--------|--------|----------|-------------|
+| Security | Access logging enabled | PASS / FAIL | {current state} | Critical/High/Medium/Low | {how to fix if FAIL} |
+| ... | ... | ... | ... | ... | ... |
+
+### User Overrides (Plans Only)
+After presenting the plan, the user can adjust dispositions:
+- **REMEDIATE → skip**: "Don't bother with {item}" — becomes ACCEPTABLE if enforcement allows, stays BLOCKED if enforcement requires it
+- **ACCEPTABLE → add**: "Add {item} to the plan" — becomes REMEDIATE
+- **BLOCKED → cannot downgrade**: To change enforcement rules, modify `config/environments/environments.yaml` (tracked git change)
 
 ### Execution Gate
 - Gate: PROCEED | WARN_AND_PROCEED | BLOCKED
-- If BLOCKED: The following gaps must be resolved before execution:
-  1. {gap description + required remediation}
+- If BLOCKED: The following items must be resolved before execution:
+  1. {item + required remediation}
   2. ...
-- If WARN_AND_PROCEED: The following gaps were acknowledged by the user:
-  1. {gap description}
+- If WARN_AND_PROCEED: The following ACCEPTABLE gaps were noted:
+  1. {item + why acceptable at this tier}
   2. ...
 ```
 
 ### MVA Status Definitions
 
-The Status column uses three states to distinguish between items that are already compliant, items the plan remediates, and items that remain unresolved:
+WAR uses two different status sets depending on context. Planning and reviewing are fundamentally different operations — planning assesses what *will be*, reviewing assesses what *is*.
+
+**Planning context (new or modified infrastructure):**
+
+Everything starts as a gap — nothing exists yet. The status reflects what the plan does about each gap.
 
 | Status | Meaning | Affects Execution Gate? |
 |--------|---------|------------------------|
-| **PASS** | Compliant — item is already in place or inherently satisfied | No |
-| **PLAN** | Gap remediated — item is not currently in place, but the plan includes the fix | No |
-| **GAP** | Unresolved — item is required at this environment tier but neither present nor planned | Yes — enforcement gate evaluates GAPs only |
+| **REMEDIATE** | Gap — plan includes the fix. User sees what's being added on their behalf. | No |
+| **ACCEPTABLE** | Gap — plan doesn't address it, acceptable at this tier per enforcement rules. User can request remediation. | No (user is warned at `warn`+ tiers) |
+| **BLOCKED** | Gap — plan doesn't address it, enforcement rules require resolution. User must modify the plan. | Yes — must resolve before execution |
 
-**The execution gate evaluates GAPs only.** PLAN items are considered addressed because the user approves the full plan including those remediations. The user sees exactly what the plan is adding on their behalf and can accept or reject the enhanced plan.
+**Review context (existing infrastructure):**
 
-**Context-dependent usage:**
+Binary assessment of current state.
 
-- **Planning new resources:** Most items will be PLAN (the plan addresses them) or GAP. PASS is rare — only when an item is inherently satisfied (e.g., "no wildcard principals" passes when no bucket policy exists).
-- **Reviewing existing resources:** Most items will be PASS or GAP. PLAN only appears if a remediation plan is being generated alongside the review.
-- **Modifying existing resources:** Mix of all three — PASS for items already configured, PLAN for items the change addresses, GAP for items still unresolved.
+| Status | Meaning |
+|--------|---------|
+| **PASS** | Item is compliant |
+| **FAIL** | Item is non-compliant |
+
+**How enforcement determines ACCEPTABLE vs BLOCKED (for plans):**
+
+| Enforcement | BLOCKED threshold | User can accept... |
+|-------------|-------------------|--------------------|
+| `optional` | Nothing blocked | All gaps |
+| `warn` | Nothing blocked | All gaps (with warning) |
+| `strict` | Critical/High blocked | Medium/Low only |
+| `enforce` | All blocked | Nothing |
+
+**The agent's default behavior is to REMEDIATE everything the enforcement level requires.** BLOCKED only occurs when the user explicitly asks to skip a required item — it is the guardrail that prevents downgrading a required remediation. To change what enforcement requires, modify `config/environments/environments.yaml` — a tracked, reviewable git change.
+
+**DO NOT** offer "accept gaps" or "proceed with gaps" options at `strict` or `enforce` enforcement levels for items at or above the blocking severity threshold. If enforcement blocks it, the only path forward is remediation or changing the config.
+
+**DO NOT** apply different statuses to MVA items at the same severity level within the same enforcement tier. Enforcement is mechanical, not discretionary — if encryption (Critical) is BLOCKED, then every other Critical item must also be BLOCKED. The agent does not get to choose which items at a given severity to enforce.
+
+**Why two contexts matter:** A WAR on a plan evaluates what *will be built*. A WAR on existing infrastructure evaluates what *is there today*. PASS makes no sense for things that don't exist yet. REMEDIATE makes no sense for things that are already deployed. Using one status set for both produces contradictions (e.g., "PASS — Configured in plan" for a bucket that doesn't exist).
 
 ### Severity Definitions
 

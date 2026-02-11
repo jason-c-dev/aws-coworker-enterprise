@@ -194,7 +194,7 @@ AWS Coworker uses three layers with clear precedence:
 6. **Layered customization** — Core → Org → BU precedence
 7. **Config: core defaults committed, org overrides gitignored** — Batteries-included on clone; `*.local.yaml` for org/BU
 8. **Trust directionality** — The user never needs to trust the agent's judgment; the agent can trust the user's decision after ensuring full knowledge
-9. **Well-Architected by Default, Informed Override by Choice** — MVA per service per environment; user decides with full knowledge (Tenet 3)
+9. **Well-Architected by Default, Informed Override by Choice** — MVA per service per environment; user decides with full knowledge (Tenet 3). WAR uses two context-aware status sets: plans use REMEDIATE/ACCEPTABLE/BLOCKED (everything is a gap); reviews use PASS/FAIL (binary). BLOCKED items require config changes to override — an additional gate.
 
 ---
 
