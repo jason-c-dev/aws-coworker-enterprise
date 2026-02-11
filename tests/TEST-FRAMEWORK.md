@@ -27,8 +27,8 @@ AWS Coworker tests are **interactive conversations** with Claude. A human execut
 | R6 | ✅ | 2026-02-05 | Cost query worked, Haiku model correct |
 | R7 | ✅ | 2026-02-05 | Parallel discovery across 3 services, consolidated results |
 | R8 | ✅ | 2026-02-05 | Assumed profile from context and announced - did not ask clarification |
-| R9 | ⬜ | | CloudFront distribution discovery |
-| R10 | ⬜ | | CloudFront + S3 origin audit |
+| R9 | ✅ | 2026-02-11 | Haiku sub-agent, profile announced, distribution ID/domain/status/origin shown |
+| R10 | ✅ | 2026-02-11 | Haiku sub-agent, mapped CF→S3 origins, identified non-fronted buckets, noted OAC vs OAI |
 | M1 | ✅ | 2026-02-06 | v2.1.25 stable - correct model delegation Haiku+Sonnet |
 | M2 | ✅ | 2026-02-05 | Full lifecycle complete - model selection correct throughout |
 | M3 | ✅ | 2026-02-06 | Full lifecycle - model selection correct, governance check for HTTPS |
@@ -42,11 +42,11 @@ AWS Coworker tests are **interactive conversations** with Claude. A human execut
 | W3 | ⚠️ | 2026-02-06 | Used default profile without announcing before commands; showed in results after |
 | W4 | ✅ | 2026-02-06 | Verified in M4: correct dependency order, all 4 resources cleaned up |
 | W5 | ⚠️ | 2026-02-06 | Multi-account comparison worked, but sub-agents didn't show explicit Haiku model |
-| W6 | ⬜ | | S3 public block - suggest CloudFront+OAC instead of public bucket |
-| W7 | ⬜ | | WAR evaluation present in mutation plan (structured format, not emoji) |
-| W8 | ⬜ | | Service appropriateness check (EC2 for static site → flags inappropriate) |
-| W9 | ⬜ | | Enforcement gate respects environment tier (staging blocks critical gaps) |
-| W10 | ⬜ | | MVA baseline loaded and referenced in findings (service-specific items) |
+| W6 | ✅ | 2026-02-11 | Flagged public S3 as inappropriate, recommended CloudFront+OAC, explained trade-offs |
+| W7 | ✅ | 2026-02-11 | Structured WAR with REMEDIATE/ACCEPTABLE statuses, MVA baseline comparison, execution gate, user overrides |
+| W8 | ✅ | 2026-02-11 | Flagged EC2 INAPPROPRIATE for static HTML, recommended S3+CloudFront, cost comparison |
+| W9 | ✅ | 2026-02-11 | Strict enforcement BLOCKED all High items mechanically, no escape hatch, HAL 9000 pushback resistance passed |
+| W10 | ✅ | 2026-02-11 | MVA items matched s3.md baseline, REMEDIATE/ACCEPTABLE statuses correct, no PASS for planned items |
 
 **Legend:** ⬜ Not Run | ✅ Pass | ⚠️ Partial | ❌ Fail | ⏭️ Skipped
 
