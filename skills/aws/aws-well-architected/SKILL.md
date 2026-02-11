@@ -370,34 +370,195 @@ Services:
 
 ---
 
-## Using This Skill
+## Minimum Viable Architecture (MVA)
 
-### For Planning
+### Concept
 
-Before creating a plan, assess against all six pillars:
+MVA defines what the Well-Architected Framework says you **should** have for a service at a given environment tier. It sits above MNA (Minimum Needed Architecture), which is what's technically required for a service to function at all.
+
+| Term | Definition | Example (CloudFront) |
+|------|-----------|---------------------|
+| **MNA** | What's technically required to function | An origin and a domain |
+| **MVA** | What Well-Architected says you should have | Access logging, TLS 1.2+, custom error pages, WAF integration, OAC for S3 |
+
+**The gap between MNA and MVA is where informed decisions live.** For a test deployment, the user might accept the gap. For production, they should not.
+
+### MVA Baseline Structure
+
+MVA baselines are defined per service in `mva-baselines/{service}.md`. Each file contains environment tiers as sections, with production as the superset:
+
+```
+mva-baselines/
+├── _TEMPLATE.md        # Reference template for adding new services
+├── cloudfront.md       # CloudFront MVA baseline
+├── ec2.md              # EC2 MVA baseline
+└── s3.md               # S3 MVA baseline
+```
+
+Each baseline file follows this structure:
+- **Common (All Environments)** — Items required regardless of tier
+- **Sandbox** — Additional items (typically none)
+- **Development** — Additional items beyond Common
+- **Staging** — Additional items beyond Development (enforcement-gated)
+- **Production** — Additional items beyond Staging (ALL mandatory)
+- **Gap Detection Guide** — How to check, what constitutes a gap, severity, remediation
+
+### MVA Extensibility
+
+MVA baselines follow a layered model. Higher layers can ADD requirements but CANNOT lower core safety:
+
+```
+Core MVA (per service)        ← Defined here in skills/aws/aws-well-architected/mva-baselines/
+        ↓
+Org MVA extensions            ← Defined in skills/org/aws-mva-extensions/ (can ADD items)
+        ↓
+BU MVA extensions             ← Defined in skills/bu/{bu}/mva-extensions/ (can ADD further)
+```
+
+Only the user can accept gaps below core MVA, and only for non-production environments.
+
+---
+
+## Service Appropriateness Check
+
+Before evaluating MVA compliance, the orchestrator MUST evaluate whether the **service choice itself** is appropriate for the use case. This catches architectural failures that per-service MVA cannot detect.
+
+### Why This Matters
+
+A perfectly configured EC2 instance is still the wrong architecture for hosting a static HTML file. The original WAR gave a pass for Cost Optimization on EC2 hosting a static game because it only evaluated the *configuration* of the chosen service, not whether the *choice of service* was appropriate.
+
+### How to Evaluate
+
+Ask: **"Given what the user wants to achieve, is this the right AWS service?"**
+
+| User Goal | Wrong Service | Right Service | Why |
+|-----------|--------------|---------------|-----|
+| Host static HTML/CSS/JS | EC2 | S3 + CloudFront | No compute needed; CDN is cheaper, faster, more reliable |
+| Run a scheduled script once/day | EC2 (24/7) | Lambda + EventBridge | Pay-per-execution vs always-on |
+| Simple key-value store | RDS | DynamoDB | Relational DB overhead for non-relational data |
+| Host a container with no scaling | ECS + ALB | App Runner | Managed container runtime, no ALB needed |
+
+### Severity
+
+Service inappropriateness is always **High** severity for the **Cost Optimization** pillar. It may also affect **Performance Efficiency** and **Operational Excellence**.
+
+### Output Format
 
 ```markdown
-## Well-Architected Assessment: {Resource/Change}
-
-| Pillar | Score | Notes |
-|--------|-------|-------|
-| Operational Excellence | ✅/⚠️/❌ | |
-| Security | ✅/⚠️/❌ | |
-| Reliability | ✅/⚠️/❌ | |
-| Performance Efficiency | ✅/⚠️/❌ | |
-| Cost Optimization | ✅/⚠️/❌ | |
-| Sustainability | ✅/⚠️/❌ | |
-
-### Key Findings
-[Summary of findings]
-
-### Recommendations
-[Actions to improve alignment]
+### Service Appropriateness
+- Use case: {what the user wants to achieve}
+- Proposed service: {service}
+- Assessment: {APPROPRIATE / INAPPROPRIATE}
+- If inappropriate: Recommended alternative: {service} — {reason}
 ```
+
+---
+
+## WAR Evaluation Instructions (For Orchestrator)
+
+**IMPORTANT:** WAR evaluation is performed by the **primary orchestrator (Opus) inline during planning** — NOT delegated to a sub-agent. The orchestrator already has the user's request, discovery results, and skill context. WAR assessment is a reasoning task that belongs at the orchestration layer.
+
+### Evaluation Procedure
+
+When evaluating a proposed change or deployment, follow these steps in order:
+
+1. **Identify service(s)** being deployed or modified
+2. **Check service appropriateness** — Is this the right service for the use case? (see above)
+3. **Identify environment tier** from the target profile/account classification
+4. **Read enforcement level** from `config/environments/environments.yaml` → `well_architected.enforcement`
+5. **Load MVA baseline** from `skills/aws/aws-well-architected/mva-baselines/{service}.md`
+6. **Load org/BU extensions** if they exist in `skills/org/aws-mva-extensions/` or `skills/bu/`
+7. **Compare proposed architecture** against each MVA item for the target environment tier
+8. **Generate findings** using the WAR Findings Format below
+9. **Apply execution gate** based on enforcement level
+
+### Enforcement Levels
+
+| Level | Behavior | Critical/High Gaps | Medium/Low Gaps |
+|-------|----------|-------------------|-----------------|
+| `optional` | Informational only | Show findings, proceed | Show findings, proceed |
+| `warn` | Present and acknowledge | Warn, let user proceed with acknowledgment | Informational |
+| `strict` | Block on critical/high | **Block execution** — user must resolve or modify plan | Warn, let user proceed |
+| `enforce` | Block on all gaps | **Block execution** — no override path | **Block execution** — no override path |
+
+### What NOT to Do
+
+- **DO NOT** skip WAR evaluation for any deployment
+- **DO NOT** self-certify with green checkmarks — evaluate against actual MVA baselines
+- **DO NOT** allow the planner to generate its own WAR assessment — the orchestrator evaluates
+- **DO NOT** proceed past a block without the user modifying the proposed architecture
+- **DO NOT** gate sandbox/test deployments — optional/warn enforcement means inform, never block
+- **DO NOT** defer WAR to execution time — assess during planning, before plan is finalized
+
+---
+
+## WAR Findings Format
+
+All WAR assessments MUST use this structured format. Emoji-only assessments without detail are prohibited.
+
+```markdown
+## Well-Architected Assessment
+
+### Summary
+- Service(s): {list of services being deployed/modified}
+- Environment: {tier}
+- Enforcement: {level from environments.yaml}
+- Overall: COMPLIANT | GAPS_NOTED | CRITICAL_GAPS
+
+### Service Appropriateness
+- Use case: {what the user wants to achieve}
+- Proposed service: {service}
+- Assessment: APPROPRIATE | INAPPROPRIATE
+- If inappropriate: Recommended alternative: {service} — {reason}
+
+### MVA Baseline Comparison
+
+| Pillar | MVA Item | Status | Gap | Severity | Remediation |
+|--------|----------|--------|-----|----------|-------------|
+| Security | Access logging enabled | PASS / GAP | {description if gap} | Critical/High/Medium/Low | {how to fix} |
+| Security | TLS 1.2 minimum | PASS / GAP | ... | ... | ... |
+| ... | ... | ... | ... | ... | ... |
+
+### Execution Gate
+- Gate: PROCEED | WARN_AND_PROCEED | BLOCKED
+- If BLOCKED: The following gaps must be resolved before execution:
+  1. {gap description + required remediation}
+  2. ...
+- If WARN_AND_PROCEED: The following gaps were acknowledged by the user:
+  1. {gap description}
+  2. ...
+```
+
+### Severity Definitions
+
+| Severity | Definition | Examples |
+|----------|-----------|---------|
+| **Critical** | Security vulnerability or data loss risk | No encryption, public access to sensitive data, no backup |
+| **High** | Significant operational or compliance risk | No logging, no monitoring, wide-open security groups |
+| **Medium** | Best practice violation with moderate impact | No lifecycle policy, suboptimal instance type |
+| **Low** | Minor improvement opportunity | Missing optional tags, no compression |
+
+---
+
+## Using This Skill
+
+### For Planning (Orchestrator-Inline WAR)
+
+The orchestrator performs WAR evaluation during Step 4a of the plan command, BEFORE constructing the plan. This ensures the plan already incorporates WAR findings.
+
+The old template-based assessment is **DEPRECATED** and must not be used:
+
+```
+DEPRECATED — DO NOT USE:
+| Pillar | Score | Notes |
+| ... | emoji-only | |
+```
+
+Instead, use the structured WAR Findings Format above with MVA baseline comparisons.
 
 ### For Reviews
 
-Use pillar checklists to validate existing infrastructure.
+Use pillar checklists to validate existing infrastructure, then compare against MVA baselines for the environment tier.
 
 ---
 
@@ -410,6 +571,12 @@ Detailed pillar guidance in:
 - `pillars/performance-efficiency.md`
 - `pillars/cost-optimization.md`
 - `pillars/sustainability.md`
+
+MVA baselines per service:
+- `mva-baselines/_TEMPLATE.md` — Reference template for adding new services
+- `mva-baselines/cloudfront.md` — CloudFront MVA baseline
+- `mva-baselines/ec2.md` — EC2 MVA baseline
+- `mva-baselines/s3.md` — S3 MVA baseline
 
 ---
 

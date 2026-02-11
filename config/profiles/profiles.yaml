@@ -1,0 +1,75 @@
+# AWS Coworker Profile Configuration (Core Defaults)
+# ==================================================
+#
+# This file provides the SCHEMA and AUTO-CLASSIFICATION rules for
+# AWS CLI profiles. It ships with AWS Coworker as a core default.
+#
+# HOW THIS WORKS:
+#   - The schema below defines valid classifications and permissions
+#   - The auto_classify section maps profile name patterns to environments
+#   - Specific profile-to-environment mappings are organization-specific
+#
+# TO ADD YOUR PROFILES:
+#   Create a profiles.local.yaml in this directory with your specific
+#   profile mappings. The .local.yaml file is gitignored and will not
+#   pollute the repository. See example-profiles.yaml for reference.
+#
+# Profile Classification:
+#   - unknown: Not yet classified (defaults to read-only)
+#   - sandbox: Experimentation environment
+#   - development: Active development
+#   - test: Integration and QA testing
+#   - staging: Pre-production
+#   - production: Live workloads
+#
+# Permissions:
+#   - read-only: Can only run discovery commands
+#   - read-write: Can execute approved mutations
+#
+# Approval Requirements:
+#   - none: No approval needed (sandbox only)
+#   - destructive-only: Approval for delete/terminate operations
+#   - all-mutations: Approval for any state change
+#   - always: Approval for everything including read operations
+
+# Schema: valid values for profile configuration
+schema:
+  classifications: [unknown, sandbox, development, test, staging, production]
+  permissions: [read-only, read-write]
+  approval_levels: [none, destructive-only, all-mutations, always]
+
+# Conservative defaults for profiles not explicitly configured
+defaults:
+  unknown_profile:
+    classification: unknown
+    permissions: read-only
+    approval_required: all-mutations
+    prompt_for_classification: true
+
+# Auto-detect classification from profile name patterns
+# This is core logic — it applies regardless of org customization
+auto_classify:
+  enabled: true
+  patterns:
+    - pattern: "*sandbox*"
+      classification: sandbox
+    - pattern: "*-dev-*"
+      classification: development
+    - pattern: "*-dev"
+      classification: development
+    - pattern: "*-test-*"
+      classification: test
+    - pattern: "*-test"
+      classification: test
+    - pattern: "*-staging-*"
+      classification: staging
+    - pattern: "*-staging"
+      classification: staging
+    - pattern: "*-prod-*"
+      classification: production
+    - pattern: "*-prod"
+      classification: production
+    - pattern: "*-production-*"
+      classification: production
+    - pattern: "*-production"
+      classification: production

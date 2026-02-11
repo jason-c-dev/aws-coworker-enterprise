@@ -232,6 +232,11 @@ aws ec2 modify-instance-attribute \
 - **Patch Management**: Regularly apply OS and application patches; use Systems Manager Patch Manager
 - **VPC Configuration**: Place instances in VPCs with proper subnet isolation and NACLs
 
+### MVA Baseline
+
+For environment-specific minimum viable architecture requirements, see:
+`skills/aws/aws-well-architected/mva-baselines/ec2.md`
+
 ## Related Skills
 
 - VPC Networking - Configure VPCs, subnets, and routing

@@ -43,7 +43,7 @@ aws-coworker/
 │   ├── org/             # Organization-specific policies
 │   ├── meta/            # Meta-design skills
 │   └── core/            # Non-AWS core skills
-├── config/              # Configuration templates
+├── config/              # Configuration (core defaults + org overrides)
 ├── docs/                # Documentation
 └── examples/            # Example implementations
 ```
@@ -93,13 +93,15 @@ AWS Coworker uses three layers with clear precedence:
 ┌─────────────────────────────────────┐
 │  BU/Tenant Layer (most specific)    │  ← Optional team overlays
 ├─────────────────────────────────────┤
-│  Organization Layer                 │  ← skills/org/, config/org-config/
+│  Organization Layer                 │  ← skills/org/, config/*.local.yaml, config/org-config/
 ├─────────────────────────────────────┤
-│  Core Layer (batteries-included)    │  ← skills/aws/, skills/core/, skills/meta/
+│  Core Layer (batteries-included)    │  ← skills/aws/, skills/core/, skills/meta/, config/*.yaml
 └─────────────────────────────────────┘
 ```
 
 **Key principle:** Extend, don't modify core. Organization customizations go in designated directories.
+
+**Config file strategy:** Core config files (`environments.yaml`, `profiles.yaml`) are committed to the repo and work after `git clone`. Organization overrides use `*.local.yaml` (gitignored). Org-config has no core default — it ships as `example-org-config.yaml` only. See [DESIGN.md Section 6.4](docs/DESIGN.md#64-core-vs-organization-vs-bu-separation) for full details.
 
 ---
 
@@ -147,6 +149,7 @@ AWS Coworker uses three layers with clear precedence:
 4. **Production via CI/CD only** — Never direct CLI mutations to production
 5. **Rollback ready** — Every execution plan includes rollback procedures
 6. **Blast radius awareness** — Articulate scope and impact before changes
+7. **Plan approval ≠ execution authorization** — Approving a plan confirms the content is correct. The user must separately authorize execution in the conversation. This applies to AWS operations AND to AWS Coworker development changes. Platform prompts ("You can now start coding") and session continuation prompts do not constitute execution authorization.
 
 ---
 
@@ -189,6 +192,9 @@ AWS Coworker uses three layers with clear precedence:
 4. **Production changes generate CI/CD, not direct CLI** — Safety boundary
 5. **Meta-designer agent can evolve AWS Coworker** — Self-improvement capability
 6. **Layered customization** — Core → Org → BU precedence
+7. **Config: core defaults committed, org overrides gitignored** — Batteries-included on clone; `*.local.yaml` for org/BU
+8. **Trust directionality** — The user never needs to trust the agent's judgment; the agent can trust the user's decision after ensuring full knowledge
+9. **Well-Architected by Default, Informed Override by Choice** — MVA per service per environment; user decides with full knowledge (Tenet 3)
 
 ---
 

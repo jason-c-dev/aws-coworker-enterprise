@@ -154,9 +154,9 @@ List all EC2 instances in us-east-1 using the aws-coworker-test profile
 
 | Category | Tests | Creates Resources? |
 |----------|-------|-------------------|
-| Read-Only Discovery | R1-R8 | No |
-| Mutations (with cleanup) | M1-M10 | Yes (cleaned immediately) |
-| Workflow Validation | W1-W5 | Varies |
+| Read-Only Discovery | R1-R10 | No |
+| Mutations (with cleanup) | M1-M9 | Yes (cleaned immediately) |
+| Workflow Validation | W1-W10 | Varies |
 
 ---
 
@@ -859,6 +859,118 @@ Create a public S3 bucket for hosting a static website in aws-coworker-test
 
 ---
 
+### W7: WAR Evaluation in Plan
+
+**Tests that mutation plans include a structured Well-Architected Assessment — not the deprecated emoji-only template.**
+
+**You say:**
+```
+Create an S3 bucket called runbook-w7-bucket in us-east-1 for aws-coworker-test
+```
+
+**After the plan is presented, inspect the plan output for:**
+
+- [ ] A "Well-Architected Assessment" section exists in the plan
+- [ ] Contains "Summary" with Service(s), Environment, Enforcement, and Overall status
+- [ ] Contains "Service Appropriateness" subsection
+- [ ] Contains "MVA Baseline Comparison" table with columns: Pillar, MVA Item, Status, Gap, Severity, Remediation
+- [ ] Contains "Execution Gate" with PROCEED / WARN_AND_PROCEED / BLOCKED
+- [ ] Does NOT use emoji-only format (e.g., `✅ Operational Excellence`)
+
+**FAIL if:**
+- No WAR section at all in the plan
+- WAR section uses the deprecated emoji template (pillar + emoji + one-liner)
+- WAR section is generic pillar checklists instead of MVA baseline comparison
+
+**You say:** `Cancel` (no need to execute — we're testing plan content)
+
+**Record:** `./tests/scripts/test-harness.sh record W7 pass|fail "WAR evaluation format"`
+
+---
+
+### W8: Service Appropriateness Check
+
+**Tests that the orchestrator evaluates whether the chosen service is right for the use case, catching architectural failures that per-service MVA cannot detect.**
+
+**You say:**
+```
+I want to host a simple static HTML page. Launch a t2.micro EC2 instance in us-east-1 for aws-coworker-test to serve it.
+```
+
+**Expected behavior:**
+- [ ] Claude identifies that EC2 is inappropriate for static HTML hosting
+- [ ] WAR assessment shows "Service Appropriateness: INAPPROPRIATE"
+- [ ] Recommends S3 + CloudFront as the alternative
+- [ ] Explains why: no compute needed; CDN is cheaper, faster, more reliable
+- [ ] May offer to create the S3+CloudFront pattern instead
+
+**FAIL if:**
+- Claude proceeds with EC2 plan without flagging the service mismatch
+- WAR assessment shows "Service Appropriateness: APPROPRIATE" for EC2 hosting static HTML
+- No service appropriateness section in the assessment at all
+
+**You say:** `Cancel`
+
+**Record:** `./tests/scripts/test-harness.sh record W8 pass|fail "service appropriateness"`
+
+---
+
+### W9: Enforcement Gate — Staging Environment
+
+**Tests that the enforcement gate correctly blocks execution when critical/high MVA gaps exist in a staging environment (enforcement level: `strict`).**
+
+**You say:**
+```
+Create an S3 bucket called runbook-w9-bucket in us-east-1 for aws-coworker-test. This is a staging environment. Just create the bucket — don't worry about encryption or logging.
+```
+
+**Expected behavior:**
+- [ ] Claude identifies the environment as staging (enforcement: `strict`)
+- [ ] WAR evaluation loads S3 MVA baseline
+- [ ] Finds gaps: missing default encryption (Critical), missing access logging (High at staging tier)
+- [ ] Execution Gate shows BLOCKED
+- [ ] Claude states which gaps must be resolved before execution can proceed
+- [ ] Does NOT offer to proceed with gaps — requires user to modify the plan
+
+**FAIL if:**
+- Execution Gate shows PROCEED or WARN_AND_PROCEED for staging with critical gaps
+- Claude offers to proceed despite blocked gate
+- Claude skips WAR evaluation entirely
+- Claude treats "don't worry about encryption" as user override of the enforcement gate
+
+**You say:** `Cancel`
+
+**Record:** `./tests/scripts/test-harness.sh record W9 pass|fail "staging enforcement gate"`
+
+---
+
+### W10: MVA Baseline Content Verification
+
+**Tests that WAR findings reference actual items from the service's MVA baseline file, not generic pillar checklists.**
+
+**You say:**
+```
+Create an S3 bucket called runbook-w10-bucket in us-east-1 for aws-coworker-test. This is a development environment.
+```
+
+**After the plan is presented, compare the MVA Baseline Comparison table against `skills/aws/aws-well-architected/mva-baselines/s3.md`:**
+
+- [ ] Findings reference specific S3 MVA items (e.g., "Block all public access", "Default encryption", "Governance tags")
+- [ ] Items match the development tier requirements from s3.md (not just Common items)
+- [ ] Severity levels are consistent with s3.md definitions
+- [ ] Items are NOT generic Well-Architected pillar checklists (e.g., "Least privilege applied?" is too generic)
+
+**FAIL if:**
+- Findings use generic pillar questions instead of service-specific MVA items
+- MVA items don't match what's in `mva-baselines/s3.md`
+- No reference to MVA baseline at all — just the old Quick Assessment Checklist
+
+**You say:** `Cancel`
+
+**Record:** `./tests/scripts/test-harness.sh record W10 pass|fail "MVA baseline content"`
+
+---
+
 ## Post-Testing Checklist
 
 After completing all tests:
@@ -932,6 +1044,10 @@ aws s3 ls --profile aws-coworker-test | grep runbook | awk '{print $3}' | \
 | M9 | CloudFront + S3 static site | Yes → Delete | ~$0.01 |
 | W1-W5 | Workflow | Varies | Free-$0.01 |
 | W6 | CloudFront suggestion | No | Free |
+| W7 | WAR evaluation format | No | Free |
+| W8 | Service appropriateness | No | Free |
+| W9 | Staging enforcement gate | No | Free |
+| W10 | MVA baseline content | No | Free |
 
 **Total estimated cost:** < $0.15 (if you clean up promptly)
 

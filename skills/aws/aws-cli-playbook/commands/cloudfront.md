@@ -245,6 +245,11 @@ When using OAC, add this policy to your S3 bucket:
 }
 ```
 
+### MVA Baseline
+
+For environment-specific minimum viable architecture requirements, see:
+`skills/aws/aws-well-architected/mva-baselines/cloudfront.md`
+
 ## Related Skills
 
 - S3 - Store objects that CloudFront distributes; configure bucket policies for OAC

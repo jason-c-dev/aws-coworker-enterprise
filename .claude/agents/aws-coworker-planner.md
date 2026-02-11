@@ -96,12 +96,20 @@ Every plan should include:
 ...
 
 ## Well-Architected Assessment
-- **Operational Excellence:** [alignment]
-- **Security:** [alignment]
-- **Reliability:** [alignment]
-- **Performance:** [alignment]
-- **Cost:** [alignment]
-- **Sustainability:** [alignment]
+
+WAR evaluation is performed by the orchestrator during Step 4a of the plan command.
+The planner does NOT self-generate WAR assessments.
+
+When the orchestrator delegates plan construction to the planner, it passes:
+- WAR findings (structured format from Step 4a)
+- Enforcement gate result (PROCEED / WARN_AND_PROCEED / BLOCKED)
+
+The planner incorporates these findings into the plan output verbatim.
+
+DO NOT create your own WAR assessment.
+DO NOT override or soften the orchestrator's WAR findings.
+DO NOT change severity levels of WAR gaps.
+DO NOT use the deprecated emoji-only template (no more ✅/⚠️/❌ without detail).
 
 ## Governance Compliance
 - [ ] Tagging requirements met
@@ -363,13 +371,33 @@ aws ec2 create-vpc \
 ### Phase 2: Create Subnets
 [Detailed subnet creation commands...]
 
-## Well-Architected Assessment
-- **Operational Excellence:** ✅ Tagged for identification, IaC-managed
-- **Security:** ✅ Private subnets for workloads, NACLs available
-- **Reliability:** ✅ Multi-AZ design
-- **Performance:** ✅ Appropriate CIDR sizing
-- **Cost:** ✅ NAT Gateway in single AZ for dev (cost-conscious)
-- **Sustainability:** ✅ Right-sized for development workload
+## Well-Architected Assessment (from Step 4a — orchestrator-generated)
+
+### Summary
+- Service(s): VPC, Subnets, NAT Gateway
+- Environment: development
+- Enforcement: warn
+- Overall: COMPLIANT
+
+### Service Appropriateness
+- Use case: Create VPC for development environment
+- Proposed service: VPC
+- Assessment: APPROPRIATE
+
+### MVA Baseline Comparison
+
+| Pillar | MVA Item | Status | Gap | Severity | Remediation |
+|--------|----------|--------|-----|----------|-------------|
+| Operational Excellence | Governance tags applied | PASS | — | High | — |
+| Security | Private subnets for workloads | PASS | — | High | — |
+| Reliability | Multi-AZ design | PASS | — | Medium | — |
+| Performance Efficiency | CIDR sizing appropriate | PASS | — | Low | — |
+| Cost Optimization | NAT Gateway in single AZ for dev | PASS | — | Low | — |
+| Sustainability | Right-sized for workload | PASS | — | Low | — |
+
+### Execution Gate
+- Gate: PROCEED
+- All MVA items for development tier met
 
 ## Governance Compliance
 - [x] Tagging requirements met

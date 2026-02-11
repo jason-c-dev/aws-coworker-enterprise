@@ -115,12 +115,30 @@ Open the `aws-coworker-enterprise` directory in your Claude Code or compatible e
 
 ## Configuration Options
 
-### AWS Profile Classification
+AWS Coworker ships with **batteries-included defaults** — core config files are committed to the repository and work out of the box after `git clone`. You only need to customize what's specific to your organization.
 
-Create `config/profiles/profiles.yaml` to classify your profiles:
+### What Ships by Default (Core)
+
+| File | Purpose | Action Needed |
+|------|---------|---------------|
+| `config/environments/environments.yaml` | Environment tier definitions (sandbox through production) with safety rules | **None** — review and use as-is, or override with `environments.local.yaml` |
+| `config/profiles/profiles.yaml` | Profile schema and auto-classify patterns (maps profile names to environments) | **None** — works with standard naming conventions |
+
+### What You Customize (Organization)
+
+| File | Purpose | Action Needed |
+|------|---------|---------------|
+| `config/profiles/profiles.local.yaml` | Your specific AWS CLI profile-to-environment mappings | **Create** — see `example-profiles.yaml` for reference |
+| `config/org-config/org-config.yaml` | Your OU structure, tagging standards, naming conventions | **Create if needed** — see `example-org-config.yaml` for reference |
+
+All `*.local.yaml` files are gitignored, so your organization-specific configuration stays out of the shared repository.
+
+### Adding Your Profile Mappings
+
+Create `config/profiles/profiles.local.yaml` with your specific profiles:
 
 ```yaml
-# config/profiles/profiles.yaml
+# config/profiles/profiles.local.yaml (gitignored — your org's profiles)
 profiles:
   default:
     classification: development
@@ -149,55 +167,18 @@ profiles:
     description: Production admin - emergency use only
 ```
 
-### Environment Configuration
+> **Note:** If your profiles follow standard naming conventions (e.g., `myorg-dev-admin`, `myorg-prod-readonly`), the auto-classify patterns in the core `profiles.yaml` will detect them automatically. You only need `profiles.local.yaml` for profiles that don't match the patterns or need custom settings.
 
-Create `config/environments/environments.yaml`:
+### Adding Organization Configuration (Optional)
 
-```yaml
-# config/environments/environments.yaml
-environments:
-  sandbox:
-    purpose: Experimentation and learning
-    accounts: ["111111111111"]
-    default_profile: sandbox-admin
-    cli_permissions: read-write
-    approval_required: none
-
-  development:
-    purpose: Active development
-    accounts: ["222222222222"]
-    default_profile: dev-admin
-    cli_permissions: read-write
-    approval_required: destructive-only
-
-  staging:
-    purpose: Pre-production testing
-    accounts: ["333333333333"]
-    default_profile: staging-readonly
-    cli_permissions: read-only
-    approval_required: all-mutations
-    change_method: iac-pipeline
-
-  production:
-    purpose: Live workloads
-    accounts: ["444444444444"]
-    default_profile: prod-readonly
-    cli_permissions: read-only
-    approval_required: via-cicd-only
-    change_method: iac-pipeline
-```
-
-### Organization Configuration
-
-Create `config/org-config/org-config.yaml`:
+If you have an AWS Organizations structure, create `config/org-config/org-config.yaml`:
 
 ```yaml
-# config/org-config/org-config.yaml
+# config/org-config/org-config.yaml (or org-config.local.yaml if gitignoring)
 organization:
   name: Your Organization Name
   management_account: "000000000000"
 
-  # AWS Organizations structure
   organizational_units:
     - name: Security
       id: ou-xxxx-security
@@ -213,25 +194,16 @@ organization:
           id: ou-xxxx-prod
           accounts: ["333333333333", "444444444444"]
 
-  # Tagging standards
   tagging:
-    required:
-      - Environment
-      - Owner
-      - CostCenter
-    recommended:
-      - Project
-      - DataClassification
+    required: [Environment, Owner, CostCenter]
+    recommended: [Project, DataClassification]
 
-    allowed_values:
-      Environment: [sandbox, development, staging, production]
-      DataClassification: [public, internal, confidential, restricted]
-
-  # Naming conventions
   naming:
     pattern: "{org}-{env}-{service}-{component}"
     org_prefix: acme
 ```
+
+See `config/org-config/example-org-config.yaml` for the full reference template.
 
 ---
 
@@ -292,9 +264,10 @@ git pull origin main
 
 If you have organization customizations:
 
-1. Ensure customizations are in `skills/org/` or `config/org-config/`
-2. These directories are designed to survive upgrades
-3. Review CHANGELOG for any breaking changes
+1. Ensure customizations use `*.local.yaml` files or are in `skills/org/`
+2. Core config files (`environments.yaml`, `profiles.yaml`) may be updated — review diffs
+3. Your `*.local.yaml` overrides and `skills/org/` content survive upgrades
+4. Review CHANGELOG for any breaking changes to core defaults
 
 ---
 

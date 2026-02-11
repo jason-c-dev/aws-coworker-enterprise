@@ -31,12 +31,14 @@ AWS Coworker uses a layered architecture:
 
 ### Where to Customize
 
-| Location | Purpose | Safe to Modify |
-|----------|---------|----------------|
-| `skills/org/` | Organization policies | ✅ Yes |
-| `config/org-config/` | Organization configuration | ✅ Yes |
-| `config/profiles/` | Profile classifications | ✅ Yes |
-| `config/environments/` | Environment definitions | ✅ Yes |
+AWS Coworker ships with core defaults that work out of the box. Customization uses the **override pattern** — you add your own files alongside the defaults rather than modifying core files directly.
+
+| Location | Purpose | How to Customize |
+|----------|---------|------------------|
+| `skills/org/` | Organization policies | ✅ Add/modify freely |
+| `config/org-config/` | Organization configuration | ✅ Create `org-config.yaml` from `example-org-config.yaml` |
+| `config/profiles/` | Profile classifications | ✅ Create `profiles.local.yaml` for your profiles (core schema is committed) |
+| `config/environments/` | Environment definitions | ✅ Create `environments.local.yaml` to override core defaults |
 | `skills/aws/` | AWS service patterns | ⚠️ Extend only |
 | `skills/core/` | Foundational patterns | ⚠️ Extend only |
 | `skills/meta/` | Meta-design patterns | ❌ Avoid |
@@ -44,6 +46,27 @@ AWS Coworker uses a layered architecture:
 | `.claude/commands/` | Slash commands | ⚠️ Add new only |
 | `CLAUDE.md` | Usage context (safety enforcement) | ❌ Avoid |
 | `CLAUDE-DEVELOPMENT.md` | Development context | ⚠️ Extend only |
+
+### Config File Override Pattern
+
+Core config files are committed to the repository and provide sensible defaults. Organization-specific customizations use `*.local.yaml` files, which are gitignored:
+
+```
+config/
+├── environments/
+│   ├── environments.yaml          # Core defaults (committed, don't modify)
+│   ├── environments.local.yaml    # Your overrides (gitignored)
+│   └── example-environments.yaml  # Reference template
+├── profiles/
+│   ├── profiles.yaml              # Core schema + auto-classify (committed, don't modify)
+│   ├── profiles.local.yaml        # Your profile mappings (gitignored)
+│   └── example-profiles.yaml      # Reference template
+└── org-config/
+    ├── org-config.yaml            # Your org config (you create this)
+    └── example-org-config.yaml    # Reference template
+```
+
+**Key principle:** Higher layers (org, BU) can ADD requirements (raise the bar) but cannot LOWER core safety defaults. Only the user can accept gaps below core defaults, and only for non-production environments.
 
 ### What to Customize
 
@@ -234,55 +257,37 @@ Where workloads should go:
 
 ## Environment Configuration
 
-### Define Environments
+### Core Defaults (Batteries-Included)
 
-Create `config/environments/environments.yaml`:
+AWS Coworker ships with `config/environments/environments.yaml` committed to the repository. This file defines the five standard environment tiers (sandbox, development, test, staging, production) with appropriate permissions, approval requirements, and safety boundaries.
+
+**You do not need to create this file** — it works out of the box.
+
+### Customizing Environments
+
+To override the core defaults for your organization, create `config/environments/environments.local.yaml`:
 
 ```yaml
+# config/environments/environments.local.yaml (gitignored)
+# Only include the environments you want to override
+
 environments:
-  sandbox:
-    purpose: Experimentation
-    account_pattern: "sandbox-*"
-    profiles: [sandbox-admin]
-    permissions:
-      cli: read-write
-      approval: none
-    restrictions: []
-
-  development:
-    purpose: Active development
-    account_pattern: "dev-*"
-    profiles: [dev-admin, dev-readonly]
-    permissions:
-      cli: read-write
-      approval: destructive-only
-    restrictions:
-      - no_production_data
-
   staging:
-    purpose: Pre-production validation
-    account_pattern: "staging-*"
-    profiles: [staging-readonly]
-    permissions:
-      cli: read-only
-      approval: all-mutations
-      change_method: iac-only
+    # Add org-specific restrictions on top of core defaults
     restrictions:
       - change_window_required
+      - cab_approval_required
 
   production:
-    purpose: Live workloads
-    account_pattern: "prod-*"
-    profiles: [prod-readonly, prod-admin]
-    permissions:
-      cli: read-only
-      approval: via-cicd
-      change_method: iac-only
+    # Stricter than core for your org
     restrictions:
       - change_window_required
       - cab_approval_required
       - break_glass_only_for_emergencies
+      - sox_compliance_required
 ```
+
+**Important:** Your overrides can raise the bar (add restrictions, require more approvals) but cannot lower core safety defaults. Core safety rules like "production is read-only via direct CLI" are non-negotiable.
 
 ---
 

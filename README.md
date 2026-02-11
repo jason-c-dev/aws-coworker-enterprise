@@ -118,8 +118,8 @@ See [Getting Started Guide](docs/getting-started/README.md) for detailed instruc
 
 | Layer | Purpose | Location |
 |-------|---------|----------|
-| **Core** | Universal, batteries-included | `skills/aws/`, `skills/core/`, `skills/meta/` |
-| **Organization** | Org-specific policies | `skills/org/`, `config/org-config/` |
+| **Core** | Universal, batteries-included | `skills/aws/`, `skills/core/`, `skills/meta/`, `config/*.yaml` |
+| **Organization** | Org-specific policies | `skills/org/`, `config/org-config/`, `config/*.local.yaml` |
 | **BU/Tenant** | Team-specific overlays | Custom directories |
 
 ---
@@ -319,7 +319,7 @@ aws-coworker/
 │   ├── agents/          # Agent definitions
 │   ├── commands/        # Slash command definitions
 │   └── config/          # Agent orchestration (thresholds, model selection)
-├── config/              # AWS environment configuration (profiles, environments)
+├── config/              # AWS environment config (core defaults + org overrides)
 ├── skills/
 │   ├── aws/             # AWS-focused skills
 │   ├── org/             # Organization-specific
@@ -340,7 +340,9 @@ aws-coworker/
 | Directory | Purpose | Contents |
 |-----------|---------|----------|
 | **`.claude/config/`** | How Claude orchestrates agents | Thresholds, model selection (haiku/sonnet), parallelization limits |
-| **`/config/`** (root) | How AWS environments are classified | Profile → environment mapping, safety rules, org settings |
+| **`/config/`** (root) | How AWS environments are classified | Core defaults (committed) + org overrides (`*.local.yaml`, gitignored) |
+
+Core config files (`environments.yaml`, `profiles.yaml`) ship with the repo and work after `git clone`. Organization-specific configuration uses `*.local.yaml` overrides or `config/org-config/`. See [DESIGN.md Section 6.4](docs/DESIGN.md#64-core-vs-organization-vs-bu-separation) for the full config ownership model.
 
 Skills are loaded by agents via explicit `Read` operations, making their location flexible. Placing them at root (not `.claude/skills/`) emphasizes they are core content meant to be browsed, edited, and referenced beyond just Claude tooling.
 
@@ -362,7 +364,8 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for:
 - [Design Document](docs/DESIGN.md) — Full architectural specification
 - [Getting Started](docs/getting-started/README.md) — Installation and first steps
 - [Customization Guide](docs/customization/README.md) — Extending AWS Coworker
-- [Lessons Learned](docs/LESSONS-LEARNED.md) — Why we made these design choices
+- [Lessons Learned: Part 1](docs/LESSONS-LEARNED.md) — What broke and why
+- [Lessons Learned: Part 2](docs/LESSONS-LEARNED-PART-2.md) — WAR theater, trust, and minimum viable architecture
 
 ---
 

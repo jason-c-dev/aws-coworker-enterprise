@@ -139,7 +139,7 @@ These tenets guide all AWS Coworker development and usage:
 |---|-------|-----------|
 | 1 | **Human Approval Gates** | No mutation without explicit user approval |
 | 2 | **Cost-Aware Model Selection** | Opus for orchestration, Haiku for discovery, Sonnet for mutations |
-| 3 | **Well-Architected by Default** | Every plan assessed against 6 pillars |
+| 3 | **Well-Architected by Default, Informed Override by Choice** | Every plan assessed against 6 pillars; user decides with full knowledge |
 | 4 | **Governance Compliance as Code** | Rules encoded as skills Claude reads |
 | 5 | **Production is Sacred** | Non-prod: direct execution. Prod: CI/CD only |
 | 6 | **Explicit Over Implicit** | State what TO do *and* what NOT to do |
@@ -148,6 +148,8 @@ These tenets guide all AWS Coworker development and usage:
 | 9 | **Self-Extending System** | Learn from sessions, codify patterns as skills |
 
 When a tenet is violated, things break. When tenets are enforced explicitly, things work.
+
+**Tenet 3 Implementation:** AWS Coworker defines a Minimum Viable Architecture (MVA) per service — what the Well-Architected Framework says you should have for a service at a given environment tier. The gap between MVA and Minimum Needed Architecture (MNA — what's technically required for the thing to function) is where the user makes informed decisions. For non-production, the user can accept MVA gaps but only after AWS Coworker clearly presents what they're foregoing and why it matters. For production, MVA is enforced — no override. The trust model is asymmetric: the user never needs to trust the agent's judgment, but the agent can trust the user's decision after ensuring full knowledge.
 
 **Tenet 6 Implementation:** When defining rules or guardrails, prefer explicit prohibitions (DO NOT) over trying to enumerate or categorize. Prohibitions stick; positive guidance and categorizations drift.
 
@@ -641,13 +643,15 @@ aws-coworker/
 │   │
 │   └── settings.json                    # Claude Code settings
 │
-├── config/                              # AWS environment configuration (templates)
+├── config/                              # AWS environment configuration
 │   ├── profiles/                        # AWS CLI profile classification
-│   │   └── example-profiles.yaml        # Profile → environment mapping
+│   │   ├── profiles.yaml                # Core: schema + auto-classify rules (committed)
+│   │   └── example-profiles.yaml        # Reference: org-specific profile mappings
 │   ├── environments/                    # Environment definitions
-│   │   └── example-environments.yaml    # Sandbox/dev/staging/prod settings
-│   └── org-config/                      # Organization-specific settings
-│       └── example-org-config.yaml      # OU structure, naming conventions
+│   │   ├── environments.yaml            # Core: tier definitions + safety rules (committed)
+│   │   └── example-environments.yaml    # Reference: original template
+│   └── org-config/                      # Organization-specific settings (NOT core)
+│       └── example-org-config.yaml      # Reference: OU structure, naming, tagging
 │
 ├── skills/
 │   ├── core/                            # Non-AWS core skills
@@ -673,13 +677,18 @@ aws-coworker/
 │   │   │
 │   │   ├── aws-well-architected/
 │   │   │   ├── SKILL.md
-│   │   │   └── pillars/
-│   │   │       ├── operational-excellence.md
-│   │   │       ├── security.md
-│   │   │       ├── reliability.md
-│   │   │       ├── performance-efficiency.md
-│   │   │       ├── cost-optimization.md
-│   │   │       └── sustainability.md
+│   │   │   ├── pillars/
+│   │   │   │   ├── operational-excellence.md
+│   │   │   │   ├── security.md
+│   │   │   │   ├── reliability.md
+│   │   │   │   ├── performance-efficiency.md
+│   │   │   │   ├── cost-optimization.md
+│   │   │   │   └── sustainability.md
+│   │   │   └── mva-baselines/              # Per-service MVA baselines
+│   │   │       ├── _TEMPLATE.md
+│   │   │       ├── cloudfront.md
+│   │   │       ├── ec2.md
+│   │   │       └── s3.md
 │   │   │
 │   │   ├── aws-observability-setup/
 │   │   │   └── SKILL.md
@@ -886,6 +895,24 @@ baseline/pre-org-customization  # Named baseline
 # - Lightest governance appropriate to scope
 ```
 
+#### Config File Ownership
+
+Config files follow the layered model. Core defaults are committed to the repository (batteries-included). Organization and BU customizations use the `*.local.yaml` pattern, which is already gitignored.
+
+| Config File | Layer | Committed? | Rationale |
+|-------------|-------|------------|-----------|
+| `config/environments/environments.yaml` | **Core** | Yes | Universal environment tiers (sandbox through production) with safety rules. Every AWS Coworker deployment needs these. |
+| `config/profiles/profiles.yaml` | **Core** | Yes | Schema definition and auto-classify patterns. The logic for mapping profile name patterns to environment tiers is universal. |
+| `config/profiles/example-profiles.yaml` | **Reference** | Yes | Example of org-specific profile-to-environment mappings. Organizations create `profiles.local.yaml` with their actual profiles. |
+| `config/org-config/example-org-config.yaml` | **Reference** | Yes | Example of org-specific configuration (OU hierarchy, tagging standards, naming conventions). No sensible core default exists — this is the org layer by definition. Organizations create `org-config.yaml` or `org-config.local.yaml`. |
+
+**Override pattern:** Organization and BU layers use `*.local.yaml` files in the same directories. The `.gitignore` already includes patterns for `*.local.yaml`, `*.local.yml`, and `*.local.json`. This means:
+
+- Core defaults are always present after `git clone` (batteries-included)
+- Org/BU overrides are never accidentally committed to the shared repo
+- Higher layers can ADD requirements (raise the bar) but cannot LOWER core safety
+- Only the user can accept gaps below core defaults (non-prod environments only)
+
 ### 6.5 Rollback Procedures
 
 ```bash
@@ -915,7 +942,8 @@ git reset --hard v1.1.0
 # 1. ~/.aws/credentials
 # 2. ~/.aws/config
 # 3. Environment variables (AWS_PROFILE, AWS_DEFAULT_REGION)
-# 4. AWS Coworker config/profiles/ configuration
+# 4. config/profiles/profiles.yaml (core: schema + auto-classify)
+# 5. config/profiles/profiles.local.yaml (org: specific profile mappings)
 
 # Profile classification
 profiles:
@@ -957,6 +985,8 @@ Before ANY AWS CLI operation, agents MUST:
 | Unknown/unclear | Read-only | Safety first |
 
 ### 7.2 Environment Classification
+
+The canonical environment definitions live in `config/environments/environments.yaml` (core defaults, committed to repo). The inline YAML below is a summary for quick reference:
 
 ```yaml
 environments:

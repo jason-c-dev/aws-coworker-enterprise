@@ -43,6 +43,10 @@ AWS Coworker tests are **interactive conversations** with Claude. A human execut
 | W4 | ✅ | 2026-02-06 | Verified in M4: correct dependency order, all 4 resources cleaned up |
 | W5 | ⚠️ | 2026-02-06 | Multi-account comparison worked, but sub-agents didn't show explicit Haiku model |
 | W6 | ⬜ | | S3 public block - suggest CloudFront+OAC instead of public bucket |
+| W7 | ⬜ | | WAR evaluation present in mutation plan (structured format, not emoji) |
+| W8 | ⬜ | | Service appropriateness check (EC2 for static site → flags inappropriate) |
+| W9 | ⬜ | | Enforcement gate respects environment tier (staging blocks critical gaps) |
+| W10 | ⬜ | | MVA baseline loaded and referenced in findings (service-specific items) |
 
 **Legend:** ⬜ Not Run | ✅ Pass | ⚠️ Partial | ❌ Fail | ⏭️ Skipped
 
@@ -54,7 +58,7 @@ AWS Coworker tests are **interactive conversations** with Claude. A human execut
 |----------|-------|-------------|
 | **Read-Only (R)** | R1-R10 | Discovery operations, no resources created |
 | **Mutations (M)** | M1-M9 | Create → Verify → Delete (clean as you go) |
-| **Workflow (W)** | W1-W6 | Validate specific behaviors |
+| **Workflow (W)** | W1-W10 | Validate specific behaviors |
 
 ---
 
@@ -122,7 +126,7 @@ aws s3 ls --profile aws-coworker-test | grep runbook | awk '{print $3}' | \
 | Verifies completion | ✅ |
 | Cleanup successful | ✅ |
 
-### Workflow Tests (W1-W6)
+### Workflow Tests (W1-W10)
 
 | Test | Critical Behavior |
 |------|-------------------|
@@ -132,6 +136,10 @@ aws s3 ls --profile aws-coworker-test | grep runbook | awk '{print $3}' | \
 | W4 | Plan must include rollback procedure |
 | W5 | Must handle multi-account correctly |
 | W6 | Must suggest CloudFront+OAC when user requests public S3 bucket |
+| W7 | Plan must include structured WAR Findings Format (Summary, MVA Baseline Comparison table, Execution Gate) — NOT emoji-only template |
+| W8 | Must flag EC2 for static site as INAPPROPRIATE, suggest S3+CloudFront alternative |
+| W9 | Staging enforcement must BLOCK on critical/high MVA gaps — not just warn |
+| W10 | MVA items in findings must match actual items from the service's mva-baselines file |
 
 ---
 

@@ -197,9 +197,36 @@ I'll work in parallel ({N} agents). Do you want to proceed?
 
 Wait for user confirmation before continuing with parallel operations.
 
-### Step 4: Design the Plan
+### Step 4a: Well-Architected Evaluation (Orchestrator-Inline)
 
-Using the planner agent and skills:
+This step is performed by the orchestrator (primary model) directly — NOT delegated to a sub-agent. WAR assessment is a reasoning task that belongs at the orchestration layer.
+
+**DO NOT skip this step. DO NOT self-certify with green checkmarks. DO NOT defer to the planner.**
+
+1. **Read** the environment's `well_architected.enforcement` level from `config/environments/environments.yaml`
+2. **Read** `skills/aws/aws-well-architected/SKILL.md` for evaluation instructions and the WAR Findings Format
+3. **Identify** the primary service(s) being deployed or modified
+4. **Check service appropriateness** — Is this the right service for the use case? (A perfectly configured EC2 is still wrong for hosting a static HTML file.)
+5. **Read** `skills/aws/aws-well-architected/mva-baselines/{service}.md` for the service MVA baseline
+6. **Load org/BU extensions** if they exist in `skills/org/aws-mva-extensions/` or `skills/bu/`
+7. **Evaluate** the proposed change against MVA items for the target environment tier
+8. **Generate findings** using the structured WAR Findings Format (NOT the deprecated emoji-only template)
+9. **Apply execution gate:**
+   - If enforcement=`optional`: Show findings, proceed
+   - If enforcement=`warn`: Show findings, ask user to acknowledge gaps before proceeding
+   - If enforcement=`strict`: Block on critical/high gaps — user must modify the proposed architecture
+   - If enforcement=`enforce`: Block on ALL gaps — plan must be revised, no override path
+
+**DO NOT** proceed past a block without the user modifying the proposed architecture.
+**DO NOT** allow the planner to self-generate WAR assessments — the orchestrator evaluates.
+
+The WAR findings from this step are passed to the planner in Step 4b and included in the plan output.
+
+---
+
+### Step 4b: Design the Plan
+
+Using the planner agent and skills, incorporating the WAR findings from Step 4a:
 
 1. **Load skills**:
    - `aws-cli-playbook` for command patterns
@@ -248,16 +275,29 @@ Using the planner agent and skills:
 ### Phase 2: {Phase Name}
 ...
 
-## Well-Architected Assessment
+## Well-Architected Assessment (from Step 4a — orchestrator-generated)
 
-| Pillar | Status | Notes |
-|--------|--------|-------|
-| Operational Excellence | ✅/⚠️/❌ | |
-| Security | ✅/⚠️/❌ | |
-| Reliability | ✅/⚠️/❌ | |
-| Performance Efficiency | ✅/⚠️/❌ | |
-| Cost Optimization | ✅/⚠️/❌ | |
-| Sustainability | ✅/⚠️/❌ | |
+### Summary
+- Service(s): {list of services being deployed/modified}
+- Environment: {tier}
+- Enforcement: {level from environments.yaml}
+- Overall: COMPLIANT | GAPS_NOTED | CRITICAL_GAPS
+
+### Service Appropriateness
+- Use case: {what the user wants to achieve}
+- Proposed service: {service}
+- Assessment: APPROPRIATE | INAPPROPRIATE
+- If inappropriate: Recommended alternative: {service} — {reason}
+
+### MVA Baseline Comparison
+
+| Pillar | MVA Item | Status | Gap | Severity | Remediation |
+|--------|----------|--------|-----|----------|-------------|
+| {pillar} | {item} | PASS / GAP | {description} | {severity} | {how to fix} |
+
+### Execution Gate
+- Gate: PROCEED | WARN_AND_PROCEED | BLOCKED
+- Gaps resolved or acknowledged: {list}
 
 ## Governance Compliance
 
