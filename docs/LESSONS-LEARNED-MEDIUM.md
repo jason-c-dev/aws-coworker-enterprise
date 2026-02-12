@@ -324,6 +324,10 @@ That's the lesson building AWS Coworker taught me. And that's the experience I h
 
 The code is available at [github.com/jason-c-dev/aws-coworker-enterprise](https://github.com/jason-c-dev/aws-coworker-enterprise). It's experimental—expect rough edges—but the patterns are real and the lessons are hard-won. PRs welcome.
 
+**What happened next?**
+
+We thought the hard lessons were behind us. Then we looked at that green-checkmark WAR table above — the one we showed off proudly — and realized it was grading its own homework. Part 2: [The Theater of WAR: How Our Well-Architected Review Was Grading Its Own Homework](LESSONS-LEARNED-PART-2.md)
+
 For the original blog with code examples and tables, see the [GitHub Pages version](https://jason-c-dev.github.io/aws-coworker-enterprise/LESSONS-LEARNED.html).
 
 ---
