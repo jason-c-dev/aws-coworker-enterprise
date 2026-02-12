@@ -494,3 +494,5 @@ We thought the hard lessons were behind us. Then we looked at that green-checkma
 *Developed with Claude Code v2.1.25 | Test Suite: 18/20 passing | February 2026*
 
 *The views expressed here are my own and do not represent the views of my employer. AWS Coworker is a personal learning project, not an official AWS product.*
+
+*Finally, thank you to my wife Kelly for pushing me to do this. Every project needs someone who won't let you leave it in a drawer.*

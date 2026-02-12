@@ -307,3 +307,5 @@ The code is available at [github.com/jason-c-dev/aws-coworker-enterprise](https:
 *Part 2 of the AWS Coworker lessons series. Part 1: [I Used Claude Cowork to Build a Claude Code Agent for AWS. Here's What Broke](LESSONS-LEARNED.md)*
 
 *The views expressed here are my own and do not represent the views of my employer. AWS Coworker is a personal learning project, not an official AWS product.*
+
+*Finally, thank you to my wife Kelly for pushing me to do this. Every project needs someone who won't let you leave it in a drawer.*
