@@ -1,6 +1,6 @@
 # The Theater of WAR: How Our Well-Architected Review Was Grading Its Own Homework
 
-**Part 2 of our lessons building AWS Coworker with Claude**
+**Part 2 of [I Used Claude Cowork to Build a Claude Code Agent for AWS. Here's What Broke](LESSONS-LEARNED.md)**
 
 *By Jason Croucher and Claude*
 
@@ -295,6 +295,10 @@ The fixes are in. The MVA baselines are defined. The enforcement gates are mecha
 That's the nature of building with AI: the system is never finished because the collaboration isn't finished. You write the spec, the agent tests it by using it, the gaps surface, and you fix them together. Specs are hypotheses. Tests are experiments. The blog posts are lab notes.
 
 We'll keep writing them.
+
+**Want to try it yourself?**
+
+The code is available at [github.com/jason-c-dev/aws-coworker-enterprise](https://github.com/jason-c-dev/aws-coworker-enterprise). It's experimental — expect rough edges — but the patterns are real and the lessons are hard-won. PRs welcome.
 
 ---
 
