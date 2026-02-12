@@ -4,6 +4,8 @@
 
 *By Jason Croucher and Claude*
 
+*A disclosure: Claude helped me build AWS Coworker and co-authored this blog — that's rather the point. But the ideas, the assumptions, and particularly the moment where we proudly showed off a review that was grading its own homework? I'll take the blame, but Claude was right there nodding along. The problems were a team effort. The fixes, thankfully, were too.*
+
 ---
 
 ## Introduction

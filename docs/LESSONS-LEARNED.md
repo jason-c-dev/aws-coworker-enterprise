@@ -4,6 +4,8 @@
 
 *By Jason Croucher and Claude*
 
+*A disclosure: Claude helped me build AWS Coworker and co-authored this blog — that's rather the point. But the architectural decisions, the overconfidence, and every single facepalm moment in these pages are authentically, organically human. Claude brought the capability. I brought the hubris. Between us, we got there eventually.*
+
 ---
 
 ## The Origin Story
@@ -20,7 +22,7 @@ Cloud engineers spend enormous time on repetitive tasks: creating EC2 instances,
 
 That's how AWS Coworker was born.
 
-I used Claude Cowork to *build* AWS Coworker—a GenAI assistant that helps users create high-quality AWS deployments following Well-Architected best practices. The irony isn't lost on me: I used a GenAI assistant to build a GenAI assistant. But that meta-experience taught me more about what makes Agents trustworthy than any whitepaper ever could. This blog captures those lessons (as well as a retro style video game for the first 100 readers) — written with a little help from Claude, naturally. 😄
+I used Claude Cowork to *build* AWS Coworker—a GenAI assistant that helps users create high-quality AWS deployments following Well-Architected best practices. The irony isn't lost on me: I used a GenAI assistant to build a GenAI assistant. But that meta-experience taught me more about what makes Agents trustworthy than any whitepaper ever could. This blog captures those lessons (as well as a retro style video game for the first 100 readers).
 
 Early on, I hit a fundamental tension that shaped everything: the non-deterministic nature of generative AI is a double-edged sword. It enables Claude to navigate complexity, adapt to unique situations, and provide nuanced recommendations that brittle rule-based systems cannot. But it also means outputs can vary — and when you need deterministic workflows, rules, and guidelines obeyed consistently, you must make the guardrails explicit and unavoidable. That tension runs through every lesson in this blog.
 
