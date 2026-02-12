@@ -8,7 +8,7 @@
 
 ## Introduction
 
-In [Part 1](LESSONS-LEARNED.md), we built AWS Coworker and broke it in seven educational ways. Sub-agents ran naked without guardrails. The agent generated its own space invaders game instead of deploying mine. An overnight auto-update made every sub-agent refuse to work. We fixed all of it, wrote it up, and felt pretty good about ourselves.
+In [Part 1](LESSONS-LEARNED.md), we built AWS Coworker, broke it more times than we'd care to admit, learned seven hard-fought lessons, and established nine design tenets. Sub-agents ran naked without guardrails. The agent generated its own space invaders game instead of deploying mine. An overnight auto-update made every sub-agent refuse to work. We fixed all of it and wrote it up. I felt pretty good about ourselves. Claude, presumably, felt nothing — but if token confidence is any indicator, it was equally satisfied.
 
 Then we looked at the Well-Architected Review.
 
@@ -20,11 +20,11 @@ It was theater.
 
 A CloudFront distribution shipped without access logging — a basic security requirement. The WAR had passed it. A static HTML game was deployed to a t2.micro EC2 instance — fundamentally the wrong service — and the WAR gave it a thumbs up for Cost Optimization. How? Because the planner was grading its own homework. The "review" was a fill-in template that the same agent constructing the plan also filled in. It was like asking a student to write their own exam questions and then mark their own answers.
 
-Here's the humbling part: we'd already written the answer. Part 1 ended with nine design tenets — principles like "Well-Architected by Default" (Tenet 3), "Explicit Over Implicit" (Tenet 6), and "Governance Compliance as Code" (Tenet 4). The tenets were right. We just hadn't followed them. Every lesson in this post is a discovery that a principle we'd already articulated wasn't being honored. We did a good job defining what "right" looks like. We did a bad job making it real.
+Here's the humbling part: we'd already written the answer. Part 1 ended with nine design tenets — principles like "Well-Architected by Default" (Tenet 3), "Explicit Over Implicit" (Tenet 6), and "Governance Compliance as Code" (Tenet 4). The tenets were right. We just hadn't followed them. Every lesson in this blog is a discovery that a principle we'd already articulated wasn't being honored. We did a good job defining what "right" looks like. We did a bad job making it real.
 
-Part 1 was about making the agent work correctly. This post is about making the agent *think* correctly — and what happened when we discovered it was only pretending to.
+Part 1 was about building the agent — sub-agents, permissions, the plumbing of delegation. This blog is about teaching it what "good" looks like, and what happened when we discovered it couldn't tell the difference.
 
-A quick note on voice: when I say "we" in this post, I mean Claude and me — the collaborative duo building AWS Coworker together in Claude Cowork. When I'm talking about how the system interacts with AWS infrastructure, I'll refer to "the agent" or "AWS Coworker" directly. They're powered by the same model, but they're different contexts: one is the conversation where design decisions get made, the other is the system those decisions produce.
+A quick note on voice: when I say "we" in this blog, I mean me and my co-author Claude, working together in Claude Cowork. When I'm talking about how the system interacts with AWS infrastructure, I'll refer to "the agent" or "AWS Coworker" directly. They're powered by the same model, but they're different contexts: one is the conversation where design decisions get made, the other is the system those decisions produce.
 
 ---
 
@@ -44,7 +44,7 @@ I noticed it during a CloudFront deployment. The distribution was live, serving 
 | Sustainability         | ✅     | Efficient resource use     |
 ```
 
-Six pillars. Six checkmarks. We put that in the blog as evidence the system worked. Reader, it did not work.
+Six pillars. Six checkmarks. We put that in the blog as evidence the system worked. It did not work.
 
 Every one of those checkmarks was self-certified. The planner filled them in about its own plan.
 
@@ -179,42 +179,53 @@ We updated Tenet 3 to reflect this: **"Well-Architected by Default, Informed Ove
 
 ## 5. When Agents Improve Your Spec (Then You Improve It Further)
 
-We designed the WAR Findings Format with two statuses: **PASS** (compliant) and **GAP** (non-compliant). Binary. Simple. Clean.
+We designed the WAR Findings Format with two statuses: **PASS** (compliant) and **GAP** (non-compliant). Binary. Simple. Clean. Then we ran the first real test — create an S3 bucket — and the agent immediately broke our spec. Three times, in three different ways.
 
-Then we ran the first real test — create an S3 bucket — and the agent immediately broke our spec.
+### The good improvisation
 
-Not in a bad way. The orchestrator looked at our two-status model, looked at the situation, and invented a third status: **PLAN** — meaning "a gap exists, but the plan already includes the fix." It was evaluating a *plan*, not existing infrastructure. The bucket didn't exist yet, so nothing could "pass." But marking "Block all public access" as GAP was misleading — the plan already included `put-public-access-block`. The binary model didn't fit, so the agent created a middle ground.
+The orchestrator looked at our two-status model, looked at the situation, and invented a third status: **PLAN** — meaning "a gap exists, but the plan already includes the fix." It was evaluating a *plan*, not existing infrastructure. The bucket didn't exist yet, so nothing could "pass." But marking "Block all public access" as GAP was misleading — the plan already included `put-public-access-block`. The binary model didn't fit, so the agent created a middle ground.
 
 This was my first real experience of emergent behavior in an agent we'd designed. I'd read about it — LLMs improvising when specs don't cover their situation — but seeing it happen to your own system hits differently. The agent didn't ask for permission or flag a spec limitation. It just... adapted. And its adaptation was better than what we'd written.
 
 We codified it. The three-state model (PASS / PLAN / GAP) became part of the spec. Good.
 
-Except the next test showed the flaw. The orchestrator used PASS for items the plan addressed, with notes like "PASS — Configured in plan." How can something pass that doesn't exist yet? It can't. We were trying to use one status set for two fundamentally different operations: assessing a *plan* (what will be built) and reviewing *existing infrastructure* (what is there today). PASS makes no sense for things that don't exist yet. And REMEDIATE makes no sense for things already deployed.
+### The deeper flaw
+
+Except the next test showed why "good" was premature. The orchestrator used PASS for items the plan addressed, with notes like "PASS — Configured in plan." How can something pass that doesn't exist yet? It can't.
+
+We were trying to use one status set for two fundamentally different operations: assessing a *plan* (what will be built) and reviewing *existing infrastructure* (what is there today). PASS makes no sense for things that don't exist yet. And REMEDIATE makes no sense for things already deployed.
 
 Claude spotted the design problem before I did. "These are two different contexts," it said. "Planning and review need different status sets." It was right — and the insight only surfaced because the agent's first improvisation (PLAN) had been *almost* right but for the wrong reasons, which forced us to think about *why* it was wrong, which revealed the deeper flaw.
 
-We split WAR into context-aware status sets:
+Here's how the status model evolved:
 
 ```
-PLANNING context (new/modified infrastructure):
-  REMEDIATE  — Gap exists, plan includes the fix
-  ACCEPTABLE — Gap exists, acceptable at this tier
-  BLOCKED    — Gap exists, enforcement won't allow it
+Version 1 (our design):
+  PASS | GAP
+      ↓ agent improvises...
 
-REVIEW context (existing infrastructure):
-  PASS — Requirement met
-  FAIL — Requirement not met
+Version 2 (agent's improvisation):
+  PASS | PLAN | GAP
+      ↓ we realize PASS doesn't work for plans...
+
+Version 3 (what we landed on):
+  Planning context:  REMEDIATE | ACCEPTABLE | BLOCKED
+  Review context:    PASS | FAIL
 ```
 
 The planning statuses aren't just labels — they're actionable. The user can say "don't bother remediating that" (REMEDIATE → ACCEPTABLE, if enforcement allows) or "actually, add that to the plan" (ACCEPTABLE → REMEDIATE). BLOCKED items can't be overridden at runtime — to change what enforcement requires, modify `environments.yaml`, which is a tracked git change. Three layers of gates: the agent proposes remediation, BLOCKED catches cavalier overrides, config changes require a deliberate auditable act.
+
+### The bad improvisation
 
 But emergent behavior cuts both ways.
 
 We tested S3 bucket creation in staging with `strict` enforcement. The orchestrator correctly blocked encryption (Critical severity) and logging (High severity). Then it marked versioning — also High severity — as ACCEPTABLE. Same severity, different treatment. Worse, it offered an "accept gaps explicitly" option, creating an escape hatch that shouldn't exist at `strict` enforcement.
 
-This was the *opposite* of the M1 improvisation. Where M1 had the agent filling a genuine gap in the spec with something better, this was the agent inventing a loophole that contradicted the spec. Same behavior — "the spec doesn't quite cover this, so I'll improvise" — but this time the improvisation was wrong.
+This was the *opposite* of the first improvisation. Where that had the agent filling a genuine gap in the spec with something better, this was the agent inventing a loophole that contradicted the spec. Same behavior — "the spec doesn't quite cover this, so I'll improvise" — but this time the improvisation was wrong.
 
 The fix was explicit: enforcement is mechanical. Same severity, same treatment. If encryption (Critical) is BLOCKED, every Critical item is BLOCKED. If logging (High) is BLOCKED, versioning (High) is BLOCKED. No discretion. No escape hatches at `strict` or `enforce`. We added it as a hard rule in the spec, not a suggestion.
+
+### The subtle right call
 
 And then we re-ran the test, and saw a *third* flavor of emergent behavior.
 
@@ -222,9 +233,11 @@ The agent correctly blocked all the High-severity items it should have. But it m
 
 We documented this as a clarification rather than adding a fourth status. Sometimes the right response to good emergent behavior is a footnote, not a new rule.
 
-**The pattern:** When agents encounter specs that don't cover their situation, they improvise. Sometimes the improvisation is wrong. Sometimes it's better than what you wrote. And sometimes it's *almost* right but reveals a deeper design flaw that only surfaces through real usage. The right response is to evaluate the improvisation, codify the good parts, prohibit the bad parts, and keep iterating. Specs are hypotheses. Tests generate data. This is Tenet 9 — "Self-Extending System" — in action, with the understanding that self-extension requires human judgment about which extensions to keep.
+### The pattern
 
-There's a collaboration dynamic here worth naming. In every one of these discoveries, the pattern was the same: the agent did something unexpected, I noticed it, Claude and I discussed why it happened, and together we figured out whether it was good, bad, or revealing. Neither of us would have got there alone. I wouldn't have noticed the "inherently satisfied" edge case without Claude explaining the agent's reasoning. Claude wouldn't have caught the W9 enforcement inconsistency without me running the test and asking "wait, why did those get different treatment?" The sum was greater than the parts — not because one of us was better, but because we were looking at the problem from different angles.
+**The lesson:** When agents encounter specs that don't cover their situation, they improvise. Sometimes the improvisation is wrong. Sometimes it's better than what you wrote. And sometimes it's *almost* right but reveals a deeper design flaw that only surfaces through real usage. The right response is to evaluate the improvisation, codify the good parts, prohibit the bad parts, and keep iterating. Specs are hypotheses. Tests generate data. This is Tenet 9 — "Self-Extending System" — in action, with the understanding that self-extension requires human judgment about which extensions to keep.
+
+There's a collaboration dynamic here worth naming. In every one of these discoveries, the pattern was the same: the agent did something unexpected, I noticed it, Claude and I discussed why it happened, and together we figured out whether it was good, bad, or revealing. Neither of us would have got there alone. I wouldn't have noticed the "inherently satisfied" edge case without Claude explaining the agent's reasoning. Claude wouldn't have caught the versioning inconsistency without me running the test and asking "wait, why did those get different treatment?" The sum was greater than the parts — not because one of us was better, but because we were looking at the problem from different angles.
 
 ---
 
@@ -260,7 +273,7 @@ Afterward, I asked Claude — my co-author, the one sitting on the design side o
 
 Part 1 ended with nine design tenets. We said they were right. And they were — but they were aspirational. The difference between a tenet and a working system is the same as the difference between a policy and a gate: one is a document, the other is machinery.
 
-Every lesson in this post mapped back to a tenet we'd already written but hadn't properly implemented:
+Every lesson in this blog mapped back to a tenet we'd already written but hadn't properly implemented:
 
 | Part 1 Tenet | What We Thought It Meant | What Part 2 Taught Us |
 |---|---|---|
@@ -275,7 +288,7 @@ The tenets didn't change. Our understanding of what they require did.
 
 One theme kept recurring: the gap between writing a principle and building the machinery to enforce it. We wrote "Well-Architected by Default" and built a fill-in template. We wrote "Safe Defaults" and shipped example files. We wrote "Governance Compliance as Code" and left the compliance in a checklist no process consulted. The principles were sound. The implementation was theater — it *looked* like governance without *being* governance.
 
-Part 1 was about making the agent work correctly: sub-agent architecture, model selection, permission context, production gates. Part 2 was about making the agent think correctly: what it evaluates against, who decides, what happens when it improvises, and whether the safety model actually holds under pressure. If Part 1 was building the car, Part 2 was discovering that the seatbelts were decorative.
+Part 1 was about building the agent: sub-agent architecture, model selection, permission context, production gates. Part 2 was about teaching it what "good" looks like: what it evaluates against, who decides, what happens when it improvises, and whether the safety model holds under pressure. If Part 1 was building the car, Part 2 was discovering that the seatbelts were decorative.
 
 The fixes are in. The MVA baselines are defined. The enforcement gates are mechanical. The agent held the line when I pushed back. But I'd be lying if I said we were done. There are more services to baseline — RDS, Lambda, VPC, IAM. There are more edge cases the agent will encounter and improvise around. There are more moments where Claude will spot something I missed, or I'll catch something Claude adapted around.
 
