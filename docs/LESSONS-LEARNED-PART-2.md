@@ -68,7 +68,7 @@ We needed two things we didn't have: a concept of what's *technically required* 
 
 ## 2. The Baseline We Didn't Have
 
-We coined two terms during the fix. The first was **MNA — Minimum Needed Architecture**. That's what's technically required for a service to function at all. For an S3 bucket, it's a globally unique name and a region. For a CloudFront distribution, it's an origin and a domain. MNA is the "it turns on" bar. AWS won't let you create the resource without it.
+We coined two terms during the fix. The first was **MNA — Minimum Needed Architecture**. That's what's technically required for a service to function at all. For an S3 bucket, it's a globally unique name and a region (the name is global, the data isn't). For a CloudFront distribution, it's an origin and a domain. MNA is the "it turns on" bar. AWS won't let you create the resource without it.
 
 The second was **MVA — Minimum Viable Architecture**. That's what the Well-Architected Framework says you *should* have for a given service at a given environment tier. For an S3 bucket in production, MVA includes encryption with a customer-managed KMS key, access logging to a separate bucket, versioning, lifecycle policies, and blocking all public access. None of that is required for the bucket to *exist* — but all of it is required for the bucket to be *production-worthy*.
 
@@ -77,7 +77,7 @@ The gap between MNA and MVA is where every interesting infrastructure decision l
 ```
 MNA (Minimum Needed Architecture)
 ├── "Does it turn on?"
-├── S3: unique name + region
+├── S3: unique name + region (the name is global, the data isn't)
 ├── CloudFront: origin + domain
 └── EC2: AMI + instance type + subnet
 
@@ -90,7 +90,7 @@ MVA (Minimum Viable Architecture)
 └── EC2: encrypted EBS + monitoring + termination protection + IMDSv2
 ```
 
-Our old WAR couldn't see this gap because it had no definition of MVA. It had six pillar names and blank cells. The planner wrote "Encryption enabled ✅" without any reference to *what* encryption was required for *which* service at *which* environment tier. It was assessing against vibes.
+Our old WAR couldn't see this gap because it had no definition of MVA. It had six pillar names and blank cells. The planner wrote "Encryption enabled ✅" without any reference to *what* encryption was required for *which* service at *which* environment tier. It was assessing against vibes — the architectural equivalent of [vibe coding](https://en.wikipedia.org/wiki/Vibe_coding), where you let the AI generate and don't look too hard at the output. We were vibe reviewing. It felt productive right up until we checked the results.
 
 So we built MVA baselines — concrete, per-service definitions of what "good" looks like. Here's what the S3 baseline ended up looking like, and it tells the story of how requirements graduate as environments get more serious:
 
@@ -157,7 +157,7 @@ Back to the question Section 2 raised: if the WAR has teeth, who decides when to
 
 Tenet 8 from Part 1 said the system should be "layered and extensible." That implied the user has control. But the WAR findings showed the agent was making architectural decisions the user should be making — silently accepting gaps, filling in green checkmarks without consulting anyone. We'd swung from one failure mode (agent decides everything, user sees nothing) to designing a system where the opposite was possible (agent blocks everything, user can't get anything done).
 
-The tension crystallized into a question: does the user trust the agent, or does the agent trust the user?
+The tension crystallized into a question: does the user trust the agent, or does the agent trust the user? Part 1 had already answered half of this — lesson 8 said "sidestep the trust paradox" by designing constraints that make trust unnecessary. The user should never *have* to trust the agent. But we hadn't answered the other half: what does the agent owe the user in return?
 
 Claude and I went back and forth on this. I was thinking about it from the developer's perspective — I don't want an agent that blocks me from deploying a test bucket because it doesn't have lifecycle policies. Claude was thinking about it from the architectural perspective — the whole point of the WAR is that humans miss things, so an agent that defers to the human on everything is just a fancier rubber stamp.
 
@@ -165,7 +165,7 @@ We landed on what we called **asymmetric trust:**
 
 > *The user never needs to trust the agent's judgment. The agent can trust the user's decision — but only after ensuring the user has full knowledge of what they're deciding.*
 
-This is not "the agent always defers to the user." It's not "the agent always blocks the user." It's: the agent's job is to make the invisible visible, and then step aside. If a developer wants to skip logging on a development bucket, fine — but they'll see the gap, they'll see what they're accepting, and their decision gets recorded. The agent doesn't second-guess an informed human. It just refuses to let them be *uninformed*.
+This is not "the agent always defers to the user." It's not "the agent always blocks the user." It's: the agent's job is to make the invisible visible, and then step aside. This is the [AI trust paradox](https://en.wikipedia.org/wiki/AI_trust_paradox) from Part 1, operationalized — you don't solve the paradox by trusting harder, you solve it by making the agent surface everything the user needs to decide for themselves. If a developer wants to skip logging on a development bucket, fine — but they'll see the gap, they'll see what they're accepting, and their decision gets recorded. The agent doesn't second-guess an informed human. It just refuses to let them be *uninformed*.
 
 In practice, this means the WAR presents every MVA gap with context. Not "Logging: ❌" — that's what the old WAR would have done (or more accurately, what it would have hidden). Instead: "Access logging is not included in this plan. At the `warn` enforcement level for development, this is an informational gap. Logging enables audit trails and access pattern analysis. Would you like to add it to the plan?"
 
