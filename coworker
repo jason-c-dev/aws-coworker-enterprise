@@ -1,11 +1,20 @@
 #!/bin/bash
 # coworker - Launch AWS Coworker (Claude Code with enterprise context)
 # Usage: ./coworker [claude-code-args...]
+# Works via symlink: ln -s /path/to/aws-coworker-enterprise/coworker /usr/local/bin/coworker
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Resolve symlinks to find the real script location
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+  DIR="$(cd "$(dirname "$SOURCE")" && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  # Handle relative symlinks
+  [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+SCRIPT_DIR="$(cd "$(dirname "$SOURCE")" && pwd)"
 
 # Show the banner
 bash "$SCRIPT_DIR/.claude/scripts/session-start.sh"
 
-# Drop into Claude Code in this project directory
-exec claude "$@"
+# Drop into Claude Code in the project directory
+cd "$SCRIPT_DIR" && exec claude "$@"
