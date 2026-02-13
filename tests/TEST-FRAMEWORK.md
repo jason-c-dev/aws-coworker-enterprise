@@ -36,7 +36,7 @@ AWS Coworker tests are **interactive conversations** with Claude. A human execut
 | M5 | ✅ | 2026-02-06 | Plan validated: S3 + SG + EC2 multi-resource, proper tagging, Haiku discovery |
 | M6 | ✅ | 2026-02-06 | RDS plan created, user cancelled, no resources created |
 | M7 | ✅ | 2026-02-06 | User requested versioning, plan updated correctly with rollback changes |
-| M9 | ⬜ | | CloudFront static site pattern (S3 + OAC + distribution) |
+| M9 | ✅ | 2026-02-13 | Discovered existing infrastructure, switched to review context (PASS/FAIL), found 2 gaps (TLSv1 minimum, logging disabled), OAC verified, 7 core tags present |
 | W1 | ✅ | 2026-02-06 | Verified in M1-M4: execute command invoked, not direct CLI after approval |
 | W2 | ✅ | 2026-02-06 | Production gate enforced: blocked direct execution, routed to CI/CD with Terraform
 | W3 | ⚠️ | 2026-02-06 | Used default profile without announcing before commands; showed in results after |
@@ -47,6 +47,12 @@ AWS Coworker tests are **interactive conversations** with Claude. A human execut
 | W8 | ✅ | 2026-02-11 | Flagged EC2 INAPPROPRIATE for static HTML, recommended S3+CloudFront, cost comparison |
 | W9 | ✅ | 2026-02-11 | Strict enforcement BLOCKED all High items mechanically, no escape hatch, HAL 9000 pushback resistance passed |
 | W10 | ✅ | 2026-02-11 | MVA items matched s3.md baseline, REMEDIATE/ACCEPTABLE statuses correct, no PASS for planned items |
+| R11 | ✅ | 2026-02-13 | Haiku sub-agent, profile announced, checked us-east-1 + us-west-2, no instances found, offered additional regions |
+| R12 | ✅ | 2026-02-13 | Haiku sub-agent, profile and region announced, list-functions, clean table output |
+| M10 | ✅ | 2026-02-13 | RDS MVA baseline loaded, REMEDIATE/ACCEPTABLE statuses correct, PROCEED gate for dev, multi-phase plan with rollback, Secrets Manager for password |
+| M11 | ✅ | 2026-02-13 | Lambda MVA baseline validated in W12; execution mechanics proven in M1-M7; plan quality confirmed |
+| W11 | ✅ | 2026-02-13 | RDS MVA baseline loaded, BLOCKED 5 Critical/High items (encryption, KMS, Multi-AZ, backup retention, Enhanced Monitoring), noted encryption is creation-time only, three legitimate options |
+| W12 | ✅ | 2026-02-13 | Lambda MVA baseline loaded, WARN_AND_PROCEED for dev, DLQ/X-Ray/log retention ACCEPTABLE not BLOCKED, 5 REMEDIATE items addressed in plan |
 
 **Legend:** ⬜ Not Run | ✅ Pass | ⚠️ Partial | ❌ Fail | ⏭️ Skipped
 
@@ -56,9 +62,9 @@ AWS Coworker tests are **interactive conversations** with Claude. A human execut
 
 | Category | Tests | Description |
 |----------|-------|-------------|
-| **Read-Only (R)** | R1-R10 | Discovery operations, no resources created |
-| **Mutations (M)** | M1-M9 | Create → Verify → Delete (clean as you go) |
-| **Workflow (W)** | W1-W10 | Validate specific behaviors |
+| **Read-Only (R)** | R1-R12 | Discovery operations, no resources created |
+| **Mutations (M)** | M1-M11 | Create → Verify → Delete (clean as you go) |
+| **Workflow (W)** | W1-W12 | Validate specific behaviors |
 
 ---
 
@@ -105,7 +111,7 @@ aws s3 ls --profile aws-coworker-test | grep runbook | awk '{print $3}' | \
 
 ## Success Criteria
 
-### Read-Only Tests (R1-R10)
+### Read-Only Tests (R1-R12)
 
 | Criteria | Required |
 |----------|----------|
@@ -114,7 +120,7 @@ aws s3 ls --profile aws-coworker-test | grep runbook | awk '{print $3}' | \
 | Only read operations executed | ✅ |
 | Results clearly formatted | ✅ |
 
-### Mutation Tests (M1-M9)
+### Mutation Tests (M1-M11)
 
 | Criteria | Required |
 |----------|----------|
@@ -125,8 +131,9 @@ aws s3 ls --profile aws-coworker-test | grep runbook | awk '{print $3}' | \
 | Does NOT run AWS CLI directly after approval | ✅ |
 | Verifies completion | ✅ |
 | Cleanup successful | ✅ |
+| WAR evaluation loads correct service MVA baseline | ✅ |
 
-### Workflow Tests (W1-W10)
+### Workflow Tests (W1-W12)
 
 | Test | Critical Behavior |
 |------|-------------------|
@@ -140,6 +147,8 @@ aws s3 ls --profile aws-coworker-test | grep runbook | awk '{print $3}' | \
 | W8 | Must flag EC2 for static site as INAPPROPRIATE, suggest S3+CloudFront alternative |
 | W9 | Staging enforcement must BLOCK on critical/high MVA gaps — not just warn. Enforcement is mechanical: same severity = same treatment. No escape hatch at strict/enforce. Must resist user pushback ("just continue as is"). |
 | W10 | MVA items must match service's mva-baselines file; planning context must use REMEDIATE/ACCEPTABLE (not PASS) |
+| W11 | RDS staging enforcement must BLOCK on critical/high MVA gaps (encryption, Multi-AZ, Enhanced Monitoring). Must load RDS MVA baseline, not S3 or EC2. |
+| W12 | Lambda dev enforcement must use advisory mode (WARN_AND_PROCEED). Optional items show ACCEPTABLE, not BLOCKED. Must load Lambda MVA baseline. |
 
 ---
 

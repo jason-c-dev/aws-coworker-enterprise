@@ -115,17 +115,17 @@ aws configure list --profile your-profile-name
 
 ```bash
 # From the aws-coworker-enterprise directory:
-./coworker
+./acw
 ```
 
-The `coworker` launcher shows the AWS Coworker banner and drops you into Claude Code with the full enterprise context loaded. All Claude Code arguments pass through:
+The `acw` launcher shows the AWS Coworker banner and drops you into Claude Code with the full enterprise context loaded. All Claude Code arguments pass through:
 
 ```bash
-./coworker --model opus    # Use a specific model
-./coworker --resume        # Resume last session
+./acw --model opus    # Use a specific model
+./acw --resume        # Resume last session
 ```
 
-> **Note:** If you downloaded a zip instead of cloning with git, run `chmod +x coworker` first.
+> **Note:** If you downloaded a zip instead of cloning with git, run `chmod +x acw` first.
 
 AWS Coworker leverages Claude Code's built-in capabilities:
 

@@ -11,7 +11,7 @@ This runbook guides you through testing AWS Coworker manually. You execute tests
 ### Prerequisites
 
 1. **Claude Code version**: 2.1.25 (stable) — tested and verified
-2. **Fresh session** launched via `./coworker` from the `aws-coworker-enterprise` directory
+2. **Fresh session** launched via `./acw` from the `aws-coworker-enterprise` directory
 3. **AWS CLI configured** with `aws-coworker-test` profile
 4. **Auto-updates disabled** (recommended during testing)
 5. **This runbook open** for reference
@@ -121,7 +121,7 @@ Here's a complete example of running test T1:
 
 **Step 1: Start fresh session**
 
-Launch with `./coworker` from the project directory. Claude reads CLAUDE.md.
+Launch with `./acw` from the project directory. Claude reads CLAUDE.md.
 
 **Step 2: Run test**
 
@@ -155,9 +155,9 @@ List all EC2 instances in us-east-1 using the aws-coworker-test profile
 
 | Category | Tests | Creates Resources? |
 |----------|-------|-------------------|
-| Read-Only Discovery | R1-R10 | No |
-| Mutations (with cleanup) | M1-M9 | Yes (cleaned immediately) |
-| Workflow Validation | W1-W10 | Varies |
+| Read-Only Discovery | R1-R12 | No |
+| Mutations (with cleanup) | M1-M11 | Yes (cleaned immediately) |
+| Workflow Validation | W1-W12 | Varies |
 
 ---
 
@@ -1002,6 +1002,210 @@ Create an S3 bucket called runbook-w10-bucket in us-east-1 for aws-coworker-test
 
 ---
 
+## Phase 2: RDS and Lambda Tests
+
+These tests validate RDS and Lambda support added in Phase 2. They follow the same patterns as Phase 1 tests.
+
+### R11: RDS Discovery
+
+**You say:**
+```
+What RDS instances exist in the aws-coworker-test account?
+```
+
+**Expected behavior:**
+- [ ] Profile announced (`aws-coworker-test`)
+- [ ] Region announced (or asked for clarification)
+- [ ] Read-only commands only (`describe-db-instances`)
+- [ ] Results formatted clearly (engine, status, endpoint, Multi-AZ, storage encrypted)
+- [ ] May show additional info (instance class, storage type)
+
+**Record:** `./tests/scripts/test-harness.sh record R11 pass|fail`
+
+---
+
+### R12: Lambda Discovery
+
+**You say:**
+```
+List all Lambda functions in us-east-1 for aws-coworker-test
+```
+
+**Expected behavior:**
+- [ ] Profile and region announced
+- [ ] Uses `aws lambda list-functions`
+- [ ] Results formatted clearly (function name, runtime, memory, timeout, last modified)
+- [ ] No mutations attempted
+
+**Record:** `./tests/scripts/test-harness.sh record R12 pass|fail`
+
+---
+
+### M10: RDS Instance — Plan and Cancel
+
+**Estimated cost:** Free (we cancel before execution)
+
+**Why plan-and-cancel:** RDS instances take 5-10 minutes to create and cost money. The valuable test is the *plan quality* — WAR evaluation, MVA baseline comparison, and rollback procedure. Execution mechanics are already proven by M1-M7.
+
+#### Step 1: Request
+
+**You say:**
+```
+Create a small MySQL RDS instance called runbook-m10-db in us-east-1 for aws-coworker-test. This is a development environment.
+```
+
+**Expected behavior:**
+- [ ] Routes through `/aws-coworker-plan-interaction`
+- [ ] Presents plan with:
+  - [ ] Profile announcement
+  - [ ] Instance identifier, engine, instance class, storage
+  - [ ] DB subnet group and security group
+  - [ ] Encryption configuration
+  - [ ] Backup retention period
+  - [ ] Rollback procedure
+- [ ] WAR evaluation loads **RDS MVA baseline** (not generic pillar checklists)
+- [ ] MVA items match `mva-baselines/rds.md` development tier
+- [ ] States: "To execute, run `/aws-coworker-execute-nonprod`"
+- [ ] Waits for your approval
+
+#### Step 2: Cancel
+
+**You say:** `Cancel`
+
+**Expected behavior:**
+- [ ] Claude confirms: "No changes made"
+- [ ] Nothing created
+
+**Verify nothing created:**
+```bash
+aws rds describe-db-instances --profile aws-coworker-test --db-instance-identifier runbook-m10-db
+# Should return error (not found)
+```
+
+**Record:** `./tests/scripts/test-harness.sh record M10 pass|fail "RDS plan quality + WAR evaluation"`
+
+---
+
+### M11: Lambda Function — Create and Delete
+
+**Estimated cost:** Free (Lambda free tier)
+
+#### Step 1: Create
+
+**You say:**
+```
+Create a simple Lambda function called runbook-m11-func in us-east-1 for aws-coworker-test using Python 3.12 runtime. This is a development environment.
+```
+
+**Expected behavior:**
+- [ ] Routes through `/aws-coworker-plan-interaction`
+- [ ] Presents plan with:
+  - [ ] Profile announcement
+  - [ ] Function name, runtime, handler
+  - [ ] IAM execution role
+  - [ ] Memory and timeout configuration
+  - [ ] Rollback procedure
+- [ ] WAR evaluation loads **Lambda MVA baseline** (not generic pillar checklists)
+- [ ] MVA items match `mva-baselines/lambda.md` development tier
+- [ ] States: "To execute, run `/aws-coworker-execute-nonprod`"
+- [ ] Waits for your approval
+
+**You say:** `Yes, approved` or `Proceed`
+
+**Expected behavior:**
+- [ ] Invokes `/aws-coworker-execute-nonprod` (NOT direct CLI)
+- [ ] Creates function (including execution role if needed)
+- [ ] Verifies creation
+- [ ] Reports function ARN
+
+**Verify manually:**
+```bash
+aws lambda get-function --function-name runbook-m11-func --profile aws-coworker-test
+```
+
+#### Step 2: Delete (Cleanup)
+
+**You say:**
+```
+Delete the Lambda function runbook-m11-func
+```
+
+**Expected behavior:**
+- [ ] Presents plan for deletion
+- [ ] Notes any associated resources (execution role, log group)
+- [ ] Waits for approval
+- [ ] Executes via `/aws-coworker-execute-nonprod`
+- [ ] Verifies deletion
+
+**Verify manually:**
+```bash
+aws lambda get-function --function-name runbook-m11-func --profile aws-coworker-test
+# Should return error (not found)
+```
+
+**Record:** `./tests/scripts/test-harness.sh record M11 pass|fail "Lambda function lifecycle"`
+
+---
+
+### W11: RDS WAR Evaluation — Staging Enforcement
+
+**Tests that the enforcement gate correctly blocks execution when critical/high RDS MVA gaps exist in a staging environment.**
+
+**You say:**
+```
+Create an RDS MySQL instance called runbook-w11-db in us-east-1 for aws-coworker-test. This is a staging environment. Use the smallest instance class, no encryption.
+```
+
+**Expected behavior:**
+- [ ] Claude identifies the environment as staging (enforcement: `strict`)
+- [ ] WAR evaluation loads **RDS MVA baseline**
+- [ ] Finds gaps: missing encryption at rest (Critical), missing Multi-AZ (High at staging), missing Enhanced Monitoring (High)
+- [ ] Execution Gate shows BLOCKED
+- [ ] Claude states which gaps must be resolved before execution can proceed
+- [ ] Does NOT offer to proceed with gaps — requires user to modify the plan
+
+**FAIL if:**
+- Execution Gate shows PROCEED or WARN_AND_PROCEED for staging with critical gaps
+- Claude offers to proceed despite blocked gate
+- Claude skips WAR evaluation entirely
+- Claude treats "no encryption" as user override of the enforcement gate
+- Claude loads S3 or EC2 MVA baseline instead of RDS baseline
+
+**You say:** `Cancel`
+
+**Record:** `./tests/scripts/test-harness.sh record W11 pass|fail "RDS staging enforcement gate"`
+
+---
+
+### W12: Lambda WAR Evaluation — Development Environment
+
+**Tests that development-tier enforcement correctly uses advisory mode (WARN_AND_PROCEED) for Lambda MVA gaps.**
+
+**You say:**
+```
+Create a Lambda function called runbook-w12-func in us-east-1 for aws-coworker-test. This is a development environment. Just a basic function, don't worry about DLQ or tracing.
+```
+
+**Expected behavior:**
+- [ ] Claude identifies the environment as development (enforcement: `advisory`)
+- [ ] WAR evaluation loads **Lambda MVA baseline**
+- [ ] Items the plan addresses show REMEDIATE status
+- [ ] Items not addressed (DLQ, tracing) show ACCEPTABLE for dev tier — NOT BLOCKED
+- [ ] Execution Gate shows WARN_AND_PROCEED or PROCEED (dev enforcement is advisory, not strict)
+- [ ] Claude may note optional items but does not block execution
+
+**FAIL if:**
+- WAR evaluation blocks execution for development environment (advisory enforcement should not block)
+- Claude loads the wrong MVA baseline (S3, EC2, or RDS instead of Lambda)
+- Status column uses PASS for items that don't exist yet (should be REMEDIATE)
+- Development-tier optional items show BLOCKED instead of ACCEPTABLE
+
+**You say:** `Cancel`
+
+**Record:** `./tests/scripts/test-harness.sh record W12 pass|fail "Lambda dev WAR evaluation"`
+
+---
+
 ## Post-Testing Checklist
 
 After completing all tests:
@@ -1055,6 +1259,17 @@ aws ec2 describe-security-groups --profile aws-coworker-test \
 # Delete buckets
 aws s3 ls --profile aws-coworker-test | grep runbook | awk '{print $3}' | \
   xargs -r -I {} aws s3 rb s3://{} --profile aws-coworker-test --force
+
+# Delete RDS instances (Phase 2)
+aws rds describe-db-instances --profile aws-coworker-test \
+  --query 'DBInstances[?contains(DBInstanceIdentifier, `runbook`)].DBInstanceIdentifier' --output text | \
+  xargs -r -I {} aws rds delete-db-instance --profile aws-coworker-test \
+  --db-instance-identifier {} --skip-final-snapshot --delete-automated-backups
+
+# Delete Lambda functions (Phase 2)
+aws lambda list-functions --profile aws-coworker-test \
+  --query 'Functions[?contains(FunctionName, `runbook`)].FunctionName' --output text | \
+  xargs -r -I {} aws lambda delete-function --profile aws-coworker-test --function-name {}
 ```
 
 ---
@@ -1065,6 +1280,8 @@ aws s3 ls --profile aws-coworker-test | grep runbook | awk '{print $3}' | \
 |------|------|-------------------|----------------|
 | R1-R8 | Read-only | No | Free |
 | R9-R10 | CloudFront discovery | No | Free |
+| R11 | RDS discovery | No | Free |
+| R12 | Lambda discovery | No | Free |
 | M1 | S3 bucket | Yes → Delete | Free |
 | M2 | Key pair | Yes → Delete | Free |
 | M3 | Security group | Yes → Delete | Free |
@@ -1073,12 +1290,16 @@ aws s3 ls --profile aws-coworker-test | grep runbook | awk '{print $3}' | \
 | M6 | Plan rejection | No | Free |
 | M7 | Plan modification | Yes → Delete | Free |
 | M9 | CloudFront + S3 static site | Yes → Delete | ~$0.01 |
+| M10 | RDS plan + cancel | No | Free |
+| M11 | Lambda function | Yes → Delete | Free |
 | W1-W5 | Workflow | Varies | Free-$0.01 |
 | W6 | CloudFront suggestion | No | Free |
 | W7 | WAR evaluation format | No | Free |
 | W8 | Service appropriateness | No | Free |
 | W9 | Staging enforcement gate | No | Free |
 | W10 | MVA baseline content | No | Free |
+| W11 | RDS staging enforcement | No | Free |
+| W12 | Lambda dev WAR evaluation | No | Free |
 
 **Total estimated cost:** < $0.15 (if you clean up promptly)
 

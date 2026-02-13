@@ -111,12 +111,12 @@ aws sts get-caller-identity --profile dev-admin
 
 ```bash
 # From the aws-coworker-enterprise directory:
-./coworker
+./acw
 ```
 
-The `coworker` launcher shows the AWS Coworker banner and drops you into Claude Code with the full enterprise context loaded. All Claude Code arguments pass through (e.g., `./coworker --model opus`).
+The `acw` launcher shows the AWS Coworker banner and drops you into Claude Code with the full enterprise context loaded. All Claude Code arguments pass through (e.g., `./acw --model opus`).
 
-> **Note:** If you downloaded a zip instead of cloning with git, run `chmod +x coworker` first.
+> **Note:** If you downloaded a zip instead of cloning with git, run `chmod +x acw` first.
 
 ---
 

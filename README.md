@@ -80,16 +80,16 @@ aws sts get-caller-identity
 
 ```bash
 # Start AWS Coworker
-./coworker
+./acw
 
 # All Claude Code arguments pass through:
-./coworker --model opus
-./coworker --resume
+./acw --model opus
+./acw --resume
 ```
 
-The `coworker` launcher shows the banner and drops you into Claude Code with the full AWS Coworker context loaded. From there, use natural language or slash commands like `/aws-coworker-plan-interaction`.
+The `acw` launcher shows the banner and drops you into Claude Code with the full AWS Coworker context loaded. From there, use natural language or slash commands like `/aws-coworker-plan-interaction`.
 
-> **Note:** If you downloaded a zip instead of cloning with git, you may need to run `chmod +x coworker` first.
+> **Note:** If you downloaded a zip instead of cloning with git, you may need to run `chmod +x acw` first.
 
 See [Getting Started Guide](docs/getting-started/README.md) for detailed instructions.
 
@@ -329,7 +329,7 @@ As frontier providers like Anthropic race ahead with new models and capabilities
 
 ```
 aws-coworker/
-├── coworker             # Launch script — shows banner, drops into Claude Code
+├── acw                  # Launch script — shows banner, drops into Claude Code
 ├── .claude/
 │   ├── agents/          # Agent definitions
 │   ├── commands/        # Slash command definitions

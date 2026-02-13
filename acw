@@ -1,7 +1,7 @@
 #!/bin/bash
-# coworker - Launch AWS Coworker (Claude Code with enterprise context)
-# Usage: ./coworker [claude-code-args...]
-# Works via symlink: ln -s /path/to/aws-coworker-enterprise/coworker /usr/local/bin/coworker
+# acw - Launch AWS Coworker (Claude Code with enterprise context)
+# Usage: ./acw [claude-code-args...]
+# Works via symlink: ln -s /path/to/aws-coworker-enterprise/acw /usr/local/bin/acw
 
 # Resolve symlinks to find the real script location
 SOURCE="${BASH_SOURCE[0]}"

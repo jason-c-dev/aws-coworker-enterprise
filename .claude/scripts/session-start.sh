@@ -1,6 +1,6 @@
 #!/bin/bash
 # AWS Coworker banner script
-# Called by the `coworker` launcher before dropping into Claude Code
+# Called by the `acw` launcher before dropping into Claude Code
 # Run standalone: bash .claude/scripts/session-start.sh
 
 ORANGE='\033[38;5;208m'
