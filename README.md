@@ -76,14 +76,20 @@ cd aws-coworker-enterprise
 aws sts get-caller-identity
 ```
 
-### First Interaction
+### Launch
 
-```
-# In Claude Code, try:
-/aws-coworker-plan-interaction
+```bash
+# Start AWS Coworker
+./coworker
 
-# Follow the prompts to plan an AWS interaction
+# All Claude Code arguments pass through:
+./coworker --model opus
+./coworker --resume
 ```
+
+The `coworker` launcher shows the banner and drops you into Claude Code with the full AWS Coworker context loaded. From there, use natural language or slash commands like `/aws-coworker-plan-interaction`.
+
+> **Note:** If you downloaded a zip instead of cloning with git, you may need to run `chmod +x coworker` first.
 
 See [Getting Started Guide](docs/getting-started/README.md) for detailed instructions.
 
@@ -315,10 +321,12 @@ As frontier providers like Anthropic race ahead with new models and capabilities
 
 ```
 aws-coworker/
+├── coworker             # Launch script — shows banner, drops into Claude Code
 ├── .claude/
 │   ├── agents/          # Agent definitions
 │   ├── commands/        # Slash command definitions
-│   └── config/          # Agent orchestration (thresholds, model selection)
+│   ├── config/          # Agent orchestration (thresholds, model selection)
+│   └── scripts/         # Banner and utility scripts
 ├── config/              # AWS environment config (core defaults + org overrides)
 ├── skills/
 │   ├── aws/             # AWS-focused skills

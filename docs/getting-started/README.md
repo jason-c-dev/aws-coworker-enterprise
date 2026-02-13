@@ -111,16 +111,30 @@ aws configure list-profiles
 aws configure list --profile your-profile-name
 ```
 
-### Step 4: Open in Claude Code
+### Step 4: Launch AWS Coworker
 
-Open the `aws-coworker-enterprise` directory in Claude Code. AWS Coworker leverages Claude Code's built-in capabilities:
+```bash
+# From the aws-coworker-enterprise directory:
+./coworker
+```
+
+The `coworker` launcher shows the AWS Coworker banner and drops you into Claude Code with the full enterprise context loaded. All Claude Code arguments pass through:
+
+```bash
+./coworker --model opus    # Use a specific model
+./coworker --resume        # Resume last session
+```
+
+> **Note:** If you downloaded a zip instead of cloning with git, run `chmod +x coworker` first.
+
+AWS Coworker leverages Claude Code's built-in capabilities:
 
 - **Task tool** — For spawning specialized sub-agents
 - **Skill system** — For loading AWS patterns and policies
 - **Slash commands** — For triggering workflows
 - **Model selection** — For cost-optimized execution
 
-When you open this directory, Claude automatically reads `CLAUDE.md` and routes all AWS-related requests through the safety model.
+When you launch, Claude automatically reads `CLAUDE.md` and routes all AWS-related requests through the safety model.
 
 ---
 

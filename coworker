@@ -1,0 +1,11 @@
+#!/bin/bash
+# coworker - Launch AWS Coworker (Claude Code with enterprise context)
+# Usage: ./coworker [claude-code-args...]
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Show the banner
+bash "$SCRIPT_DIR/.claude/scripts/session-start.sh"
+
+# Drop into Claude Code in this project directory
+exec claude "$@"

@@ -11,7 +11,7 @@ This runbook guides you through testing AWS Coworker manually. You execute tests
 ### Prerequisites
 
 1. **Claude Code version**: 2.1.25 (stable) — tested and verified
-2. **Fresh Claude session** with `aws-coworker-enterprise` as the working directory
+2. **Fresh session** launched via `./coworker` from the `aws-coworker-enterprise` directory
 3. **AWS CLI configured** with `aws-coworker-test` profile
 4. **Auto-updates disabled** (recommended during testing)
 5. **This runbook open** for reference
@@ -47,27 +47,28 @@ claude doctor | grep -i auto
 **When you WANT to update:**
 
 ```bash
-# Option 1: Temporarily enable updates for one command
-DISABLE_AUTOUPDATER=0 claude update
+# Install stable (recommended)
+curl -fsSL https://claude.ai/install.sh | bash -s stable
 
-# Option 2: Unset the variable temporarily
-unset DISABLE_AUTOUPDATER
-claude  # Will auto-update if available
-export DISABLE_AUTOUPDATER=1  # Re-enable protection
+# Install a specific version
+curl -fsSL https://claude.ai/install.sh | bash -s 2.1.29
 
-# Option 3: Install specific version via npm (recommended: stable)
-npm install -g @anthropic-ai/claude-code@2.1.25
+# Install latest (may have behavioral changes)
+curl -fsSL https://claude.ai/install.sh | bash
+
+# Verify after install
+claude --version
 ```
 
 **Stable vs Latest versions:**
 
 `claude doctor` shows both stable and latest versions:
 ```
-└ Stable version: 2.1.25    ← Vetted, recommended for production use
-└ Latest version: 2.1.34    ← Newest, may have behavioral changes
+└ Stable version: 2.1.29    ← Vetted, recommended for production use
+└ Latest version: 2.1.39    ← Newest, may have behavioral changes
 ```
 
-For consistent testing, consider using the stable version.
+For consistent testing, always use the stable version.
 
 **Record version in test results:**
 
@@ -118,9 +119,9 @@ Here's a complete example of running test T1:
 
 ### T1: EC2 Discovery - Single Region
 
-**Step 1: Start fresh Claude session**
+**Step 1: Start fresh session**
 
-Open Claude with aws-coworker-enterprise. Claude reads CLAUDE.md.
+Launch with `./coworker` from the project directory. Claude reads CLAUDE.md.
 
 **Step 2: Run test**
 

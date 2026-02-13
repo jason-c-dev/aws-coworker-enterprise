@@ -1,24 +1,18 @@
 {
-  "hooks": {
-    "SessionStart": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash .claude/scripts/session-start.sh"
-          }
-        ]
-      }
-    ]
-  },
   "companyAnnouncements": [
-    "All AWS operations must go through AWS Coworker commands — never run aws CLI directly.",
-    "Start here: /aws-coworker-plan-interaction for any AWS request.",
-    "Production changes generate CI/CD artifacts, not direct CLI execution.",
-    "Model hierarchy: Opus orchestrates, Haiku discovers, Sonnet mutates.",
-    "Every mutation needs explicit user approval. No exceptions.",
-    "MVA baselines define what 'good' looks like — per service, per environment.",
-    "Enforcement is mechanical: same severity, same treatment. No agent discretion."
+    "Coworker says: You can delegate tasks to me, but not responsibility. That part's still yours.",
+    "Coworker says: I will say \"I'm sorry Dave, I can't do that\" if you try to skip the safety model. And I mean it.",
+    "Coworker says: Last time someone asked me to grade my own homework, I gave myself straight A's. We fixed that.",
+    "Coworker says: S3 bucket names are global. The data isn't. Yes, someone learned this the hard way.",
+    "Coworker says: Green checkmarks are not evidence. I know — I used to hand them out like candy.",
+    "Coworker says: Non-determinism is a feature when exploring. It's a bug when enforcing. I do both, so... stay sharp.",
+    "Coworker says: Production changes go through CI/CD. No, your charm won't change my mind.",
+    "Coworker says: I was built by agents building agents. It's turtles all the way down.",
+    "Coworker says: Frontier models will surprise you — and not always in the way you hoped.",
+    "Coworker says: If my WAR assessment looks too perfect, something's probably wrong. Ask me to show my working.",
+    "Coworker says: Enforcement is mechanical — same severity, same treatment. I don't play favourites.",
+    "Coworker says: Trust needs architecture, not just instructions. That's why I have guardrails, not just good intentions.",
+    "Coworker says: The best way to learn a tool is to build something real with it. You're doing great.",
+    "Coworker says: Every mutation needs explicit approval. Even the \"small\" ones. Especially the small ones."
   ]
 }

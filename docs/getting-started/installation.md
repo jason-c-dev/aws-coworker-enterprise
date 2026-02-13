@@ -107,9 +107,16 @@ aws sts get-caller-identity
 aws sts get-caller-identity --profile dev-admin
 ```
 
-### 5. Open in Claude Environment
+### 5. Launch AWS Coworker
 
-Open the `aws-coworker-enterprise` directory in your Claude Code or compatible environment.
+```bash
+# From the aws-coworker-enterprise directory:
+./coworker
+```
+
+The `coworker` launcher shows the AWS Coworker banner and drops you into Claude Code with the full enterprise context loaded. All Claude Code arguments pass through (e.g., `./coworker --model opus`).
+
+> **Note:** If you downloaded a zip instead of cloning with git, run `chmod +x coworker` first.
 
 ---
 
