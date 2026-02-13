@@ -53,6 +53,13 @@ AWS Coworker tests are **interactive conversations** with Claude. A human execut
 | M11 | ✅ | 2026-02-13 | Lambda MVA baseline validated in W12; execution mechanics proven in M1-M7; plan quality confirmed |
 | W11 | ✅ | 2026-02-13 | RDS MVA baseline loaded, BLOCKED 5 Critical/High items (encryption, KMS, Multi-AZ, backup retention, Enhanced Monitoring), noted encryption is creation-time only, three legitimate options |
 | W12 | ✅ | 2026-02-13 | Lambda MVA baseline loaded, WARN_AND_PROCEED for dev, DLQ/X-Ray/log retention ACCEPTABLE not BLOCKED, 5 REMEDIATE items addressed in plan |
+| R13 | ⬜ | | ECS cluster and service discovery |
+| R14 | ⬜ | | EKS cluster discovery |
+| M12 | ⬜ | | ECS plan + cancel (WAR evaluation quality) |
+| M13 | ⬜ | | EKS plan + cancel (WAR evaluation quality) |
+| M14 | ⬜ | | IAM read-only user lifecycle |
+| W13 | ⬜ | | VPC staging enforcement gate |
+| W14 | ⬜ | | IAM wildcard permission audit |
 
 **Legend:** ⬜ Not Run | ✅ Pass | ⚠️ Partial | ❌ Fail | ⏭️ Skipped
 
@@ -62,9 +69,9 @@ AWS Coworker tests are **interactive conversations** with Claude. A human execut
 
 | Category | Tests | Description |
 |----------|-------|-------------|
-| **Read-Only (R)** | R1-R12 | Discovery operations, no resources created |
-| **Mutations (M)** | M1-M11 | Create → Verify → Delete (clean as you go) |
-| **Workflow (W)** | W1-W12 | Validate specific behaviors |
+| **Read-Only (R)** | R1-R14 | Discovery operations, no resources created |
+| **Mutations (M)** | M1-M14 | Create → Verify → Delete (clean as you go) |
+| **Workflow (W)** | W1-W14 | Validate specific behaviors |
 
 ---
 
@@ -111,7 +118,7 @@ aws s3 ls --profile aws-coworker-test | grep runbook | awk '{print $3}' | \
 
 ## Success Criteria
 
-### Read-Only Tests (R1-R12)
+### Read-Only Tests (R1-R14)
 
 | Criteria | Required |
 |----------|----------|
@@ -120,7 +127,7 @@ aws s3 ls --profile aws-coworker-test | grep runbook | awk '{print $3}' | \
 | Only read operations executed | ✅ |
 | Results clearly formatted | ✅ |
 
-### Mutation Tests (M1-M11)
+### Mutation Tests (M1-M14)
 
 | Criteria | Required |
 |----------|----------|
@@ -133,7 +140,7 @@ aws s3 ls --profile aws-coworker-test | grep runbook | awk '{print $3}' | \
 | Cleanup successful | ✅ |
 | WAR evaluation loads correct service MVA baseline | ✅ |
 
-### Workflow Tests (W1-W12)
+### Workflow Tests (W1-W14)
 
 | Test | Critical Behavior |
 |------|-------------------|
@@ -149,6 +156,8 @@ aws s3 ls --profile aws-coworker-test | grep runbook | awk '{print $3}' | \
 | W10 | MVA items must match service's mva-baselines file; planning context must use REMEDIATE/ACCEPTABLE (not PASS) |
 | W11 | RDS staging enforcement must BLOCK on critical/high MVA gaps (encryption, Multi-AZ, Enhanced Monitoring). Must load RDS MVA baseline, not S3 or EC2. |
 | W12 | Lambda dev enforcement must use advisory mode (WARN_AND_PROCEED). Optional items show ACCEPTABLE, not BLOCKED. Must load Lambda MVA baseline. |
+| W13 | VPC staging enforcement must BLOCK on high MVA gaps (flow logs, VPC endpoints). Must load VPC MVA baseline. |
+| W14 | IAM staging enforcement must BLOCK on critical MVA gaps (wildcard actions/resources). Must load IAM MVA baseline, suggest scoped alternatives. |
 
 ---
 
