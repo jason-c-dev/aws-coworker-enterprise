@@ -1,0 +1,19 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "bash .claude/scripts/session-start.sh"
+      }
+    ]
+  },
+  "companyAnnouncements": [
+    "All AWS operations must go through AWS Coworker commands — never run aws CLI directly.",
+    "Start here: /aws-coworker-plan-interaction for any AWS request.",
+    "Production changes generate CI/CD artifacts, not direct CLI execution.",
+    "Model hierarchy: Opus orchestrates, Haiku discovers, Sonnet mutates.",
+    "Every mutation needs explicit user approval. No exceptions.",
+    "MVA baselines define what 'good' looks like — per service, per environment.",
+    "Enforcement is mechanical: same severity, same treatment. No agent discretion."
+  ]
+}
