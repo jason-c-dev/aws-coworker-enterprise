@@ -12,7 +12,7 @@
 
 ## Introduction
 
-In [Part 1](LESSONS-LEARNED.md), we built AWS Coworker, broke it more times than we'd care to admit, learned seven hard-fought lessons, and established nine design tenets. Sub-agents ran naked without guardrails. The agent generated its own space invaders game instead of deploying mine. An overnight auto-update made every sub-agent refuse to work. We fixed all of it and wrote it up. I felt pretty good about ourselves. Claude, presumably, felt nothing — but if token confidence is any indicator, it was equally satisfied.
+In [Part 1](LESSONS-LEARNED.md), we built AWS Coworker, broke it more times than we'd care to admit, learned seven hard-fought lessons, and established nine design tenets. Sub-agents ran naked without guardrails. The agent generated its own retro arcade style game instead of deploying mine. An overnight auto-update made every sub-agent refuse to work. We fixed all of it and wrote it up. I felt pretty good about ourselves. Claude, presumably, felt nothing — but if token confidence is any indicator, it was equally satisfied.
 
 Then we looked at the Well-Architected Review.
 
@@ -274,7 +274,13 @@ We'll keep writing them.
 
 **What happened next?**
 
-The enforcement gate held. The MVA baselines worked across six services. We felt good — again. Then we looked at *how* the agents were authenticating with AWS: every sub-agent, from the read-only Haiku discovery worker to the Sonnet mutation executor, was using the same admin access key. The agent that could only *list* your S3 buckets had the same credentials as the one that could *delete* them. We'd built a safety model with enforcement gates, approval workflows, and mechanical rules — and then handed every agent the master key. Coming Soon — Part 3: *From Admin Keys to Agent Roles: Least Privilege and the Road to Self-Deployment*
+The enforcement gate held. The MVA baselines worked across six services — then ten, as we extended across VPC, IAM, ECS, and EKS. The architecture proved service-agnostic: same baseline format, same enforcement model, same mechanical rules, whether we were evaluating an S3 bucket or an EKS cluster. We felt good — again.
+
+Then two things happened at once. First, we looked at *how* the agents were authenticating with AWS: every sub-agent, from the read-only Haiku discovery worker to the Sonnet mutation executor, was using the same admin access key. The agent that could only *list* your S3 buckets had the same credentials as the one that could *delete* them. We'd built a safety model with enforcement gates, approval workflows, and mechanical rules — and then handed every agent the master key.
+
+Second, Anthropic shipped [Agent Teams](https://docs.anthropic.com/en/docs/agents/multi-agent) for Claude Code — a coordination model that lets agents work as teammates rather than subordinates. We looked at it seriously. We did the analysis. We made a deliberate architectural decision. Spoiler: we waited — and the reasons why tell you more about building production agent systems than the feature itself.
+
+Coming Soon — Part 3: *From Admin Keys to Agent Roles: Least Privilege and the Road to Self-Deployment*
 
 **Want to try it yourself?**
 

@@ -17,7 +17,7 @@
 - Sub-agent architecture (Opus orchestrator, Haiku/Sonnet workers)
 - 7 lessons learned (sub-agent delegation, permission context, model selection, auto-update chaos, etc.)
 - 9 design tenets
-- The space invaders incident (agent generated its own game instead of deploying the file)
+- The retro arcade game incident (agent generated its own game instead of deploying the file)
 
 **Source files:**
 - `docs/LESSONS-LEARNED.md` (raw)

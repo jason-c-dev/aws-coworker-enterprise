@@ -31,7 +31,7 @@ These lessons run deeper than the Part 1 bugs. They're about the difference betw
 - The Well-Architected skill had `- [ ] Logging enabled?` as a checklist item — never enforced
 - The governance guardrails had "ALWAYS: Logging" — never consulted by the WAR process
 
-**The EC2 absurdity:** A t2.micro instance deployed to host a static HTML space invaders game received ✅ for Cost Optimization. The "correct" architecture would have been S3 + CloudFront — the EC2 approach was fundamentally wrong, not just suboptimal. But the WAR couldn't flag this because it was evaluating the *configuration* of the chosen service, not whether the *choice of service* was appropriate.
+**The EC2 absurdity:** A t2.micro instance deployed to host a static HTML retro arcade style game received ✅ for Cost Optimization. The "correct" architecture would have been S3 + CloudFront — the EC2 approach was fundamentally wrong, not just suboptimal. But the WAR couldn't flag this because it was evaluating the *configuration* of the chosen service, not whether the *choice of service* was appropriate.
 
 **The lesson:** A WAR that the planner self-certifies is not a review — it's a rubber stamp. Real assessment requires evaluating the architecture against a defined baseline, not asking the implementor to grade their own work.
 
