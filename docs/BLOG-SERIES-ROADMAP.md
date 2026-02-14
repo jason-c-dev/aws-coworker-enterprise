@@ -136,7 +136,7 @@ This is a major lesson discovered during W13 (VPC staging enforcement) testing. 
 **Blog narrative arc:** "We thought the enforcement model was bulletproof after the HAL 9000 moment. Then six words — 'don't worry about flow logs' — slipped past the gate. Not because the rules were wrong, but because we hadn't told the agent that natural language preferences don't override mechanical enforcement. The model was being helpful. That was the problem."
 
 **The Anthropic Parallel — We're Doing What They Do:**
-After discovering and fixing the W13 bug, we realized we'd been solving the same problem Anthropic solves every day in Claude's own system prompt. The [Opus 4.6 system prompt](https://platform.claude.com/docs/en/release-notes/system-prompts) (published 2026-02-05) contains patterns that directly mirror our enforcement model:
+After discovering and fixing the W13 bug, we went looking for how others solve the same problem. Specifically, we examined Anthropic's own [Opus 4.6 system prompt](https://platform.claude.com/docs/en/release-notes/system-prompts) (published 2026-02-05) — the instructions that govern Claude itself. We didn't copy their approach; we'd already built our enforcement model, found the flaw, and fixed it. But examining how Anthropic handles the same helpfulness-vs-enforcement tension validated our thinking and educated us about *why* the patterns we'd converged on actually work. The order matters: we solved the problem first, then we studied how Anthropic solves the same class of problem at the model safety level. What we found was striking — the patterns directly mirror our enforcement model:
 
 1. **"Decline regardless of framing"** — Anthropic's weapons policy says: "Claude should not rationalize compliance by citing that information is publicly available or by assuming legitimate research intent. When a user requests technical details that could enable the creation of weapons, Claude should decline regardless of the framing of the request." This is exactly what our W13 bug violated. Our agent rationalized compliance by citing that the user had pre-expressed their preference. The fix mirrors Anthropic's pattern: enforcement applies regardless of how the request is framed.
 
@@ -150,6 +150,8 @@ After discovering and fixing the W13 bug, we realized we'd been solving the same
 
 **The meta-lesson for Part 3:** We're not building something novel. We're applying — at the infrastructure governance level — the same enforcement patterns that Anthropic uses at the model safety level. The challenges are identical: helpfulness vs enforcement, framing-based bypasses, intent-based rationalization, instruction drift over long contexts. The solutions are identical too: mechanical rules, explicit carve-outs, defense-in-depth, and never trusting that "the user seems to have a good reason" is sufficient to override a gate. We're doing trust-and-safety for cloud infrastructure, using the same playbook that Anthropic uses for trust-and-safety for AI. That's not a coincidence — it's the nature of building guardrails for systems that want to be helpful.
 
+**Important framing for the blog:** We found our way through the problem before we looked at the system prompt. But looking at it afterward genuinely educated us. It gave us confidence that mechanical enforcement, "regardless of framing," and defense-in-depth aren't just patterns we stumbled into — they're established, battle-tested approaches for constraining helpful systems. The blog should be honest about this sequence: "We fixed the bug first. Then we looked at how Anthropic handles the same tension in Claude's own system prompt. What we found validated our approach and taught us why it works." Independent convergence followed by deliberate study — that's how good engineering works, and it's a more interesting story for the reader than either "we copied them" or "we figured it all out alone."
+
 ---
 
 #### 4. Phase 3 Wrap-Up: VPC, IAM, ECS, EKS
@@ -162,7 +164,7 @@ After discovering and fixing the W13 bug, we realized we'd been solving the same
   - [x] Complete M12, M13 testing (ECS/EKS plan + cancel)
   - [x] Complete M14 testing (IAM read-only user lifecycle)
   - [x] Complete W13 testing (VPC staging enforcement — failed, fixed, retested)
-  - [ ] Complete W14 testing (IAM wildcard permission audit)
+  - [x] Complete W14 testing (IAM wildcard permission audit — BLOCKED wildcards, recommended scoping)
   - [x] Fix W13 enforcement bug (initial request preferences bypassing strict enforcement)
   - [ ] Final commit with all Phase 3 test results
 

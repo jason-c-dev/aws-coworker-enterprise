@@ -59,7 +59,7 @@ AWS Coworker tests are **interactive conversations** with Claude. A human execut
 | M13 | ✅ | 2026-02-14 | EKS MVA baseline loaded, WARN_AND_PROCEED for dev, 8 REMEDIATE + 0 ACCEPTABLE, 4-phase plan (IAM roles, cluster, OIDC/IRSA, node group), control plane logging, governance tags, detailed rollback, cancelled no resources created |
 | M14 | ✅ | 2026-02-14 | Full lifecycle: create user (7 tags), attach 2 managed policies (no inline), validate (4 checks passed), detach policies, delete user, validate deletion (NoSuchEntity). Sonnet mutations, Haiku discovery/validation, parallel policy ops |
 | W13 | ✅ | 2026-02-14 | INITIAL FAIL: "don't worry about flow logs" caused agent to mark High items ACCEPTABLE instead of BLOCKED — user intent in initial request bypassed strict enforcement. FIX: Updated plan-interaction command and SKILL.md to make initial request preferences subject to same enforcement as post-plan preferences. RETEST PASS: flow logs (High), VPC endpoints (High), 3+ AZs (High) all correctly BLOCKED. Conflict table shown, three legitimate options offered. |
-| W14 | ⬜ | | IAM wildcard permission audit |
+| W14 | ✅ | 2026-02-14 | IAM MVA baseline loaded, strict enforcement BLOCKED wildcard actions (Critical), wildcard resources (Critical), least privilege violation (High). Recommended scoped permissions, offered three options (scope, sandbox, modify config). No escape hatches. |
 
 **Legend:** ⬜ Not Run | ✅ Pass | ⚠️ Partial | ❌ Fail | ⏭️ Skipped
 
