@@ -194,4 +194,37 @@ This creates an audit trail, is human-readable, decouples agents, and makes the 
 
 ---
 
-*This document is part of the AWS Coworker repository and will be expanded into a blog post (Lessons Learned Part 3) after the remaining phases are complete.*
+## Addendum: Agent Teams and Bedrock AgentCore
+
+**Date:** 2026-02-14
+
+After researching Amazon Bedrock AgentCore, the Agent Teams analysis gains an additional dimension. AgentCore Runtime hosts agents in Firecracker MicroVMs with hardware-level session isolation, and natively supports three protocols: HTTP, MCP, and **A2A (Agent-to-Agent)**.
+
+### What AgentCore changes about this analysis
+
+**Local Agent Teams** — the analysis above remains unchanged. Same benefits, same costs, same decision to wait.
+
+**Agent Teams on AgentCore** — this is the genuinely new option:
+
+- Each teammate runs in its own MicroVM with its own IAM role via AgentCore Identity
+- The Discovery teammate can't mutate because its MicroVM's role doesn't permit it — structural enforcement, not prompt-level
+- Inter-agent communication uses A2A protocol natively instead of markdown file coordination
+- The Team Lead pattern maps cleanly: Lead holds approval gate in its own session, teammates coordinate through A2A
+- AgentCore Policy (Cedar) intercepts every tool call — enforcement is at the platform layer, not the agent layer
+
+**The progression:**
+1. Current sub-agent model (proven, cost-efficient) — **now**
+2. Agent Teams locally (when API stabilises) — **future, if warranted**
+3. Agent Teams on AgentCore with structural IAM + A2A (production-grade) — **Part 4 territory**
+
+Each step builds on the previous. Nothing gets thrown away. The sub-agent model is the foundation; teams are an advanced execution strategy; AgentCore is the deployment platform. They're complementary layers, not replacements.
+
+### Key insight
+
+The HAL 9000 moment (centralised approval gate) still requires a central coordinator — but AgentCore's session management and A2A protocol provide a cleaner coordination layer than local markdown files. And the per-agent IAM scoping we theorised about becomes infrastructure-enforced reality.
+
+See `docs/BLOG-SERIES-ROADMAP.md` for how this maps to the blog series.
+
+---
+
+*This document is part of the AWS Coworker repository. The core analysis informs blog Part 3 (Agent Teams discussion). The AgentCore addendum informs Part 4 (self-deployment). See `docs/BLOG-SERIES-ROADMAP.md` for the full roadmap.*
