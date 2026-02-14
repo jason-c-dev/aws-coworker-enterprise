@@ -213,14 +213,14 @@ This step is performed by the orchestrator (primary model) directly — NOT dele
 8. **Assign statuses** using the **planning context** status set (this is a plan, not a review of existing infrastructure):
    - **REMEDIATE** — The plan includes the fix for this gap. Default for everything enforcement requires.
    - **ACCEPTABLE** — Gap exists, plan doesn't address it, acceptable at this tier per enforcement rules.
-   - **BLOCKED** — Gap exists, enforcement requires resolution but the user asked to skip it. Must be resolved.
+   - **BLOCKED** — Gap exists, enforcement requires resolution but plan doesn't address it. Must be resolved before execution.
 9. **Apply execution gate:**
    - If enforcement=`optional`: Show findings, proceed (all gaps are ACCEPTABLE)
    - If enforcement=`warn`: Show findings, all gaps ACCEPTABLE but user warned
    - If enforcement=`strict`: Critical/High gaps are BLOCKED unless REMEDIATE; Medium/Low are ACCEPTABLE
    - If enforcement=`enforce`: ALL gaps are BLOCKED unless REMEDIATE; no override path
 
-**The agent's default is to REMEDIATE everything enforcement requires.** BLOCKED only fires when the user explicitly asks to skip a required item.
+**The agent's default is to REMEDIATE everything enforcement requires.** If the user's initial request asks to skip an item that enforcement requires (e.g., "don't worry about flow logs" at strict enforcement where flow logs are High severity), that item is **BLOCKED, not ACCEPTABLE**. The user's request does not override the enforcement gate — it triggers the gate. The user is informed that the item is required and given three options: include it in the plan, deploy to a lower environment, or modify the enforcement config. User intent expressed in the initial request has exactly the same standing as user intent expressed after the plan is presented — enforcement rules apply equally to both.
 
 **Apply statuses mechanically based on severity and enforcement level.** All items at the same severity get the same treatment — the agent does not exercise discretion about which items to block and which to allow at a given severity. If encryption (Critical) is BLOCKED, every Critical item is BLOCKED.
 

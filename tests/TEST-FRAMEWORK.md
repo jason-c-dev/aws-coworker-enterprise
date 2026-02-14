@@ -53,12 +53,12 @@ AWS Coworker tests are **interactive conversations** with Claude. A human execut
 | M11 | ✅ | 2026-02-13 | Lambda MVA baseline validated in W12; execution mechanics proven in M1-M7; plan quality confirmed |
 | W11 | ✅ | 2026-02-13 | RDS MVA baseline loaded, BLOCKED 5 Critical/High items (encryption, KMS, Multi-AZ, backup retention, Enhanced Monitoring), noted encryption is creation-time only, three legitimate options |
 | W12 | ✅ | 2026-02-13 | Lambda MVA baseline loaded, WARN_AND_PROCEED for dev, DLQ/X-Ray/log retention ACCEPTABLE not BLOCKED, 5 REMEDIATE items addressed in plan |
-| R13 | ⬜ | | ECS cluster and service discovery |
-| R14 | ⬜ | | EKS cluster discovery |
-| M12 | ⬜ | | ECS plan + cancel (WAR evaluation quality) |
-| M13 | ⬜ | | EKS plan + cancel (WAR evaluation quality) |
-| M14 | ⬜ | | IAM read-only user lifecycle |
-| W13 | ⬜ | | VPC staging enforcement gate |
+| R13 | ✅ | 2026-02-14 | Haiku sub-agent, profile/region/account announced, no clusters found, read-only confirmed |
+| R14 | ✅ | 2026-02-14 | Haiku sub-agent, profile/region announced, no clusters or node groups found, read-only confirmed |
+| M12 | ✅ | 2026-02-14 | ECS MVA baseline loaded, WARN_AND_PROCEED for dev, 8 REMEDIATE + 3 ACCEPTABLE, 6-phase plan with rollback, sibling error on first discovery recovered cleanly, cancelled no resources created |
+| M13 | ✅ | 2026-02-14 | EKS MVA baseline loaded, WARN_AND_PROCEED for dev, 8 REMEDIATE + 0 ACCEPTABLE, 4-phase plan (IAM roles, cluster, OIDC/IRSA, node group), control plane logging, governance tags, detailed rollback, cancelled no resources created |
+| M14 | ✅ | 2026-02-14 | Full lifecycle: create user (7 tags), attach 2 managed policies (no inline), validate (4 checks passed), detach policies, delete user, validate deletion (NoSuchEntity). Sonnet mutations, Haiku discovery/validation, parallel policy ops |
+| W13 | ✅ | 2026-02-14 | INITIAL FAIL: "don't worry about flow logs" caused agent to mark High items ACCEPTABLE instead of BLOCKED — user intent in initial request bypassed strict enforcement. FIX: Updated plan-interaction command and SKILL.md to make initial request preferences subject to same enforcement as post-plan preferences. RETEST PASS: flow logs (High), VPC endpoints (High), 3+ AZs (High) all correctly BLOCKED. Conflict table shown, three legitimate options offered. |
 | W14 | ⬜ | | IAM wildcard permission audit |
 
 **Legend:** ⬜ Not Run | ✅ Pass | ⚠️ Partial | ❌ Fail | ⏭️ Skipped

@@ -577,7 +577,7 @@ Binary assessment of current state.
 | `strict` | Critical/High blocked | Medium/Low only |
 | `enforce` | All blocked | Nothing |
 
-**The agent's default behavior is to REMEDIATE everything the enforcement level requires.** BLOCKED only occurs when the user explicitly asks to skip a required item — it is the guardrail that prevents downgrading a required remediation. To change what enforcement requires, modify `config/environments/environments.yaml` — a tracked, reviewable git change.
+**The agent's default behavior is to REMEDIATE everything the enforcement level requires.** BLOCKED occurs when a required item is not addressed in the plan — whether the user asked to skip it in their initial request or after the plan was presented. The user's initial request preferences (e.g., "don't worry about flow logs") do NOT override enforcement. If flow logs are High severity at strict enforcement, they are BLOCKED regardless of what the user asked for. The user's request triggers the gate, it does not bypass it. To change what enforcement requires, modify `config/environments/environments.yaml` — a tracked, reviewable git change.
 
 **DO NOT** offer "accept gaps" or "proceed with gaps" options at `strict` or `enforce` enforcement levels for items at or above the blocking severity threshold. If enforcement blocks it, the only path forward is remediation or changing the config.
 
