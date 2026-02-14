@@ -272,6 +272,12 @@ That's the nature of building with AI: the system is never finished because the 
 
 We'll keep writing them.
 
+**Want to try it yourself?**
+
+The code is available at [github.com/jason-c-dev/aws-coworker-enterprise](https://github.com/jason-c-dev/aws-coworker-enterprise). It's experimental — expect rough edges — but the patterns are real and the lessons are hard-won. PRs welcome.
+
+For the original blog with code examples and tables, see the [GitHub Pages version](https://jason-c-dev.github.io/aws-coworker-enterprise/LESSONS-LEARNED-PART-2.html).
+
 **What happened next?**
 
 The enforcement gate held. The MVA baselines worked across six services — then ten, as we extended across VPC, IAM, ECS, and EKS. The architecture proved service-agnostic: same baseline format, same enforcement model, same mechanical rules, whether we were evaluating an S3 bucket or an EKS cluster. We felt good — again.
@@ -281,12 +287,6 @@ Then two things happened at once. First, we looked at *how* the agents were auth
 Second, Anthropic shipped [Agent Teams](https://docs.anthropic.com/en/docs/agents/multi-agent) for Claude Code — a coordination model that lets agents work as teammates rather than subordinates. We looked at it seriously. We did the analysis. We made a deliberate architectural decision. Spoiler: we waited — and the reasons why tell you more about building production agent systems than the feature itself.
 
 Coming Soon — Part 3: *From Admin Keys to Agent Roles: Least Privilege and the Road to Self-Deployment*
-
-**Want to try it yourself?**
-
-The code is available at [github.com/jason-c-dev/aws-coworker-enterprise](https://github.com/jason-c-dev/aws-coworker-enterprise). It's experimental — expect rough edges — but the patterns are real and the lessons are hard-won. PRs welcome.
-
-For the original blog with code examples and tables, see the [GitHub Pages version](https://jason-c-dev.github.io/aws-coworker-enterprise/LESSONS-LEARNED-PART-2.html).
 
 ---
 
