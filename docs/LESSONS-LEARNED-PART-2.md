@@ -322,6 +322,10 @@ That's the nature of building with AI: the system is never finished because the 
 
 We'll keep writing them.
 
+**What happened next?**
+
+The enforcement gate held. The MVA baselines worked across six services. We felt good — again. Then we looked at *how* the agents were authenticating with AWS: every sub-agent, from the read-only Haiku discovery worker to the Sonnet mutation executor, was using the same admin access key. The agent that could only *list* your S3 buckets had the same credentials as the one that could *delete* them. We'd built a safety model with enforcement gates, approval workflows, and mechanical rules — and then handed every agent the master key. Coming Soon — Part 3: *From Admin Keys to Agent Roles: Least Privilege and the Road to Self-Deployment*
+
 **Want to try it yourself?**
 
 The code is available at [github.com/jason-c-dev/aws-coworker-enterprise](https://github.com/jason-c-dev/aws-coworker-enterprise). It's experimental — expect rough edges — but the patterns are real and the lessons are hard-won. PRs welcome.
