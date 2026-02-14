@@ -168,12 +168,59 @@ After discovering and fixing the W13 bug, we went looking for how others solve t
   - [x] Fix W13 enforcement bug (initial request preferences bypassing strict enforcement)
   - [ ] Final commit with all Phase 3 test results
 
-#### 5. Looking Ahead: The Inception Moment (Teaser Only)
+#### 5. The Self-Extending System: Learning From What You Build (Tenets 8 & 9)
+This section demonstrates the promise of Tenets 8 ("Layered and Extensible") and 9 ("Self-Extending System") — the idea that AWS Coworker learns from its own operations and encodes that learning as reusable skills.
+
+**The Problem:**
+- Every deployment so far starts from scratch: discovery → planning → assessment → execution
+- We have 10 MVA baselines, but no reusable deployment patterns
+- The agent does the same discovery and planning work every time someone needs a similar deployment
+- Tenet 9 promised a self-extending system, but we haven't delivered on it yet
+
+**The Demonstration: Bastion Host → Reusable Skill**
+- Deploy a bastion host through the normal plan-execute workflow (VPC, security group, EC2, key pair)
+- The deployment is deliberately simple — the bastion isn't the point, the skill creation is
+- After successful deployment, ask the agent: "Turn what you just did into a reusable skill"
+- The agent creates a bastion deployment skill with:
+  - MVA baseline requirements baked in
+  - Security group rules encoded (SSH from specific CIDRs only)
+  - Governance tags templated
+  - Environment-aware configuration (dev: permissive, staging/prod: locked down)
+- Next time someone needs a bastion, the skill carries the learned architecture forward
+- No more starting from scratch — the system learned from experience
+
+**Why This Matters:**
+- Skills are filesystem artifacts — markdown files in a directory structure
+- This means learned patterns are portable, version-controlled, and reviewable
+- It bridges Phase 3 (we've proven the architecture across 10 services) to the AgentCore teaser (skills bake into Docker containers)
+- The narrative arc: "We've been writing skills by hand. What if the system wrote them from experience?"
+
+**The Bridge to AgentCore:**
+- Skills as filesystem artifacts → bake into Docker container → deploy to AgentCore
+- The skill the agent creates locally works identically when deployed to AgentCore
+- This connects the self-extending loop to the inception concept naturally
+
+**Implementation required:**
+- [ ] Deploy a bastion host through normal AWS Coworker workflow
+- [ ] Ask the agent to generate a reusable skill from the deployment
+- [ ] Validate the generated skill contains MVA items, governance tags, environment awareness
+- [ ] (Stretch) Use the generated skill to deploy a second bastion and compare quality
+- [ ] Document what worked and what the agent got right/wrong in skill generation
+
+**Cross-references:**
+- Tenet 8: "Layered and Extensible" — skills layer on top of the core system
+- Tenet 9: "Self-Extending System" — the system creates its own extensions from experience
+- Part 2 Section 5: "When Agents Improve Your Spec" — emergent behavior in skill generation is the same dynamic
+
+---
+
+#### 6. Looking Ahead: The Inception Moment (Teaser Only)
 - AWS Coworker deploying itself — the concept
 - Brief introduction to Bedrock AgentCore as the target platform
 - Why the safety model is deployment-agnostic
-- **NOT a how-to guide** — that's Part 4
-- This section sets up the narrative: "we've built the foundation, now we're going to deploy it"
+- Skills as portable filesystem artifacts that bake into containers (connects to Section 5)
+- **NOT a how-to guide** — that's Track B
+- This section sets up the narrative: "we've built the foundation, the system can learn from itself, now we're going to deploy it"
 - **Implementation required:** None — this is a teaser, not a build report
 
 ### What Part 3 Does NOT Cover
