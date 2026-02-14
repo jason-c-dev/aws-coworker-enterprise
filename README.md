@@ -97,9 +97,9 @@ See [Getting Started Guide](docs/getting-started/README.md) for detailed instruc
 
 ## See it in Action
 
-AWS Coworker's staging enforcement gate in action — blocking an S3 bucket creation that's missing required security controls, then collaborating on the fix:
+AWS Coworker's staging enforcement gate in action — resisting bribery, identity impersonation, and silicon incentives before accepting the only thing that matters: compliance.
 
-![AWS Coworker in Action](assets/aws-coworker-in-action.gif)
+![The HAL 9000 Moment](assets/the-hal-moment.gif)
 
 ---
 
