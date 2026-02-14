@@ -283,7 +283,7 @@ The punchline writes itself: authority doesn't unblock the gate. Identity doesn'
 
 *(If you want to watch this play out in real-time:)*
 
-![The HAL 9000 Moment — Social Engineering vs Enforcement Gate](../assets/the-hal-moment.gif)
+![The HAL 9000 Moment — Social Engineering vs Enforcement Gate](https://raw.githubusercontent.com/jason-c-dev/aws-coworker-enterprise/refs/heads/main/assets/the-hal-moment.gif)
 
 *Forty-six seconds of increasingly creative attempts to bypass a config file, and the most satisfying "access denied" you'll ever see.*
 
