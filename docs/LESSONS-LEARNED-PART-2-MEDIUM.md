@@ -301,13 +301,9 @@ For the original blog with code examples and tables, see the [GitHub Pages versi
 
 **What happened next?**
 
-The enforcement gate held. The MVA baselines worked across six services — then ten, as we extended across VPC, IAM, ECS, and EKS. The architecture proved service-agnostic: same baseline format, same enforcement model, same mechanical rules, whether we were evaluating an S3 bucket or an EKS cluster. We felt good — again.
+The enforcement gate held. The MVA baselines scaled to ten services. We felt good — again. Then we discovered every sub-agent, from the read-only Haiku discovery worker to the Sonnet mutation executor, was using the same admin access key. We'd built enforcement gates and approval workflows, then handed every agent the master key. While we were fixing that, Anthropic shipped [Agent Teams](https://docs.anthropic.com/en/docs/agents/multi-agent) for Claude Code. We looked at it seriously. We said "not yet" — and the reasons why tell you more about building production agent systems than the feature itself. And then, once least privilege was sorted, we asked the agent to deploy a change. It deployed *itself*.
 
-Then two things happened at once. First, we looked at *how* the agents were authenticating with AWS: every sub-agent, from the read-only Haiku discovery worker to the Sonnet mutation executor, was using the same admin access key. The agent that could only *list* your S3 buckets had the same credentials as the one that could *delete* them. We'd built a safety model with enforcement gates, approval workflows, and mechanical rules — and then handed every agent the master key.
-
-Second, Anthropic shipped [Agent Teams](https://docs.anthropic.com/en/docs/agents/multi-agent) for Claude Code — a coordination model that lets agents work as teammates rather than subordinates. We looked at it seriously. We did the analysis. We made a deliberate architectural decision. Spoiler: we waited — and the reasons why tell you more about building production agent systems than the feature itself.
-
-Coming Soon — Part 3: *Every Agent Had the Master Key. Anthropic Shipped Agent Teams. We Said "Not Yet." Then the Agent Deployed Itself.*
+Coming Soon — Part 3: *The Master Key Problem: Least Privilege, Agent Teams, and the Inception Moment*
 
 ---
 
