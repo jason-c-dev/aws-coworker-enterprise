@@ -45,19 +45,59 @@ Example questions:
 - "Are there any specific constraints I should know about?"
 ```
 
-### Step 2: Identify Profile and Region
+### Step 2: Identify Profile, Region, and Classify Environment
 
-Based on the target environment:
+Based on the target environment, determine the AWS profile, region, and environment classification using this **three-step fallback chain**:
 
-1. Determine appropriate AWS profile
-2. Confirm target region
-3. Announce before any AWS operations:
+#### Step 2a: Infer classification from profile name
+
+Match the profile name against known patterns:
+
+| Pattern | Classification |
+|---------|---------------|
+| `*sandbox*` | sandbox |
+| `*-dev-*` or `*-dev` | development |
+| `*-test-*` or `*-test` | test |
+| `*-staging-*` or `*-staging` | staging |
+| `*-prod-*` or `*-prod` | production |
+| `*-production-*` or `*-production` | production |
+
+If a pattern matches, use that classification. **Classification source: `inferred from name`.**
+
+#### Step 2b: Check AWS CLI config for explicit classification
+
+If no pattern matches, check whether the user has set a custom classification in their AWS CLI config:
+
+```bash
+aws configure get aws_coworker_classification --profile {profile-name}
+```
+
+If the command returns a valid classification (one of: sandbox, development, test, staging, production), use it. **Classification source: `explicit in ~/.aws/config`.**
+
+> **How users set this:** `aws configure set aws_coworker_classification development --profile acme-dept-a`
+> This keeps profile classification in the same file as credentials — single source of truth.
+
+#### Step 2c: Default to unknown (read-only)
+
+If neither inference nor explicit mapping yields a classification:
+- Classification: `unknown`
+- Permissions: `read-only`
+- Approval required: `all-mutations`
+
+Inform the user that the profile is unclassified and suggest they set the classification in their AWS CLI config:
+```bash
+aws configure set aws_coworker_classification {classification} --profile {profile-name}
+```
+**Classification source: `default (unknown)`.**
+
+#### Announce before any AWS operations:
 
 ```
 I will use:
 - Profile: {profile-name}
 - Region: {region}
-- Environment classification: {sandbox|development|staging|production}
+- Environment classification: {classification}
+- Classification source: {inferred from name | explicit in ~/.aws/config | default (unknown)}
 
 This is a planning session - I will only run read-only discovery commands.
 ```

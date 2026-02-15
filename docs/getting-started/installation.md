@@ -129,52 +129,32 @@ AWS Coworker ships with **batteries-included defaults** — core config files ar
 | File | Purpose | Action Needed |
 |------|---------|---------------|
 | `config/environments/environments.yaml` | Environment tier definitions (sandbox through production) with safety rules | **None** — review and use as-is, or override with `environments.local.yaml` |
-| `config/profiles/profiles.yaml` | Profile schema and auto-classify patterns (maps profile names to environments) | **None** — works with standard naming conventions |
 
 ### What You Customize (Organization)
 
 | File | Purpose | Action Needed |
 |------|---------|---------------|
-| `config/profiles/profiles.local.yaml` | Your specific AWS CLI profile-to-environment mappings | **Create** — see `example-profiles.yaml` for reference |
+| `~/.aws/config` | Profile classification for non-obvious profile names | **Set `aws_coworker_classification`** on profiles that don't match auto-classify patterns |
 | `config/org-config/org-config.yaml` | Your OU structure, tagging standards, naming conventions | **Create if needed** — see `example-org-config.yaml` for reference |
 
 All `*.local.yaml` files are gitignored, so your organization-specific configuration stays out of the shared repository.
 
-### Adding Your Profile Mappings
+### Classifying Your Profiles
 
-Create `config/profiles/profiles.local.yaml` with your specific profiles:
+AWS Coworker auto-classifies profiles whose names contain keywords like `dev`, `test`, `staging`, or `prod`. For profiles with non-obvious names (e.g., `acme-analytics-east`, `finance-reporting-2`), set the classification directly in your AWS CLI config:
 
-```yaml
-# config/profiles/profiles.local.yaml (gitignored — your org's profiles)
-profiles:
-  default:
-    classification: development
-    permissions: read-write
-    description: Default development profile
-
-  dev-admin:
-    classification: development
-    permissions: read-write
-    description: Development admin access
-
-  staging-readonly:
-    classification: staging
-    permissions: read-only
-    description: Staging read-only access
-
-  prod-readonly:
-    classification: production
-    permissions: read-only
-    description: Production read-only access
-
-  prod-admin:
-    classification: production
-    permissions: read-write
-    require_approval: always
-    description: Production admin - emergency use only
+```bash
+# Set classification for profiles that don't match auto-classify patterns
+aws configure set aws_coworker_classification development --profile acme-analytics-east
+aws configure set aws_coworker_classification staging --profile finance-reporting-2
+aws configure set aws_coworker_classification production --profile prod-admin
 ```
 
-> **Note:** If your profiles follow standard naming conventions (e.g., `myorg-dev-admin`, `myorg-prod-readonly`), the auto-classify patterns in the core `profiles.yaml` will detect them automatically. You only need `profiles.local.yaml` for profiles that don't match the patterns or need custom settings.
+Valid classifications: `sandbox`, `development`, `test`, `staging`, `production`.
+
+This keeps profile classification in `~/.aws/config` alongside your credentials and region settings — single source of truth, no additional config files to maintain.
+
+> **Note:** If your profiles follow standard naming conventions (e.g., `myorg-dev-admin`, `myorg-prod-readonly`), auto-classify detects them automatically. You only need to set `aws_coworker_classification` for profiles whose names don't encode the environment tier.
 
 ### Adding Organization Configuration (Optional)
 
@@ -272,7 +252,7 @@ git pull origin main
 If you have organization customizations:
 
 1. Ensure customizations use `*.local.yaml` files or are in `skills/org/`
-2. Core config files (`environments.yaml`, `profiles.yaml`) may be updated — review diffs
+2. Core config files (`environments.yaml`) may be updated — review diffs
 3. Your `*.local.yaml` overrides and `skills/org/` content survive upgrades
 4. Review CHANGELOG for any breaking changes to core defaults
 

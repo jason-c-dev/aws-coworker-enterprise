@@ -158,20 +158,20 @@ After discovering and fixing the W13 bug, we went looking for how others solve t
 
 ---
 
-#### 3.5 Backlog: Wire `profiles.yaml` Into the Profile Classification Path
-- **The gap:** Profile environment classification currently works by Claude inferring the tier from the profile name (e.g., `aws-coworker-test` → test). If the name doesn't contain an obvious keyword, the profile defaults to unknown/read-only.
-- **What exists but isn't wired:** `profiles.yaml` has a schema for explicit profile-to-environment mappings, but no command or agent currently says "read `profiles.yaml` if you can't infer the tier from the name."
-- **The fix:** Add a fallback chain to the plan-interaction command's profile handling:
-  1. Infer environment tier from the profile name (auto-classify by naming convention)
-  2. If inference fails, read `config/profiles/profiles.yaml` (or `profiles.local.yaml`) for explicit mappings
-  3. If no mapping found, default to unknown/read-only
-- **Why it matters:** Auto-classify only works because we conveniently named our profiles. Real enterprises have profiles like `acme-analytics-east` or `finance-reporting-2` where naming conventions don't encode environment tiers. Without this fix, every non-obvious profile is stuck in read-only.
-- **Where to implement:** `aws-coworker-plan-interaction.md` profile handling step, and potentially the core agent or planner agent identity
-- **Blog reference:** Part 2 Section 3 ("Batteries Included, Batteries Flat") identifies this gap honestly. Part 3 should close it.
-- **Implementation required:**
-  - [ ] Add fallback chain to plan-interaction command
-  - [ ] Test with a non-obvious profile name (e.g., `xyz-123`) to confirm it reads profiles.yaml
-  - [ ] Document the classification path in the installation guide
+#### 3.5 ~~Backlog~~ DONE: Profile Classification Fallback Chain
+- **The gap:** Profile environment classification worked by Claude inferring the tier from the profile name (e.g., `aws-coworker-test` → test). If the name didn't contain an obvious keyword, the profile defaulted to unknown/read-only.
+- **What we discovered:** `profiles.yaml` had a schema for explicit profile-to-environment mappings, but no command or agent read it. More importantly, `profiles.yaml` was a redundant config file — the auto-classify patterns were already embedded in the plan-interaction command, and explicit mappings belong in `~/.aws/config` alongside credentials (single source of truth).
+- **The fix:** Added a three-step fallback chain to the plan-interaction command AND eliminated `profiles.yaml` entirely:
+  1. Infer environment tier from the profile name (auto-classify patterns in the command)
+  2. If inference fails, check `~/.aws/config` for `aws_coworker_classification` custom attribute
+  3. If no classification found, default to unknown/read-only
+- **Why `~/.aws/config` instead of `profiles.yaml`:** AWS CLI config supports arbitrary custom attributes (`aws configure set/get`). This means profile classification lives alongside credentials and region — no separate config file to maintain, no sync issues, single source of truth.
+- **Blog reference:** Part 2 Section 3 ("Batteries Included, Batteries Flat") identifies the gap honestly. Part 3 closes it with a better solution than originally planned.
+- **Implementation completed:**
+  - [x] Add fallback chain to plan-interaction command
+  - [x] Eliminate `profiles.yaml` and `example-profiles.yaml` (redundant)
+  - [x] Update all documentation to reference `~/.aws/config`
+  - [ ] Test with a non-obvious profile name (e.g., `acme-dept-a`) mapped via `aws configure set`
 
 #### 4. Phase 3 Wrap-Up: VPC, IAM, ECS, EKS
 - Service-agnostic architecture proven across 10 services

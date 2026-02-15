@@ -86,8 +86,7 @@ This doesn't break Tenet 8 because:
 | File | Layer | Committed? |
 |------|-------|------------|
 | `environments.yaml` | Core | Yes — universal environment tiers |
-| `profiles.yaml` | Core | Yes — schema + auto-classify patterns |
-| `example-profiles.yaml` | Reference | Yes — org-specific mapping examples |
+| `~/.aws/config` (`aws_coworker_classification`) | User | N/A — profile classification lives in user's existing AWS CLI config |
 | `example-org-config.yaml` | Reference | Yes — no sensible core default exists |
 
 **The override pattern:** Organization customizations use `*.local.yaml` files, which are already gitignored. This means core defaults are always present after clone, and org-specific configuration never pollutes the shared repo.

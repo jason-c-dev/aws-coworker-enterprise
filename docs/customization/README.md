@@ -37,7 +37,7 @@ AWS Coworker ships with core defaults that work out of the box. Customization us
 |----------|---------|------------------|
 | `skills/org/` | Organization policies | ✅ Add/modify freely |
 | `config/org-config/` | Organization configuration | ✅ Create `org-config.yaml` from `example-org-config.yaml` |
-| `config/profiles/` | Profile classifications | ✅ Create `profiles.local.yaml` for your profiles (core schema is committed) |
+| `~/.aws/config` | Profile classifications | ✅ Set `aws_coworker_classification` on profiles with non-obvious names |
 | `config/environments/` | Environment definitions | ✅ Create `environments.local.yaml` to override core defaults |
 | `skills/aws/` | AWS service patterns | ⚠️ Extend only |
 | `skills/core/` | Foundational patterns | ⚠️ Extend only |
@@ -57,13 +57,11 @@ config/
 │   ├── environments.yaml          # Core defaults (committed, don't modify)
 │   ├── environments.local.yaml    # Your overrides (gitignored)
 │   └── example-environments.yaml  # Reference template
-├── profiles/
-│   ├── profiles.yaml              # Core schema + auto-classify (committed, don't modify)
-│   ├── profiles.local.yaml        # Your profile mappings (gitignored)
-│   └── example-profiles.yaml      # Reference template
 └── org-config/
     ├── org-config.yaml            # Your org config (you create this)
     └── example-org-config.yaml    # Reference template
+
+~/.aws/config                      # Profile classification (aws_coworker_classification)
 ```
 
 **Key principle:** Higher layers (org, BU) can ADD requirements (raise the bar) but cannot LOWER core safety defaults. Only the user can accept gaps below core defaults, and only for non-production environments.

@@ -101,7 +101,7 @@ AWS Coworker uses three layers with clear precedence:
 
 **Key principle:** Extend, don't modify core. Organization customizations go in designated directories.
 
-**Config file strategy:** Core config files (`environments.yaml`, `profiles.yaml`) are committed to the repo and work after `git clone`. Organization overrides use `*.local.yaml` (gitignored). Org-config has no core default — it ships as `example-org-config.yaml` only. See [DESIGN.md Section 6.4](docs/DESIGN.md#64-core-vs-organization-vs-bu-separation) for full details.
+**Config file strategy:** Core config files (`environments.yaml`) are committed to the repo and work after `git clone`. Profile classification uses `~/.aws/config` (set `aws_coworker_classification` on profiles whose names don't match auto-classify patterns). Organization overrides use `*.local.yaml` (gitignored). Org-config has no core default — it ships as `example-org-config.yaml` only. See [DESIGN.md Section 6.4](docs/DESIGN.md#64-core-vs-organization-vs-bu-separation) for full details.
 
 ---
 

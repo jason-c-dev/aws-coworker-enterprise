@@ -177,8 +177,7 @@ AWS Coworker uses a layered config model. Understanding which layer a config fil
 | File | Layer | Committed? | Why |
 |------|-------|------------|-----|
 | `config/environments/environments.yaml` | **Core** | Yes | Universal environment tiers with safety rules. Every deployment needs these. |
-| `config/profiles/profiles.yaml` | **Core** | Yes | Schema + auto-classify patterns. Universal logic. |
-| `config/profiles/example-profiles.yaml` | **Reference** | Yes | Example of org-specific profile mappings. |
+| `~/.aws/config` (`aws_coworker_classification`) | **User** | N/A | Profile classification for non-obvious names. Lives in user's AWS CLI config — single source of truth. |
 | `config/org-config/example-org-config.yaml` | **Reference** | Yes | Example only. No sensible core default — this IS the org layer. |
 
 ### Override Pattern

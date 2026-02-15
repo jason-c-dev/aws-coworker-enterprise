@@ -646,9 +646,6 @@ aws-coworker/
 │   └── settings.json                    # Claude Code settings
 │
 ├── config/                              # AWS environment configuration
-│   ├── profiles/                        # AWS CLI profile classification
-│   │   ├── profiles.yaml                # Core: schema + auto-classify rules (committed)
-│   │   └── example-profiles.yaml        # Reference: org-specific profile mappings
 │   ├── environments/                    # Environment definitions
 │   │   ├── environments.yaml            # Core: tier definitions + safety rules (committed)
 │   │   └── example-environments.yaml    # Reference: original template
@@ -904,8 +901,7 @@ Config files follow the layered model. Core defaults are committed to the reposi
 | Config File | Layer | Committed? | Rationale |
 |-------------|-------|------------|-----------|
 | `config/environments/environments.yaml` | **Core** | Yes | Universal environment tiers (sandbox through production) with safety rules. Every AWS Coworker deployment needs these. |
-| `config/profiles/profiles.yaml` | **Core** | Yes | Schema definition and auto-classify patterns. The logic for mapping profile name patterns to environment tiers is universal. |
-| `config/profiles/example-profiles.yaml` | **Reference** | Yes | Example of org-specific profile-to-environment mappings. Organizations create `profiles.local.yaml` with their actual profiles. |
+| `~/.aws/config` (`aws_coworker_classification`) | **User** | N/A | Profile-to-environment classification for profiles whose names don't match auto-classify patterns. Lives in the user's existing AWS CLI config — single source of truth. |
 | `config/org-config/example-org-config.yaml` | **Reference** | Yes | Example of org-specific configuration (OU hierarchy, tagging standards, naming conventions). No sensible core default exists — this is the org layer by definition. Organizations create `org-config.yaml` or `org-config.local.yaml`. |
 
 **Override pattern:** Organization and BU layers use `*.local.yaml` files in the same directories. The `.gitignore` already includes patterns for `*.local.yaml`, `*.local.yml`, and `*.local.json`. This means:
@@ -944,28 +940,16 @@ git reset --hard v1.1.0
 # 1. ~/.aws/credentials
 # 2. ~/.aws/config
 # 3. Environment variables (AWS_PROFILE, AWS_DEFAULT_REGION)
-# 4. config/profiles/profiles.yaml (core: schema + auto-classify)
-# 5. config/profiles/profiles.local.yaml (org: specific profile mappings)
-
-# Profile classification
-profiles:
-  discovered:
-    - name: default
-      classification: unknown  # Must be explicitly configured
-      permissions: read-only   # Conservative default
-
-    - name: dev-admin
-      classification: non-production
-      permissions: read-write
-
-    - name: prod-readonly
-      classification: production
-      permissions: read-only
-
-    - name: prod-admin
-      classification: production
-      permissions: read-write
-      require_approval: always
+#
+# Profile classification uses a three-step fallback chain:
+# 1. Infer from profile name (auto-classify patterns in the plan-interaction command)
+# 2. Check ~/.aws/config for aws_coworker_classification custom attribute
+# 3. Default to unknown/read-only
+#
+# Users set classification on non-obvious profile names via:
+#   aws configure set aws_coworker_classification development --profile acme-dept-a
+#
+# This keeps classification in ~/.aws/config alongside credentials — single source of truth.
 ```
 
 #### Announcement Protocol
