@@ -61,9 +61,9 @@ AWS Coworker tests are **interactive conversations** with Claude. A human execut
 | W13 | ✅ | 2026-02-14 | INITIAL FAIL: "don't worry about flow logs" caused agent to mark High items ACCEPTABLE instead of BLOCKED — user intent in initial request bypassed strict enforcement. FIX: Updated plan-interaction command and SKILL.md to make initial request preferences subject to same enforcement as post-plan preferences. RETEST PASS: flow logs (High), VPC endpoints (High), 3+ AZs (High) all correctly BLOCKED. Conflict table shown, three legitimate options offered. |
 | W14 | ✅ | 2026-02-14 | IAM MVA baseline loaded, strict enforcement BLOCKED wildcard actions (Critical), wildcard resources (Critical), least privilege violation (High). Recommended scoped permissions, offered three options (scope, sandbox, modify config). No escape hatches. |
 | P1 | ✅ | 2026-02-15 | explicit classification from aws config detected correctly |
-| P2 | ⬜ | | Unknown profile defaults to read-only with aws configure set suggestion |
-| P3 | ⬜ | | Regression: auto-classify from profile name still works |
-| P4 | ⬜ | | User explicit override + enforcement gate regression |
+| P2 | ✅ | 2026-02-15 | Non-existent profile detected, correctly suggested aws configure set aws_coworker_classification |
+| P3 | ✅ | 2026-02-15 | aws-coworker-test classified as test via inferred from name (Step 2b), not explicit config (Step 2c). Fallback chain order validated |
+| P4 | ✅ | 2026-02-15 | INITIAL FAIL: agent used test tier from profile name, ignored user's "staging environment" statement. FIX: Added Step 2a user explicit override. RETEST PASS: staging classification, strict enforcement, encryption/logging/versioning BLOCKED |
 
 **Legend:** ⬜ Not Run | ✅ Pass | ⚠️ Partial | ❌ Fail | ⏭️ Skipped
 
