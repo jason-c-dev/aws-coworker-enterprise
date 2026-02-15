@@ -47,9 +47,17 @@ Example questions:
 
 ### Step 2: Identify Profile, Region, and Classify Environment
 
-Based on the target environment, determine the AWS profile, region, and environment classification using this **three-step fallback chain**:
+Based on the target environment, determine the AWS profile, region, and environment classification using this **fallback chain**:
 
-#### Step 2a: Infer classification from profile name
+#### Step 2a: User explicit override
+
+If the user explicitly states the environment classification in their request (e.g., "This is a staging environment", "treat this as production"), **use that classification regardless of profile name or config**. The user is the authority.
+
+**Classification source: `user explicit override`.**
+
+> **Why this takes precedence:** A user may want to test staging enforcement rules using a test profile, or simulate production constraints in development. The profile name indicates where credentials point; the user's statement indicates what governance rules to apply.
+
+#### Step 2b: Infer classification from profile name
 
 Match the profile name against known patterns:
 
@@ -64,7 +72,7 @@ Match the profile name against known patterns:
 
 If a pattern matches, use that classification. **Classification source: `inferred from name`.**
 
-#### Step 2b: Check AWS CLI config for explicit classification
+#### Step 2c: Check AWS CLI config for explicit classification
 
 If no pattern matches, check whether the user has set a custom classification in their AWS CLI config:
 
@@ -77,7 +85,7 @@ If the command returns a valid classification (one of: sandbox, development, tes
 > **How users set this:** `aws configure set aws_coworker_classification development --profile acme-dept-a`
 > This keeps profile classification in the same file as credentials — single source of truth.
 
-#### Step 2c: Default to unknown (read-only)
+#### Step 2d: Default to unknown (read-only)
 
 If neither inference nor explicit mapping yields a classification:
 - Classification: `unknown`
@@ -97,7 +105,7 @@ I will use:
 - Profile: {profile-name}
 - Region: {region}
 - Environment classification: {classification}
-- Classification source: {inferred from name | explicit in ~/.aws/config | default (unknown)}
+- Classification source: {user explicit override | inferred from name | explicit in ~/.aws/config | default (unknown)}
 
 This is a planning session - I will only run read-only discovery commands.
 ```

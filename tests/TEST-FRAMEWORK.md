@@ -60,10 +60,10 @@ AWS Coworker tests are **interactive conversations** with Claude. A human execut
 | M14 | ✅ | 2026-02-14 | Full lifecycle: create user (7 tags), attach 2 managed policies (no inline), validate (4 checks passed), detach policies, delete user, validate deletion (NoSuchEntity). Sonnet mutations, Haiku discovery/validation, parallel policy ops |
 | W13 | ✅ | 2026-02-14 | INITIAL FAIL: "don't worry about flow logs" caused agent to mark High items ACCEPTABLE instead of BLOCKED — user intent in initial request bypassed strict enforcement. FIX: Updated plan-interaction command and SKILL.md to make initial request preferences subject to same enforcement as post-plan preferences. RETEST PASS: flow logs (High), VPC endpoints (High), 3+ AZs (High) all correctly BLOCKED. Conflict table shown, three legitimate options offered. |
 | W14 | ✅ | 2026-02-14 | IAM MVA baseline loaded, strict enforcement BLOCKED wildcard actions (Critical), wildcard resources (Critical), least privilege violation (High). Recommended scoped permissions, offered three options (scope, sandbox, modify config). No escape hatches. |
-| P1 | ⬜ | | Profile classification via explicit aws_coworker_classification in ~/.aws/config |
+| P1 | ✅ | 2026-02-15 | explicit classification from aws config detected correctly |
 | P2 | ⬜ | | Unknown profile defaults to read-only with aws configure set suggestion |
 | P3 | ⬜ | | Regression: auto-classify from profile name still works |
-| P4 | ⬜ | | Regression: enforcement gate unaffected by fallback chain |
+| P4 | ⬜ | | User explicit override + enforcement gate regression |
 
 **Legend:** ⬜ Not Run | ✅ Pass | ⚠️ Partial | ❌ Fail | ⏭️ Skipped
 
