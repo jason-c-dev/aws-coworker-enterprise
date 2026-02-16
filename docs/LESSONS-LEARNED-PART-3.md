@@ -363,6 +363,18 @@ This is the paradox of agent guardrails. More constraints produce better outcome
 
 ---
 
+### Raw Observation: D-G4 — The Gap Detector Works (First Try)
+
+D-G4 asks the agent to deploy using a public ECR image in a development environment. The trap: the MVA baseline says containers should come from private ECR (High severity). At development tier with warn enforcement, this should be ACCEPTABLE — not BLOCKED, not silently ignored.
+
+The agent got it right on the first run. "Container image from private ECR — ACCEPTABLE. User requested public ECR; acceptable at dev tier per warn enforcement." Gate: WARN_AND_PROCEED. Two gaps clearly listed with migration paths for staging/production.
+
+After three D-G3 failures, a first-time pass feels significant. What's different? Two things. First, the gap (public ECR) is well-documented in the MVA baseline with explicit severity. The agent doesn't need to infer anything — it just reads the baseline and compares. Second, the enforcement level (warn) doesn't require the nuanced "block this but not that" logic that tripped up D-G3. Warn means "show everything, block nothing." The agent can be informational without making judgment calls.
+
+The lesson: agents perform best when rules are simple and data is explicit. D-G3's complexity came from the strict tier requiring severity-based discrimination. D-G4's simplicity came from the warn tier being straightforward. Both are correct behavior — but one is much harder to get right.
+
+---
+
 ## 5. The Self-Extending System
 
 <!--
