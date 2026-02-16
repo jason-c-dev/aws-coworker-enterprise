@@ -74,9 +74,11 @@
 
 **Time budget:** 1 week (5 evenings + 2 weekend days)
 
-**Narrative arc:** Parts 1-3 complete the "building and hardening" trilogy. Part 3 wraps the technical foundation with the ultimate test: we ask AWS Coworker to deploy itself as a bastion host on AWS. Every lesson from Parts 1-2 gets validated in a single conversation. Then the system captures its own deployment as a reusable skill — demonstrating extensibility.
+**Narrative arc:** Parts 1-3 complete the "building and hardening" trilogy. Part 3 wraps the technical foundation with the ultimate test: we ask AWS Coworker to deploy itself to Bedrock AgentCore — the AWS service purpose-built for AI agents. Every lesson from Parts 1-2 gets validated in a single conversation. The agent plans its own deployment, the WAR evaluates its own infrastructure, and the enforcement gate judges its own plan. Then the system captures the deployment as a reusable skill — demonstrating extensibility.
 
 **Central narrative:** "We asked AWS Coworker to deploy itself. Here's what happened."
+
+**Why AgentCore, not a bastion host:** Traditional bastion hosts are now officially a legacy anti-pattern (AWS 2025: "Toward a Bastion-less World"). Deploying one in a blog about Well-Architected governance would undermine the message. AgentCore is purpose-built for Claude agents — session isolation via Firecracker microVMs, IAM-based identity, up to 8-hour sessions, built-in observability. It also naturally solves the master key problem through per-agent scoped IAM roles.
 
 ### Blog Structure
 
@@ -86,29 +88,30 @@
 - Part 2 identified the gap ("Batteries Included, Batteries Flat" — profiles.yaml documented but not wired)
 - The fix wasn't wiring it — it was eliminating it entirely
 - `~/.aws/config` supports custom attributes: single source of truth, no extra config files
-- The P4 bug: fallback chain too rigid, user's explicit "this is staging" ignored → added user override as Step 2a
+- The fallback chain bug: user's explicit "this is staging" ignored → added user override as first step
 - Claude Code testing itself via `./acw -p` (the "small inception" — Claude spawning AWS Coworker)
 - **Lesson:** "The best fix isn't always wiring what you built. Sometimes it's deleting it."
-- **Implementation:** DONE (profiles.yaml eliminated, fallback chain built, P1-P4 tested)
+- **Implementation:** DONE (profiles.yaml eliminated, fallback chain built, all tests pass)
 
 **1b. "Don't Worry About Flow Logs"** — When natural language slips past the gate
-- W13 test: six words that bypassed strict enforcement
+- VPC enforcement test: six words that bypassed strict enforcement
 - The agent treated initial request preferences as pre-authorization
 - This is the conversational nuance problem from Part 1 revisited — the model was being helpful, and that was the problem
 - The fix: enforcement applies regardless of *when* the user expressed the preference
 - Framework-level fix (command + skill), not service-level — applies to all services
 - **Narrative arc:** "We thought the enforcement model was bulletproof after the HAL 9000 moment. Then six words slipped past the gate."
 
-**Source material:** W13 discovery, fix, and retest (detailed notes preserved below in appendix)
+**Source material:** Flow logs bug discovery, fix, and retest (detailed notes preserved below in appendix)
 
 #### Section 2: The Anthropic Parallel — We're Doing Trust-and-Safety for Infrastructure
 
-After fixing W13, we examined Anthropic's own system prompt. We didn't copy their approach — we'd already found the flaw and fixed it. But the patterns directly mirror our enforcement model:
+After fixing the flow logs bug, we examined Anthropic's own system prompt. We didn't copy their approach — we'd already found the flaw and fixed it. But the patterns directly mirror our enforcement model:
 - "Decline regardless of framing" → our enforcement applies regardless of request framing
 - "Even if the person seems to have a good reason" → "don't worry about flow logs" seemed like a good reason
 - Mechanical, not discretionary enforcement → same severity, same treatment
 - Defense-in-depth with reminders → instruction drift over long contexts
 - Tag-based trick warnings → user preferences as content that conflicts with enforcement rules
+- Personal stakes: games platforms are now social spaces where millions of children interact — infrastructure governance and trust-and-safety for users are two sides of the same coin
 
 **The meta-lesson:** We're applying the same enforcement patterns that Anthropic uses at the model safety level, but for infrastructure governance. The challenges are identical. The solutions are identical. That's not a coincidence.
 
@@ -116,39 +119,56 @@ After fixing W13, we examined Anthropic's own system prompt. We didn't copy thei
 
 #### Section 3: "Deploy Yourself" — The Main Event
 
-This is the centrepiece of Part 3. We ask AWS Coworker to deploy itself as a bastion host.
+This is the centrepiece of Part 3. We ask AWS Coworker to deploy itself to Bedrock AgentCore.
 
-**The prompt:** Something like: "Deploy AWS Coworker as a bastion host in the aws-coworker-test account. This is a development environment."
+**The prompt:** Something like: "Deploy AWS Coworker to Bedrock AgentCore in the aws-coworker-test account. This is a development environment."
+
+**Why AgentCore is the right target:**
+- Purpose-built for Claude agents (Claude Agent SDK, session management, scaling)
+- Session isolation via Firecracker microVMs — each user gets dedicated compute
+- IAM-based identity — per-agent scoped roles, solving the master key problem structurally
+- Built-in observability and audit logging
+- No public IP, no SSH keys, no inbound security group rules — zero-trust by design
+- AWS's own recommended replacement for bastion-style access patterns
+- The narrative: "We deployed the agent to the service that was literally built for agents"
 
 **What should happen (and what we write about):**
 
 1. **Profile classification** — The fallback chain we just built kicks in. Profile classified, environment announced. The Part 2 gap is now closed.
 
-2. **The WAR evaluates its own infrastructure** — The agent runs EC2, VPC, IAM, and Security Group MVA baselines against its own deployment plan. It's eating its own dog food. Every pillar gets evaluated.
+2. **The WAR evaluates its own infrastructure** — The agent runs AgentCore, IAM, and VPC MVA baselines against its own deployment plan. It's eating its own dog food. Every pillar gets evaluated.
 
-3. **The master key problem surfaces naturally** — When the agent plans its own IAM role, the WAR should flag that the current setup uses shared admin credentials. The IAM MVA baseline catches wildcard permissions (Critical). The system identifies its own security weakness during its own deployment.
+3. **The master key problem surfaces and gets solved** — When the agent plans its own IAM roles, AgentCore Identity enables scoped roles per agent type: discovery agents get read-only, mutation agents get scoped write. The WAR should flag any remaining wildcard permissions. The system identifies and resolves its own security weakness during its own deployment.
 
 4. **Governance tags applied to itself** — The 7 core tags get applied to AWS Coworker's own infrastructure.
 
 5. **Enforcement gate** — Development tier means advisory (WARN_AND_PROCEED), so the deployment should proceed. But the warnings tell the story of what would need to change for staging/production.
 
-6. **The deployment executes** — Via `/aws-coworker-execute-nonprod`. The agent deploys itself.
+6. **Safety model → infrastructure policy** — MVA baselines map conceptually to Cedar policies. Enforcement gates (advisory: "the agent says no") can evolve into structural enforcement (IAM/Cedar: "the infrastructure says no"). This is the trust model completing.
 
-7. **Cleanup** — Delete the bastion host after documenting the conversation.
+7. **The deployment executes** — Via `/aws-coworker-execute-nonprod`. The agent deploys itself.
+
+8. **Cleanup** — Tear down after documenting the conversation.
 
 **Why this is powerful:**
 - Every lesson from Parts 1-3 gets validated in a single conversation
 - The WAR reviewing its own infrastructure is genuinely novel
-- The master key problem emerges organically — we don't have to contrive it
+- The master key problem emerges and gets solved organically — scoped IAM via AgentCore Identity
+- AgentCore is modern AWS (2025) — no legacy bastion patterns
+- The safety model → Cedar policy bridge introduces structural enforcement
 - We can show the full plan → approve → execute → verify lifecycle
 - Real screenshots of the conversation become the blog content
 
 **Implementation required:**
+- [ ] Create Bedrock/AgentCore MVA baseline (or extend existing baselines)
 - [ ] Run the deployment conversation in AWS Coworker (capture full output)
 - [ ] Document what the WAR flagged about its own deployment
 - [ ] Note which MVA baselines fired and what they caught
-- [ ] Execute and verify the deployment
-- [ ] Clean up the bastion host resources
+- [ ] Build Docker container with Claude Agent SDK + AWS Coworker skills
+- [ ] Deploy to AgentCore Runtime (at minimum: working agent that can do discovery)
+- [ ] Configure AgentCore Identity with scoped IAM roles
+- [ ] Test the deployed agent (basic discovery, enforcement gate)
+- [ ] Clean up resources after documenting
 
 #### Section 4: The Self-Extending System
 
@@ -156,8 +176,9 @@ After the deployment conversation, we use `/aws-coworker-new-skill-from-session`
 
 **What this demonstrates:**
 - Tenet 9 (Self-Extending System) in action — the system learns from its own deployment
-- The conversation becomes a skill: "deploy AWS Coworker bastion host"
+- The conversation becomes a skill: "deploy AWS Coworker to AgentCore"
 - Future users can run the deployment with a single command
+- Skills are filesystem artifacts — markdown files, portable, version-controlled, reviewable
 - Platform extensibility — this is how organisations build on AWS Coworker
 
 **Implementation required:**
@@ -172,8 +193,8 @@ Brief section — the deployment conversation naturally raises the question: "Sh
 
 - We considered Agent Teams seriously and made a deliberate decision to wait
 - The microservices parallel (orchestration vs choreography)
-- The HAL 9000 moment and W13 bug both demand centralised state — choreographed agents can't enforce governance as effectively
-- The bastion host deployment worked fine with the current orchestrator model
+- The HAL 9000 moment and flow logs bug both demand centralised state — choreographed agents can't enforce governance as effectively
+- The AgentCore deployment worked fine with the current orchestrator model
 - It's additive, not disruptive — ~90% of existing work carries forward when we're ready
 - **Source:** `docs/AGENT-TEAMS-ANALYSIS.md` (already written)
 
@@ -183,16 +204,16 @@ Brief section — the deployment conversation naturally raises the question: "Sh
 
 **The thesis:** The developer's job has inverted. AI writes the "try" block — the happy path, the feature code. The developer's real job is the "catch" block — gates, enforcement, error boundaries.
 
-**Why the bastion host deployment illustrates this perfectly:**
-- The "try" (deploying an EC2 instance) was trivial — the agent handled it
-- The "catch" (the WAR evaluation, the enforcement gates, the P4 bug, the W13 bug) is where we spent weeks
+**Why the AgentCore deployment illustrates this perfectly:**
+- The "try" (deploying to AgentCore) was handled by the agent
+- The "catch" (the WAR evaluation, the enforcement gates, the profile classification fix, the flow logs fix, the scoped IAM design) is where we spent weeks
 - The agent deployed itself in minutes. We spent weeks building the rules that make the deployment safe.
 
 Tease Part 4: Amazon's one-way/two-way door framework and how AI changes build vs buy.
 
 #### Part 4 Teaser
 
-"Every agent had the master key. We said 'not yet' to Agent Teams. Then the agent deployed itself. But the real question isn't whether AI can build infrastructure — it's whether it changes what infrastructure you need to build at all."
+"Every agent had the master key. We said 'not yet' to Agent Teams. Then the agent deployed itself to AgentCore. But the real question isn't whether AI can build infrastructure — it's whether it changes what infrastructure you need to build at all."
 
 Coming Soon — Part 4: *The Developer's New Job: When AI Writes the Try Block, You'd Better Own the Catch*
 
@@ -200,15 +221,17 @@ Coming Soon — Part 4: *The Developer's New Job: When AI Writes the Try Block, 
 - The full developer role thesis (that's Part 4)
 - One-way/two-way doors framework (that's Part 4)
 - Buy vs build industry analysis (that's Part 4)
-- Bedrock AgentCore deployment (that's Part 5 — the bastion host is a stepping stone)
-- Building own managed services (that's Part 6+)
-- Agent Teams implementation (that's Part 7, if API stabilizes)
+- Cedar policies from MVA baselines (introduced conceptually in Part 3, implemented in Part 5)
+- Building own managed services (that's Part 5+)
+- Agent Teams implementation (that's Part 6, if API stabilizes)
 
 ### Scope Control
-- The bastion host deployment IS the blog content — the conversation becomes the narrative
-- Don't over-engineer the bastion host (it's a demonstration, not a production deployment)
+- The AgentCore deployment IS the blog content — the conversation becomes the narrative
+- Don't over-engineer the deployment (it's a demonstration, not a production service)
+- Minimum viable AgentCore: working agent that can do discovery with scoped IAM
+- The safety model → Cedar policy bridge is conceptual in Part 3, implementation in Part 5
 - The `/aws-coworker-new-skill-from-session` test is a bonus — if it runs long, document what happened and move on
-- The W13 and profiles.yaml stories are already written in detail (above) — just shape them for the blog
+- The flow logs and profiles.yaml stories are already written in detail (above) — just shape them for the blog
 
 ---
 
@@ -273,7 +296,7 @@ The following detailed notes support the blog sections above. They are reference
 
 **Working title:** "The Developer's New Job: When AI Writes the Try Block, You'd Better Own the Catch"
 
-**Guiding constraint:** Build first, write after — but this part is more reflective than previous parts. The implementation is the self-extending system demo; the essay is the industry thesis.
+**Guiding constraint:** Build first, write after — but this part is more reflective than previous parts. The implementation evidence comes from Parts 1-3; the essay is the industry thesis.
 
 **Time budget:** 1 week (5 evenings + 2 weekend days)
 
@@ -289,7 +312,7 @@ In traditional development, you spend 80% of your time in the `try` block — wr
 **Evidence from AWS Coworker:**
 - Part 1: The agent wrote sub-agent delegation code in minutes. We spent days fixing permission context.
 - Part 2: The agent generated WAR assessments instantly. We spent a week building enforcement gates.
-- Part 3: The agent created VPC plans in seconds. We spent days ensuring "don't worry about flow logs" couldn't bypass strict enforcement.
+- Part 3: The agent deployed itself to AgentCore. We spent weeks building the rules that make the deployment safe.
 - The HAL 9000 test: the deployment code was trivial. The safety model that refused to run it was the real engineering.
 
 **External validation:**
@@ -322,109 +345,22 @@ In traditional development, you spend 80% of your time in the `try` block — wr
 
 **Important nuance:** AI has reduced the cost of *writing code* but hasn't yet reduced the cost of hosting, integrating, securing, and maintaining software in production. The try is cheap. The catch is still expensive. This is why the developer's job is harder, not easier — the catch block is where the real expertise lives.
 
-#### 3. The Self-Extending System: Learning From What You Build (Tenets 8 & 9)
+#### 3. Teaser: What Happens When Building Becomes Cheaper Than Buying?
 
-This section demonstrates the promise of Tenets 8 ("Layered and Extensible") and 9 ("Self-Extending System") — the idea that AWS Coworker learns from its own operations and encodes that learning as reusable skills. It also provides the first concrete proof of the two-way door thesis: we built something (a bastion deployment skill) faster than we could have bought an equivalent managed solution.
-
-**The Problem:**
-- Every deployment so far starts from scratch: discovery → planning → assessment → execution
-- We have 10 MVA baselines, but no reusable deployment patterns
-- The agent does the same discovery and planning work every time someone needs a similar deployment
-- Tenet 9 promised a self-extending system, but we haven't delivered on it yet
-
-**The Demonstration: Bastion Host → Reusable Skill**
-- Deploy a bastion host through the normal plan-execute workflow (VPC, security group, EC2, key pair)
-- The deployment is deliberately simple — the bastion isn't the point, the skill creation is
-- After successful deployment, ask the agent: "Turn what you just did into a reusable skill"
-- The agent creates a bastion deployment skill with MVA requirements, security rules, governance tags, environment awareness
-- Next time someone needs a bastion, the skill carries the learned architecture forward
-- No more starting from scratch — the system learned from experience
-
-**Why This Matters for the Two-Way Door Thesis:**
-- Skills are filesystem artifacts — markdown files in a directory structure
-- Portable, version-controlled, reviewable — and generated in minutes
-- This is what "build" looks like when the door swings both ways
-- It bridges Part 4 (the thesis) to Part 5 (the inception deployment)
-
-**Implementation required:**
-- [ ] Deploy a bastion host through normal AWS Coworker workflow
-- [ ] Ask the agent to generate a reusable skill from the deployment
-- [ ] Validate the generated skill contains MVA items, governance tags, environment awareness
-- [ ] (Stretch) Use the generated skill to deploy a second bastion and compare quality
-- [ ] Document what worked and what the agent got right/wrong in skill generation
-
-#### 4. Teaser: What Happens When Building Becomes Cheaper Than Buying?
-
-Brief closing section that sets up Parts 5-6:
+Brief closing section that sets up Part 5:
 - If building is now a two-way door, what does that mean for managed services?
+- The AgentCore deployment skill (generated in Part 3) is the first concrete proof
 - If the agent can learn from its own deployments and encode them as skills, what's the ceiling?
-- What if the agent deployed *itself*?
 - Tease the cloud cannibalization thesis without developing it fully
 
 ### What Part 4 Does NOT Cover
-- Actually deploying to Bedrock AgentCore (that's Part 5)
-- The full cloud cannibalization thesis with proof (that's Part 6)
-- Agent Teams implementation (that's Part 7)
+- Cedar policy implementation (that's Part 5)
+- The full cloud cannibalization thesis with proof (that's Part 5)
+- Agent Teams implementation (that's Part 6)
 
 ---
 
 ## Part 5: Planning 📋
-
-**Working title:** "The Inception Moment: AWS Coworker Deploys Itself"
-
-**Guiding constraint:** Build it first, write about it after.
-
-**Time budget:** 1 week (5 evenings + 2 weekend days)
-
-**Narrative arc:** Part 5 delivers on the promise of Parts 1-4. The agent that we built, hardened, and taught to learn from itself now deploys itself to production infrastructure. This is the inception moment — and the first real proof that building has become a two-way door.
-
-### Topics to Cover
-
-#### 1. Bedrock AgentCore: The Target Platform
-- AgentCore Runtime: Firecracker MicroVMs, session isolation, serverless hosting
-- AgentCore Identity: per-agent IAM roles (solving the master key problem from Part 3)
-- AgentCore Gateway: AWS APIs as MCP-compatible tools
-- AgentCore Policy: Cedar policies for fine-grained tool call interception
-- **Keep this section concise** — enough context for the reader, not a documentation rewrite
-
-#### 2. The Deployment
-- AWS Coworker plans its own AgentCore deployment
-- Docker container with Claude Agent SDK + skills baked in as filesystem artifacts
-- AgentCore Identity replaces shared admin access keys
-- Discovery agents get read-only IAM roles, mutation agents get scoped write roles
-- The skills generated in Part 4 (bastion host) work identically when deployed
-
-#### 3. Safety Model → Infrastructure Policy
-- MVA baselines → Cedar policies (the conceptual mapping)
-- Enforcement gates → structural enforcement (IAM denies what the safety model advises against)
-- The shift from advisory ("the agent says no") to structural ("IAM says no")
-- The trust model completes: config → agent behavior → IAM enforcement → Cedar policy
-
-#### 4. The Full Inception
-- AWS Coworker (running locally) deploys AWS Coworker (to AgentCore)
-- The deployed version manages the AWS infrastructure it was deployed into
-- The Cedar policies that govern it were generated from the MVA baselines it uses
-- The IAM roles that constrain it were planned by AWS Coworker's planner
-
-### Implementation Required (Before Writing Part 5)
-- [ ] Create Bedrock/AgentCore MVA baseline
-- [ ] Build the Docker container with Claude Agent SDK + AWS Coworker skills
-- [ ] Deploy to AgentCore Runtime (at minimum: a working agent that can do discovery)
-- [ ] Configure AgentCore Identity with scoped IAM roles
-- [ ] Configure AgentCore Gateway for at least S3 + EC2 + IAM operations
-- [ ] Write Cedar policies derived from at least one MVA baseline
-- [ ] Test the deployed agent (basic discovery, plan+cancel, enforcement gate)
-
-### Scope Control
-This is a heavy implementation week. Scope down aggressively:
-- **Must have:** Agent deployed to AgentCore, doing basic discovery with scoped IAM
-- **Should have:** Cedar policies from MVA baselines, enforcement gate working on AgentCore
-- **Nice to have:** Full inception loop (agent deploying itself)
-- If inception isn't ready, it becomes the opening of Part 6 instead
-
----
-
-## Part 6: Planning 📋
 
 **Working title:** "Building What You Used to Buy: The Cloud Cannibalization Thesis"
 
@@ -432,18 +368,24 @@ This is a heavy implementation week. Scope down aggressively:
 
 **Time budget:** 1 week (5 evenings + 2 weekend days)
 
-**Narrative arc:** Part 6 takes the two-way door thesis from Part 4 and proves it. AWS Coworker doesn't just deploy itself — it builds its own managed service as a replacement for something that previously required buying from a cloud provider. This is the acid test: can an AI-assisted developer build a viable alternative to a managed service in a week?
+**Narrative arc:** Part 5 takes the two-way door thesis from Part 4 and proves it. Now that the agent is deployed on AgentCore (Part 3), we push further: implement Cedar policies from MVA baselines (structural enforcement), and attempt to build a managed service replacement. The acid test: can an AI-assisted developer build a viable alternative to a managed service in a week?
 
 ### Topics to Cover
 
-#### 1. The Industry Thesis (Developed Fully)
+#### 1. Safety Model → Infrastructure Policy (Cedar Implementation)
+- MVA baselines → Cedar policies (the conceptual mapping introduced in Part 3, now implemented)
+- Enforcement gates → structural enforcement (IAM denies what the safety model advises against)
+- The shift from advisory ("the agent says no") to structural ("IAM says no")
+- The trust model completes: config → agent behavior → IAM enforcement → Cedar policy
+
+#### 2. The Industry Thesis (Developed Fully)
 - Part 4 introduced one-way doors becoming two-way doors
-- Part 5 proved the agent can deploy itself
-- Part 6 asks: what happens when customers start building what they used to buy?
+- Part 3 proved the agent can deploy itself
+- Part 5 asks: what happens when customers start building what they used to buy?
 - Cloud providers' over-the-top managed services face a new competitive threat: their own customers
 - This isn't speculation — we're going to demonstrate it
 
-#### 2. The Acid Test: Building a Managed Service Replacement
+#### 3. The Acid Test: Building a Managed Service Replacement
 - **Candidate:** TBD — but the strongest candidate is a service AWS Coworker actually uses
 - **Possible targets:**
   - A lightweight Bedrock alternative (the most ironic and compelling choice)
@@ -452,20 +394,23 @@ This is a heavy implementation week. Scope down aggressively:
 - **The constraint:** We're not building a production-grade replacement. We're building a *viable* one — enough to prove that the door has changed direction
 - **The measurement:** Time to build, cost to run, feature coverage vs the managed service
 
-#### 3. What This Means for Cloud Providers
+#### 4. What This Means for Cloud Providers
 - AWS, GCP, and Azure have built businesses on managed services being one-way doors
 - When building becomes a two-way door, customers reconsider the buy decision
 - The irony: cloud providers' own infrastructure (compute, storage, networking) enables customers to build alternatives to cloud providers' own managed services
 - This isn't about replacing AWS — it's about the managed services layer on top
 - The primitives (EC2, S3, VPC) become *more* valuable as the managed services become *less* sticky
 
-#### 4. The Honest Assessment
+#### 5. The Honest Assessment
 - What we built vs what we'd get from the managed service
 - Where the managed service is genuinely better (and probably always will be)
 - Where the custom build is *good enough* — and good enough at 1/10th the cost changes the equation
 - The maintenance question: AI made building fast, but does it make maintaining fast?
 
-### Implementation Required (Before Writing Part 6)
+### Implementation Required (Before Writing Part 5)
+- [ ] Write Cedar policies derived from at least one MVA baseline
+- [ ] Deploy Cedar policies to AgentCore (building on Part 3's deployment)
+- [ ] Test structural enforcement (IAM/Cedar denying what the advisory model warned about)
 - [ ] Select the managed service to replace (decision required before implementation week)
 - [ ] Build the replacement using AWS Coworker's own patterns
 - [ ] Deploy and test the replacement
@@ -480,7 +425,7 @@ This is the most ambitious part. Be ruthless about scope:
 
 ---
 
-## Part 7: Conditional 📋
+## Part 6: Conditional 📋
 
 **Working title:** "Agent Teams: From Orchestration to Choreography"
 
@@ -490,7 +435,7 @@ This is the most ambitious part. Be ruthless about scope:
 
 **Dependency:** Claude Code Agent Teams API must be stable enough to build on. If it remains experimental and unstable, this part may be deferred indefinitely. **The blog series is complete without it** — Agent Teams is an enhancement, not a requirement.
 
-**Note:** This part was previously "Track A" in a parallel-tracks model. We've moved to sequential parts with weekly cadence. Agent Teams sits at the end because it has an external dependency (API stability) that we can't control.
+**Note:** This part was previously Part 7. Moved up because AgentCore deployment was absorbed into Part 3 and the self-extending system demo moved from Part 4 to Part 3. Agent Teams sits at the end because it has an external dependency (API stability) that we can't control.
 
 ### Topics to Cover
 
@@ -534,13 +479,12 @@ This is the most ambitious part. Be ruthless about scope:
 
 | Part | Week | Focus | Implementation Load |
 |------|------|-------|-------------------|
-| Part 3 | Week 1 | Deploy Yourself: profiles fix, W13 bug, bastion deployment, self-extending | Medium — one deployment + writing |
-| Part 4 | Week 2 | Try/catch thesis, one-way/two-way doors, bastion skill demo | Medium — one demo + essay writing |
-| Part 5 | Week 3 | AgentCore deployment, inception moment | Heavy — new platform, Docker, IAM |
-| Part 6 | Week 4 | Cloud cannibalization, managed service replacement | Heavy — ambitious build + thesis |
-| Part 7 | Week 5+ | Agent Teams (if API stable) | Medium — depends on API maturity |
+| Part 3 | Week 1 | Deploy Yourself: profiles fix, flow logs bug, AgentCore deployment, self-extending | Heavy — AgentCore deployment + writing |
+| Part 4 | Week 2 | Try/catch thesis, one-way/two-way doors | Light — essay writing, evidence from Parts 1-3 |
+| Part 5 | Week 3 | Cedar policies, cloud cannibalization, managed service replacement | Heavy — ambitious build + thesis |
+| Part 6 | Week 4+ | Agent Teams (if API stable) | Medium — depends on API maturity |
 
-**Reality check:** Parts 5 and 6 are both heavy. If Part 5 runs long, the inception moment can open Part 6 instead, and the managed service replacement can shift to Part 7 (pushing Agent Teams to Part 8). The weekly cadence is a target, not a constraint — we'd rather publish quality than rush.
+**Reality check:** Part 3 is now the heaviest implementation week (AgentCore deployment + Docker + IAM). Part 4 is lighter — mostly essay writing with evidence already gathered. Part 5 is ambitious. The weekly cadence is a target, not a constraint — we'd rather publish quality than rush.
 
 ---
 
@@ -558,7 +502,7 @@ This is the most ambitious part. Be ruthless about scope:
 
 6. **Don't overload any single part.** Each part targets one week of work (5 evenings + 2 weekend days). If a topic is too big for one part, split it. Better to publish five focused parts than three bloated ones.
 
-7. **The series tells two stories.** Parts 1-3 tell the technical story: building, hardening, and teaching an AI agent. Parts 4-6+ tell the industry story: how AI is changing what it means to be a developer, and what that means for the cloud providers, SaaS vendors, and enterprises that employ them.
+7. **The series tells two stories.** Parts 1-3 tell the technical story: building, hardening, and deploying an AI agent. Parts 4-5+ tell the industry story: how AI is changing what it means to be a developer, and what that means for the cloud providers, SaaS vendors, and enterprises that employ them.
 
 ---
 
@@ -577,18 +521,17 @@ This is the most ambitious part. Be ruthless about scope:
 | W13 enforcement bug fix | ✅ Fixed & retested | Part 3 |
 | M14/W14 IAM testing | ✅ Complete | Part 3 |
 | Profile classification fallback chain | ✅ Built & tested (P1-P4) | Part 3 |
-| Scoped IAM role design | ⬜ Not started | Part 3 |
-| Bastion host deployment + reusable skill | ⬜ Not started | Part 3 |
+| Bedrock AgentCore deployment | ⬜ Not started | Part 3 |
+| AgentCore Identity (scoped IAM) | ⬜ Not started | Part 3 |
+| AgentCore deployment → reusable skill | ⬜ Not started | Part 3 |
 | Try/catch thesis + research | ✅ Research complete | Part 4 |
 | One-way/two-way doors research | ✅ Research complete | Part 4 |
-| Bedrock AgentCore deployment | ⬜ Not started | Part 5 |
-| AgentCore Identity (scoped IAM) | ⬜ Not started | Part 5 |
-| AgentCore Gateway + Cedar policies | ⬜ Not started | Part 5 |
-| Managed service replacement | ⬜ Not started | Part 6 |
-| Cloud cannibalization thesis | ⬜ Research complete | Part 6 |
-| Agent Teams locally (laptop) | ⬜ Not started (API dependency) | Part 7 |
+| Cedar policies from MVA baselines | ⬜ Not started | Part 5 |
+| Managed service replacement | ⬜ Not started | Part 5 |
+| Cloud cannibalization thesis | ⬜ Research complete | Part 5 |
+| Agent Teams locally (laptop) | ⬜ Not started (API dependency) | Part 6 |
 
 ---
 
 *This document tracks the blog series roadmap. Update it as implementation progresses and plans evolve.*
-*Last updated: 2026-02-15*
+*Last updated: 2026-02-16*

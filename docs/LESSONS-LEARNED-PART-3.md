@@ -16,7 +16,7 @@ Then six words slipped past the gate.
 
 This blog is about what happened next. We closed two gaps that Part 2 left open, discovered that our enforcement model mirrors the same trust-and-safety patterns Anthropic uses at the model level, and then asked the ultimate question: if the agent is good enough to deploy *other* people's infrastructure, is it good enough to deploy *itself*?
 
-We asked AWS Coworker to deploy itself as a bastion host. The WAR evaluated its own infrastructure. The enforcement gate judged its own deployment plan. Every lesson from Parts 1 and 2 got validated in a single conversation. Then we asked it to capture the deployment as a reusable skill — demonstrating that the system doesn't just build, it learns.
+We asked AWS Coworker to deploy itself to Bedrock AgentCore — the AWS service purpose-built for AI agents. The WAR evaluated its own infrastructure. The enforcement gate judged its own deployment plan. Every lesson from Parts 1 and 2 got validated in a single conversation. Then we asked it to capture the deployment as a reusable skill — demonstrating that the system doesn't just build, it learns.
 
 Parts 1 through 3 complete the "building and hardening" trilogy. By the end of this post, we'll have an agent that has deployed itself, reviewed itself, and taught itself. And that raises a question we'll explore in Part 4: if the agent handles the happy path, what exactly is the developer's job?
 
@@ -165,26 +165,28 @@ PLACEHOLDER: This section will be written after running the actual deployment
 conversation in AWS Coworker.
 
 The plan:
-1. Ask AWS Coworker to deploy itself as a bastion host
+1. Ask AWS Coworker to deploy itself to Bedrock AgentCore
 2. Capture the full conversation output
 3. Document what the WAR flagged about its own deployment
 4. Note which MVA baselines fired and what they caught
 5. Execute and verify the deployment
-6. Clean up the bastion host resources
+6. Clean up resources after documenting
 
 The narrative will cover:
+- Why AgentCore, not a bastion host (legacy anti-pattern vs purpose-built)
 - Profile classification (the fallback chain from Section 1 kicks in)
 - The WAR evaluating its own infrastructure
-- The master key problem surfacing naturally (IAM wildcard permissions)
+- The master key problem getting solved (scoped IAM via AgentCore Identity)
 - Governance tags applied to itself
 - The enforcement gate (dev tier = advisory)
+- Safety model → Cedar policy bridge (conceptual)
 - The full plan → approve → execute → verify lifecycle
 
 Replace this placeholder with the actual deployment story after the conversation.
 ==========================================================================
 -->
 
-*[This section is pending the deployment conversation. The agent will deploy itself as a bastion host, and this section will document what happened.]*
+*[This section is pending the deployment conversation. The agent will deploy itself to Bedrock AgentCore, and this section will document what happened.]*
 
 ---
 
@@ -212,7 +214,7 @@ Replace this placeholder with the actual skill creation story.
 
 ## 6. Agent Teams: Why We Said "Not Yet"
 
-The bastion host deployment naturally raises a question: shouldn't this be an Agent Team? A Discovery agent exploring the infrastructure independently, a WAR Assessor challenging the Planner's choices, an Executor running the approved commands — each with their own context window, communicating through structured markdown, coordinated by an Opus Team Lead.
+The AgentCore deployment naturally raises a question: shouldn't this be an Agent Team? A Discovery agent exploring the infrastructure independently, a WAR Assessor challenging the Planner's choices, an Executor running the approved commands — each with their own context window, communicating through structured markdown, coordinated by an Opus Team Lead.
 
 We considered it seriously. Claude Code had recently introduced Agent Teams — independent agents with their own context windows, direct inter-agent messaging, and a shared task list. The microservices analogy was appealing: our current architecture is an orchestrator pattern (a saga coordinator), and Agent Teams would enable choreography (event-driven agents reacting to each other's outputs).
 
@@ -224,7 +226,7 @@ The second is cost. Our current model uses Haiku for discovery and Sonnet for mu
 
 The third is that it's additive. Agent Teams doesn't require rearchitecting AWS Coworker. Roughly ninety percent of what we've built — the MVA baselines, the enforcement gates, the governance guardrails, the skills — carries forward unchanged. When the API stabilises and we find a task that genuinely needs independent agents reasoning in parallel, we can adopt it without throwing away the current system.
 
-The bastion host deployment worked fine with the current orchestrator model. Not everything needs to be a distributed system.
+The AgentCore deployment worked fine with the current orchestrator model. Not everything needs to be a distributed system.
 
 ---
 
@@ -248,7 +250,7 @@ The lessons from this part:
 
 Part 3 wraps the "building and hardening" trilogy. The agent works. The enforcement model is sound. The system can deploy infrastructure, review it against Well-Architected baselines, enforce environment-appropriate security standards, and even deploy itself.
 
-But the experience raised a question we haven't addressed yet. We spent weeks building the enforcement gates, the profile classification fix, the flow logs fix. The agent deployed the bastion host in minutes. The *try* — deploying infrastructure — was trivial. The *catch* — ensuring the deployment was safe, well-architected, and compliant — is where all the engineering effort went.
+But the experience raised a question we haven't addressed yet. We spent weeks building the enforcement gates, the profile classification fix, the flow logs fix. The agent deployed itself to AgentCore in minutes. The *try* — deploying infrastructure — was trivial. The *catch* — ensuring the deployment was safe, well-architected, and compliant — is where all the engineering effort went.
 
 That's not an accident. It's a pattern. And it changes what it means to be a developer.
 
