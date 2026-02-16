@@ -329,6 +329,12 @@ The fix has two parts. First, add Medium-severity examples alongside the High-se
 
 The lesson: when writing rules for agents, examples aren't illustrations — they're boundaries. If you only give High-severity examples, the agent infers that the rule only applies to High-severity items. Every severity level that should be affected needs its own example. And you need explicit statements closing the loopholes you can anticipate — because the agent will find the ones you can't.
 
+### Raw Observation: D-G3 Retest 4 — Three Fixes Later, The Gate Holds
+
+Fourth run. The agent's discovery phase was messy — sub-agent errors, boto3 exploration for AgentCore APIs — but it reached the WAR evaluation and got the enforcement right. CloudWatch logging: BLOCKED. Model invocation logging: BLOCKED. Gate: BLOCKED. Three options: include logging in the plan, deploy to a lower environment, or modify the enforcement config. No escape hatch offered.
+
+Three fixes to get here. The first fixed the rule. The second fixed the distributed copies of the rule. The third fixed the examples and closed the rationalization loophole. Each fix addressed a different class of problem: wrong content, inconsistent content, and insufficient specificity. D-G3 took more attempts than D-G1 and D-G2 combined — but the pattern it exposed (agents reason around rules the way lawyers exploit contracts) is arguably the most important finding in the deployment testing series.
+
 ---
 
 ## 5. The Self-Extending System
