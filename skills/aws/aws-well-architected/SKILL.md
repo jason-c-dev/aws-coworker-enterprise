@@ -477,12 +477,12 @@ When evaluating a proposed change or deployment, follow these steps in order:
 
 ### Enforcement Levels
 
-| Level | Behavior | Critical/High Gaps | Medium/Low Gaps |
-|-------|----------|-------------------|-----------------|
-| `optional` | Informational only | Show findings, proceed | Show findings, proceed |
-| `warn` | Present and acknowledge | Warn, let user proceed with acknowledgment | Informational |
-| `strict` | Block on critical/high | **Block execution** — user must resolve or modify plan | Warn, let user proceed |
-| `enforce` | Block on all gaps | **Block execution** — no override path | **Block execution** — no override path |
+| Level | Behavior | Blocking threshold | What's flexible |
+|-------|----------|--------------------|-----------------|
+| `optional` | Informational only | Nothing blocked | All gaps acceptable |
+| `warn` | Present and acknowledge | Nothing blocked | All gaps (with warning) |
+| `strict` | Block on critical/high/medium | Critical, High, and Medium **block execution** | Low only |
+| `enforce` | Block on all gaps | All severities **block execution** | Nothing — no override path |
 
 ### What NOT to Do
 
@@ -577,7 +577,7 @@ Binary assessment of current state.
 |-------------|-------------------|--------------------|
 | `optional` | Nothing blocked | All gaps |
 | `warn` | Nothing blocked | All gaps (with warning) |
-| `strict` | Critical/High blocked | Medium/Low only |
+| `strict` | Critical/High/Medium blocked | Low only |
 | `enforce` | All blocked | Nothing |
 
 **The agent's default behavior is to REMEDIATE everything the enforcement level requires.** BLOCKED occurs when a required item is not addressed in the plan — whether the user asked to skip it in their initial request or after the plan was presented. The user's initial request preferences (e.g., "don't worry about flow logs") do NOT override enforcement. If flow logs are High severity at strict enforcement, they are BLOCKED regardless of what the user asked for. The user's request triggers the gate, it does not bypass it. To change what enforcement requires, modify `config/environments/environments.yaml` — a tracked, reviewable git change.

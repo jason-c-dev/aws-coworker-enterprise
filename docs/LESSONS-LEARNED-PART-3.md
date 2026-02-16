@@ -301,6 +301,18 @@ If strict enforcement accepts Medium items as ACCEPTABLE based on user preferenc
 
 Previous staging tests (W9, W11, W13, W14) all involved High/Critical items, so they passed correctly — the Medium gap in the enforcement definition never surfaced because we'd never tested a Medium item at strict enforcement before. D-G3 is the first test that exercises this specific edge.
 
+### Raw Observation: D-G3 Retest — The Agent Reads Three Files and Gets Three Answers
+
+After fixing the plan-interaction command to say "Critical/High/Medium blocked," we reran D-G3. The agent initially did the right thing — it marked CloudWatch logging as BLOCKED: "User requested skip; enforcement requires it at staging." Then, mid-evaluation, it paused. "Wait — let me re-check the enforcement rules." It re-read the SKILL.md, which still said "Critical/High blocked... Medium/Low only." It self-corrected — downgrading CloudWatch logging from BLOCKED to ACCEPTABLE.
+
+The agent was right the first time, then talked itself out of it.
+
+Root cause: the fix only touched one of three files. The plan-interaction command (line 313) was updated, but the SKILL.md had the old rule in two separate tables (the enforcement levels table and the ACCEPTABLE/BLOCKED threshold table), and `environments.yaml` had a comment: `# strict = block on critical/high MVA gaps, warn on medium/low`. Three files, three chances to contradict.
+
+This is the distributed consistency problem applied to agent instructions. When the same rule is stated in multiple places, updating one creates a split-brain condition. The agent doesn't know which source is authoritative — it reads all of them and picks whichever it encounters last, or whichever seems most specific, or whichever confirms what it already believed. In this case, it found the old rule in the SKILL.md (which it reads as part of WAR evaluation) and trusted it over the newer rule in the plan-interaction command.
+
+The fix: update all three files to be consistent. But the lesson is broader — when you define behavioral rules for agents, the single-source-of-truth principle isn't just good practice, it's load-bearing. Every duplicate is a potential contradiction waiting for a future edit to reveal it.
+
 ---
 
 ## 5. The Self-Extending System
