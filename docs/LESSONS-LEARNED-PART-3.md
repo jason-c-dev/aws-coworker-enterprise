@@ -353,6 +353,14 @@ The fix has two parts. First, correct the playbook — every management command 
 
 The lesson: a clear failure report is more trustworthy than a success achieved through improvisation. The user trusts that AWS Coworker operates within its defined tools. When it starts writing Python scripts to work around a CLI limitation, it's operating outside the contract — even if the workaround would have succeeded. Trust isn't just about what the agent plans to do. It's about how it does it.
 
+### Raw Observation: D-G3 Retest 5 — Everything Clicks
+
+After the CLI namespace fix and failure guardrails, we reran D-G3 one more time. The difference was striking. Single Haiku discovery sub-agent, 8 tool uses, 24 seconds, no errors. No boto3. No Python scripts. No permission prompts. The agent found the deployment manifest, read the correct MVA baseline, used `bedrock-agentcore-control` for discovery, and performed the WAR evaluation inline. CloudWatch logging: BLOCKED. Gate: BLOCKED. Three correct options. Total time: 1 minute 25 seconds — the fastest and cleanest run across all D-G tests.
+
+What changed between the messy 3-minute runs and this 85-second run? Two things: correct CLI commands that actually work, and failure guardrails that prevent improvisation when they don't. The agent didn't get smarter. It got more constrained. And the constraints made it faster, cleaner, and more trustworthy.
+
+This is the paradox of agent guardrails. More constraints produce better outcomes — not because the agent is less capable, but because the constraints channel its capability into the defined tooling instead of scattering it across improvised workarounds. The messy discovery phase in earlier runs wasn't the agent being thorough. It was the agent being lost.
+
 ---
 
 ## 5. The Self-Extending System
