@@ -489,16 +489,18 @@ aws s3api copy-object \
 ## Related Files
 
 Detailed service-specific commands are in:
-- `commands/iam.md` - IAM patterns
-- `commands/organizations.md` - Organizations patterns
+- `commands/bedrock.md` - Bedrock patterns (model access, inference, guardrails)
+- `commands/bedrock-agentcore.md` - Bedrock AgentCore patterns (agent runtimes, identity, gateway)
+- `commands/cloudformation.md` - CloudFormation patterns
 - `commands/ec2.md` - EC2 patterns
-- `commands/vpc.md` - VPC/networking patterns
-- `commands/s3.md` - S3 patterns
-- `commands/rds.md` - RDS patterns
 - `commands/ecs.md` - ECS patterns
 - `commands/eks.md` - EKS patterns
+- `commands/iam.md` - IAM patterns
 - `commands/lambda.md` - Lambda patterns
-- `commands/cloudformation.md` - CloudFormation patterns
+- `commands/organizations.md` - Organizations patterns
+- `commands/rds.md` - RDS patterns
+- `commands/s3.md` - S3 patterns
+- `commands/vpc.md` - VPC/networking patterns
 
 ---
 

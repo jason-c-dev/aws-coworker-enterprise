@@ -75,6 +75,9 @@ init_state() {
     "lambda_functions": [],
     "nat_gateways": [],
     "cloudformation_stacks": [],
+    "agentcore_runtimes": [],
+    "agentcore_endpoints": [],
+    "vpc_endpoints": [],
     "other": []
   },
   "test_results": {},
@@ -606,10 +609,185 @@ cleanup_cloudformation_stacks() {
     done
 }
 
+cleanup_agentcore_endpoints() {
+    log "Cleaning up AgentCore endpoints..."
+
+    local runtimes=$(aws bedrock-agentcore list-agent-runtimes \
+        --profile "$AWS_PROFILE" \
+        --region "$AWS_REGION" \
+        --query 'agentRuntimeSummaries[*].agentRuntimeId' \
+        --output text 2>/dev/null || echo "")
+
+    if [[ -z "$runtimes" ]]; then
+        log_success "No AgentCore runtimes found (no endpoints to check)"
+        return
+    fi
+
+    for runtime_id in $runtimes; do
+        local endpoints=$(aws bedrock-agentcore list-agent-runtime-endpoints \
+            --profile "$AWS_PROFILE" \
+            --region "$AWS_REGION" \
+            --agent-runtime-id "$runtime_id" \
+            --query 'agentRuntimeEndpointSummaries[*].agentRuntimeEndpointId' \
+            --output text 2>/dev/null || echo "")
+
+        for endpoint_id in $endpoints; do
+            if [[ "$DRY_RUN" == "true" ]]; then
+                log_warn "[DRY RUN] Would delete endpoint: $endpoint_id (runtime: $runtime_id)"
+            else
+                log "Deleting AgentCore endpoint: $endpoint_id"
+                aws bedrock-agentcore delete-agent-runtime-endpoint \
+                    --profile "$AWS_PROFILE" \
+                    --region "$AWS_REGION" \
+                    --agent-runtime-id "$runtime_id" \
+                    --agent-runtime-endpoint-id "$endpoint_id" 2>/dev/null || true
+                log_success "Deleted endpoint: $endpoint_id"
+            fi
+        done
+    done
+}
+
+cleanup_agentcore_runtimes() {
+    log "Cleaning up AgentCore runtimes..."
+
+    local runtimes=$(aws bedrock-agentcore list-agent-runtimes \
+        --profile "$AWS_PROFILE" \
+        --region "$AWS_REGION" \
+        --query 'agentRuntimeSummaries[*].agentRuntimeId' \
+        --output text 2>/dev/null || echo "")
+
+    if [[ -z "$runtimes" ]]; then
+        log_success "No AgentCore runtimes to clean up"
+        return
+    fi
+
+    for runtime_id in $runtimes; do
+        if [[ "$DRY_RUN" == "true" ]]; then
+            log_warn "[DRY RUN] Would delete runtime: $runtime_id"
+        else
+            log "Deleting AgentCore runtime: $runtime_id"
+            aws bedrock-agentcore delete-agent-runtime \
+                --profile "$AWS_PROFILE" \
+                --region "$AWS_REGION" \
+                --agent-runtime-id "$runtime_id" 2>/dev/null || true
+            log_success "Initiated deletion: $runtime_id"
+        fi
+    done
+}
+
+cleanup_bedrock_vpc_endpoints() {
+    log "Cleaning up Bedrock VPC endpoints..."
+
+    local vpc_endpoints=$(aws ec2 describe-vpc-endpoints \
+        --profile "$AWS_PROFILE" \
+        --region "$AWS_REGION" \
+        --filters "Name=service-name,Values=*bedrock-runtime*" \
+        --query 'VpcEndpoints[*].VpcEndpointId' \
+        --output text 2>/dev/null || echo "")
+
+    if [[ -z "$vpc_endpoints" ]]; then
+        log_success "No Bedrock VPC endpoints to clean up"
+        return
+    fi
+
+    for vpce_id in $vpc_endpoints; do
+        if [[ "$DRY_RUN" == "true" ]]; then
+            log_warn "[DRY RUN] Would delete VPC endpoint: $vpce_id"
+        else
+            log "Deleting VPC endpoint: $vpce_id"
+            aws ec2 delete-vpc-endpoints \
+                --profile "$AWS_PROFILE" \
+                --region "$AWS_REGION" \
+                --vpc-endpoint-ids "$vpce_id" 2>/dev/null || true
+            log_success "Deleted: $vpce_id"
+        fi
+    done
+}
+
+cleanup_agentcore_iam_roles() {
+    log "Cleaning up AgentCore IAM roles..."
+
+    local role_patterns=("aws-coworker-execution-role" "aws-coworker-agent-role")
+
+    for role_name in "${role_patterns[@]}"; do
+        # Check if role exists
+        if ! aws iam get-role --profile "$AWS_PROFILE" --role-name "$role_name" 2>/dev/null; then
+            continue
+        fi
+
+        if [[ "$DRY_RUN" == "true" ]]; then
+            log_warn "[DRY RUN] Would delete IAM role: $role_name"
+        else
+            log "Deleting IAM role: $role_name"
+            # Detach managed policies
+            local policies=$(aws iam list-attached-role-policies \
+                --profile "$AWS_PROFILE" \
+                --role-name "$role_name" \
+                --query 'AttachedPolicies[*].PolicyArn' \
+                --output text 2>/dev/null || echo "")
+            for policy_arn in $policies; do
+                aws iam detach-role-policy \
+                    --profile "$AWS_PROFILE" \
+                    --role-name "$role_name" \
+                    --policy-arn "$policy_arn" 2>/dev/null || true
+            done
+            # Delete inline policies
+            local inline=$(aws iam list-role-policies \
+                --profile "$AWS_PROFILE" \
+                --role-name "$role_name" \
+                --query 'PolicyNames' \
+                --output text 2>/dev/null || echo "")
+            for policy_name in $inline; do
+                aws iam delete-role-policy \
+                    --profile "$AWS_PROFILE" \
+                    --role-name "$role_name" \
+                    --policy-name "$policy_name" 2>/dev/null || true
+            done
+            # Delete role
+            aws iam delete-role \
+                --profile "$AWS_PROFILE" \
+                --role-name "$role_name" 2>/dev/null || true
+            log_success "Deleted: $role_name"
+        fi
+    done
+}
+
+cleanup_ecr_images() {
+    log "Cleaning up ECR images (keeping repository)..."
+
+    local images=$(aws ecr list-images \
+        --profile "$AWS_PROFILE" \
+        --region "$AWS_REGION" \
+        --repository-name aws-coworker \
+        --query 'imageIds' \
+        --output json 2>/dev/null || echo "[]")
+
+    if [[ "$images" == "[]" || -z "$images" ]]; then
+        log_success "No ECR images to clean up"
+        return
+    fi
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_warn "[DRY RUN] Would delete ECR images in aws-coworker repo"
+    else
+        log "Deleting ECR images in aws-coworker repo"
+        aws ecr batch-delete-image \
+            --profile "$AWS_PROFILE" \
+            --region "$AWS_REGION" \
+            --repository-name aws-coworker \
+            --image-ids "$images" 2>/dev/null || true
+        log_success "ECR images deleted (repository preserved)"
+    fi
+}
+
 cleanup_all() {
     log "Starting full cleanup..."
 
     # Order matters - highest-level resources first, then dependencies
+
+    # 0. AgentCore (endpoints before runtimes, then supporting infra)
+    cleanup_agentcore_endpoints
+    cleanup_agentcore_runtimes
 
     # 1. Container orchestration (slow to delete)
     cleanup_eks_clusters
@@ -640,8 +818,13 @@ cleanup_all() {
     # 7. Infrastructure as Code (may have dependencies)
     cleanup_cloudformation_stacks
 
+    # 8. AgentCore supporting resources (after runtimes deleted)
+    cleanup_bedrock_vpc_endpoints
+    cleanup_agentcore_iam_roles
+    cleanup_ecr_images
+
     log_success "Cleanup complete!"
-    log "Note: Some resources (EKS, RDS) delete asynchronously. Run 'status' to verify."
+    log "Note: Some resources (EKS, RDS, AgentCore) delete asynchronously. Run 'status' to verify."
 }
 
 #######################################

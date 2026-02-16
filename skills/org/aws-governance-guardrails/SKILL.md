@@ -100,6 +100,26 @@ This skill encodes organizational governance and compliance rules for AWS operat
 - Exception: None. All state changes require explicit approval.
 ```
 
+### AI/Agent Services - Critical
+
+```markdown
+### NEVER: Unrestricted Bedrock Model Access
+- Do not request access to all Bedrock models — grant access per model family based on need
+- Do not use wildcard model ARNs in IAM policies for bedrock:InvokeModel
+- Do not invoke models without logging enabled (audit trail required)
+
+### NEVER: Shared Agent Credentials
+- Do not share IAM roles across different agent types (discovery agents vs mutation agents)
+- Do not use the AgentCore execution role as the agent runtime role — these must be separate
+- Do not hardcode API keys or tokens in agent container images or environment variables
+- Use: AgentCore Identity (API key credentials, OAuth2 credentials) or IAM roles
+
+### NEVER: Unmonitored Agent Sessions
+- Do not deploy agent runtimes without CloudWatch logging in staging or above
+- Do not deploy without session timeout configuration (prevents runaway sessions and cost)
+- Do not allow unbounded session concurrency in staging or production
+```
+
 ### Cost - Important
 
 ```markdown

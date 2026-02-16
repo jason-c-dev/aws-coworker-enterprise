@@ -1,0 +1,55 @@
+# AWS Coworker — Minimal AgentCore Container
+#
+# This container is designed to run AWS Coworker inside Bedrock AgentCore.
+# It uses Bedrock for model inference (CLAUDE_CODE_USE_BEDROCK=1), NOT an
+# Anthropic API key. The agent runtime IAM role provides bedrock:InvokeModel
+# permission — no secrets needed for LLM access.
+#
+# Build:
+#   docker build -f Dockerfile.aws-coworker -t aws-coworker:latest .
+#
+# Push to ECR:
+#   aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin {account}.dkr.ecr.us-east-1.amazonaws.com
+#   docker tag aws-coworker:latest {account}.dkr.ecr.us-east-1.amazonaws.com/aws-coworker:latest
+#   docker push {account}.dkr.ecr.us-east-1.amazonaws.com/aws-coworker:latest
+
+FROM public.ecr.aws/amazonlinux/amazonlinux:2023-minimal
+
+# Install system dependencies
+RUN dnf install -y \
+    git \
+    jq \
+    tar \
+    gzip \
+    unzip \
+    nodejs \
+    && dnf clean all
+
+# Install AWS CLI v2
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && \
+    unzip awscliv2.zip && \
+    ./aws/install && \
+    rm -rf aws awscliv2.zip
+
+# Install Claude Code
+RUN npm install -g @anthropic-ai/claude-code
+
+# Configure Bedrock as inference backend
+# CRITICAL: No API key needed — IAM role provides bedrock:InvokeModel
+ENV CLAUDE_CODE_USE_BEDROCK=1
+
+# Clone the AWS Coworker repo (skills, commands, agents, config)
+# In production, this would be a specific tagged release
+WORKDIR /opt/aws-coworker
+COPY . .
+
+# Set working directory for Claude Code to find CLAUDE.md
+WORKDIR /opt/aws-coworker
+
+# Health check — verify Claude Code and AWS CLI are available
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+    CMD claude --version && aws --version
+
+# Entry point — Claude Code in non-interactive mode
+# AgentCore manages session lifecycle; we just need Claude Code ready
+ENTRYPOINT ["claude"]

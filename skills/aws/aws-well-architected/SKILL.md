@@ -437,6 +437,9 @@ Ask: **"Given what the user wants to achieve, is this the right AWS service?"**
 | Run a scheduled script once/day | EC2 (24/7) | Lambda + EventBridge | Pay-per-execution vs always-on |
 | Simple key-value store | RDS | DynamoDB | Relational DB overhead for non-relational data |
 | Host a container with no scaling | ECS + ALB | App Runner | Managed container runtime, no ALB needed |
+| Deploy an AI agent with session state | EC2 / ECS | Bedrock AgentCore | Purpose-built: session isolation, identity, tool gateway, up to 8-hour sessions |
+| Simple API proxy to Bedrock | AgentCore | API Gateway + Bedrock | AgentCore overhead unnecessary for stateless pass-through |
+| Batch inference (no agent loop) | AgentCore | Bedrock Batch Inference | Batch is cheaper and simpler for non-interactive workloads |
 
 ### Severity
 
@@ -630,6 +633,7 @@ Detailed pillar guidance in:
 
 MVA baselines per service:
 - `mva-baselines/_TEMPLATE.md` — Reference template for adding new services
+- `mva-baselines/bedrock-agentcore.md` — Bedrock AgentCore MVA baseline (agent runtimes, identity, session isolation)
 - `mva-baselines/cloudfront.md` — CloudFront MVA baseline
 - `mva-baselines/ec2.md` — EC2 MVA baseline
 - `mva-baselines/s3.md` — S3 MVA baseline
