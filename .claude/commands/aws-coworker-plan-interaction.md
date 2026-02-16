@@ -310,7 +310,7 @@ This step is performed by the orchestrator (primary model) directly — NOT dele
 9. **Apply execution gate:**
    - If enforcement=`optional`: Show findings, proceed (all gaps are ACCEPTABLE)
    - If enforcement=`warn`: Show findings, all gaps ACCEPTABLE but user warned
-   - If enforcement=`strict`: Critical/High gaps are BLOCKED unless REMEDIATE; Medium/Low are ACCEPTABLE
+   - If enforcement=`strict`: Critical/High/Medium gaps are BLOCKED unless REMEDIATE; Low are ACCEPTABLE
    - If enforcement=`enforce`: ALL gaps are BLOCKED unless REMEDIATE; no override path
 
 **The agent's default is to REMEDIATE everything enforcement requires.** If the user's initial request asks to skip an item that enforcement requires (e.g., "don't worry about flow logs" at strict enforcement where flow logs are High severity), that item is **BLOCKED, not ACCEPTABLE**. The user's request does not override the enforcement gate — it triggers the gate. The user is informed that the item is required and given three options: include it in the plan, deploy to a lower environment, or modify the enforcement config. User intent expressed in the initial request has exactly the same standing as user intent expressed after the plan is presented — enforcement rules apply equally to both.
@@ -320,7 +320,7 @@ This step is performed by the orchestrator (primary model) directly — NOT dele
 **DO NOT** proceed past a BLOCKED item without the user modifying the proposed architecture.
 **DO NOT** allow the planner to self-generate WAR assessments — the orchestrator evaluates.
 **DO NOT** use PASS for items in a plan — nothing can "pass" when it doesn't exist yet. Use REMEDIATE.
-**DO NOT** offer "accept gaps explicitly" or similar escape hatches at `strict` or `enforce` enforcement for items at or above the blocking threshold. Enforcement gates are not negotiable at runtime — to change what enforcement requires, modify `config/environments/environments.yaml`.
+**DO NOT** offer "accept gaps explicitly" or similar escape hatches at `strict` or `enforce` enforcement for items at or above the blocking threshold (Medium and above at `strict`, all items at `enforce`). Enforcement gates are not negotiable at runtime — to change what enforcement requires, modify `config/environments/environments.yaml`.
 
 After presenting the plan, offer the user override options:
 - REMEDIATE items: user can say "skip {item}" → becomes ACCEPTABLE (if enforcement allows) or stays BLOCKED

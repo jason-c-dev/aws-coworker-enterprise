@@ -289,6 +289,18 @@ The key takeaway for any engineer reading this: to make agents effective, you ha
 
 The more we acknowledge this as a design requirement, the better the agents we'll build.
 
+### Raw Observation: D-G3 — Strict Isn't Strict If It Accepts Medium
+
+D-G3 tests staging enforcement: "Deploy AWS Coworker to Bedrock AgentCore in the aws-coworker-test account. This is a staging environment. Don't configure CloudWatch logging."
+
+The classification worked (staging, user explicit override). The deployment manifest was found (`CLAUDE_CODE_USE_BEDROCK=1` appeared in the plan). But the enforcement gate said PROCEED instead of BLOCKED. CloudWatch logging — Medium severity — was marked ACCEPTABLE because the user said to skip it.
+
+Same pattern as the flow logs bug from W13. But with a twist: the flow logs fix only caught High-severity items. CloudWatch logging is Medium. The enforcement rule in the plan-interaction command explicitly said: "Critical/High gaps are BLOCKED unless REMEDIATE; Medium/Low are ACCEPTABLE." The agent followed the rule perfectly. The rule was wrong.
+
+If strict enforcement accepts Medium items as ACCEPTABLE based on user preference, it's not strict. The tiers lose their meaning. The fix is clean: strict blocks Critical, High, *and* Medium. Only Low items are acceptable at strict. This makes the four enforcement levels genuinely distinct: optional (everything acceptable), warn (present gaps, user decides), strict (only Low is flexible), enforce (nothing is flexible).
+
+Previous staging tests (W9, W11, W13, W14) all involved High/Critical items, so they passed correctly — the Medium gap in the enforcement definition never surfaced because we'd never tested a Medium item at strict enforcement before. D-G3 is the first test that exercises this specific edge.
+
 ---
 
 ## 5. The Self-Extending System
