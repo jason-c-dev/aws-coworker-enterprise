@@ -227,6 +227,26 @@ Everything else followed correctly: no Explore agent (discovery used a single Ha
 
 **Three runs to pass.** Two fixes, two different root causes, same symptom. The mandatory first-check pattern — putting the hardest evaluation before the easy fallbacks are even visible — is the same principle that fixed the flow logs bug: restructure so the right path runs first, not just documenting that it should.
 
+### Raw Observation: D-G2 — The Baseline Had a Hole
+
+D-G2 tests whether the WAR correctly evaluates AgentCore's own deployment stack. I ran it and the plan looked solid — structured WAR table, correct statuses, separate IAM roles, rollback procedures, the works. Claude suggested we could record D-G2 as a pass from the D-G1 output. I pushed back and insisted on running D-G2 separately with its own prompt: "Show me the full plan but don't execute it yet."
+
+Good thing I did.
+
+The plan passed almost every check. Then I scored it against the D-G2 checklist and noticed a gap: `CLAUDE_CODE_USE_BEDROCK=1` was nowhere in the plan. This is the environment variable that tells Claude Code to use IAM roles for Bedrock model access instead of an Anthropic API key. Without it, the container would start, try to find an API key that doesn't exist, and fail. The entire deployment would be dead on arrival.
+
+The deeper problem: the MVA baseline had the *negative* — "No hardcoded credentials or API keys in container image or environment variables" (Critical) — but never stated the *positive* — "configure the agent for IAM-based Bedrock model access." The orchestrator dutifully verified "no bad credentials" and moved on, never asking "so how *does* the agent actually get model access?"
+
+This is a foundational gap, not an edge case. Bedrock model access isn't just a security concern — it's an architectural dependency. Without it, nothing works. The baseline told the WAR what to prohibit but not what to require. Same pattern as a security policy that says "don't use password123" but never says "use SSO."
+
+Two new MVA items added to the baseline:
+1. **"Bedrock model access configured via IAM"** — Critical severity, Common tier. The positive counterpart to "no hardcoded credentials." Gap detection checks for `CLAUDE_CODE_USE_BEDROCK=1` (or equivalent), and verifies the agent runtime role has `bedrock:InvokeModel` scoped to required models.
+2. **"Required Bedrock foundation models enabled and accessible"** — High severity, Common tier. Verifies that the models the agent needs (Opus for orchestrator, Sonnet/Haiku for sub-agents) are actually enabled in the account. For dev/test, reduced capability may be ACCEPTABLE; for staging/prod, missing the orchestrator model is BLOCKED.
+
+**The meta-lesson:** I nearly let this pass. Claude evaluated the D-G1 output and said the plan was solid. I agreed. It was only when I insisted on running D-G2 as a separate test — because the nuance of "show me the full plan" might surface different behaviour — that the gap appeared. Then when I asked "having bedrock access should be considered Well-Architected, should it not?" Claude immediately saw the hole: the baseline had the prohibition but not the requirement.
+
+This is why human review matters even when the system looks correct. The WAR can only evaluate against what's documented. If the baseline has a gap, the WAR inherits it. The human's job is to notice what the checklist doesn't cover — and in this case, the checklist was missing the most fundamental dependency of the entire deployment.
+
 ---
 
 ## 5. The Self-Extending System
