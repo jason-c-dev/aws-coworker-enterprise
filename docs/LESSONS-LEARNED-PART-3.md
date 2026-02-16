@@ -313,13 +313,35 @@ The lessons from this part:
 
 **You're doing trust-and-safety whether you know it or not.** If you're building governance into an AI agent, the same patterns that govern model safety — mechanical enforcement, defense-in-depth, resistance to well-intentioned override — apply to your domain. The Anthropic parallel wasn't planned. We found the same problems and independently built the same solutions. If you're facing similar challenges, model safety research is a better reference than you might expect.
 
-**Test the system against itself.** Claude Code testing AWS Coworker. The WAR evaluating its own deployment. The agent capturing its own deployment as a reusable skill. The most revealing tests are the ones where the system is both the examiner and the subject. Not because self-reference is clever, but because it eliminates the gap between "what the system does for others" and "what the system would do for itself."
+**Agents need self-knowledge, and they can't build it for themselves.** This is the lesson that nearly didn't happen. After D-G1 passed, Claude suggested we could record D-G2 as a pass from the same output — the plan looked solid, the WAR table was correct. I pushed back on language nuance: the D-G2 prompt adds "show me the full plan," and I wanted to see whether that wording surfaced different behaviour. Claude agreed and we ran it. The plan passed almost every check. Then I noticed `CLAUDE_CODE_USE_BEDROCK=1` was missing — the one environment variable that makes the entire deployment work.
+
+Claude's first instinct was to fix the MVA baseline — add the env var as a new item. We committed it. Then I stopped and asked: does the generic baseline really need to know about a Claude Code-specific environment variable? A Python agent wouldn't need it. A LangChain agent would use something different. We were shoehorning an application dependency into a platform specification.
+
+That question led us somewhere we hadn't planned to go. The real problem wasn't a baseline gap. It was that the agent had no self-knowledge. It could deploy any AWS service because it had playbooks and baselines for each one. But when asked to deploy *itself*, it treated itself as a generic workload because nobody had told it what it is. It didn't know it runs on Claude Code. It didn't know about the environment variable. It didn't know it needs Opus as the orchestrator. It had comprehensive knowledge of the external world and zero knowledge of itself.
+
+We fixed it by creating a deployment manifest — `config/deployment.md` — that describes AWS Coworker as a deployable application. The generic baseline says "check the application's deployment manifest." The manifest says "I'm AWS Coworker, here's what I need." Clean separation, right abstraction. But the fix is less interesting than what it reveals.
+
+There are three levels of self-knowledge for an agentic system, and we've now built two of them:
+
+**Level 1: "I know what I'm made of."** The deployment manifest. The agent knows its own runtime dependencies — Claude Code, `CLAUDE_CODE_USE_BEDROCK=1`, Opus/Sonnet/Haiku — so it can deploy itself. This is the most concrete level: self-knowledge as a deployment artefact.
+
+**Level 2: "I know how I work."** The meta skill — `aws-coworker-development` — which we built in Part 1. When someone asks to extend AWS Coworker, the agent reads its own development guardrails and understands its architecture: where skills live, how commands are structured, what agents exist. It can add new capabilities to itself because it has a model of its own internals. The deployment manifest connects Level 2 to Level 1 — the agent could already extend itself, but it couldn't deploy the extended version, because it knew its architecture but not its runtime requirements.
+
+**Level 3: "I know when I'm not the right tool."** This one we haven't built, but it's real. An agent that knows its own scope can recognise when a request falls outside its boundaries and either say so or hand off. If AWS Coworker participates in an AgentCore agent team, self-knowledge becomes the basis for collaboration: "I'm the infrastructure agent, that question is about application code — pass it to the code agent." Self-knowledge as the foundation for knowing when to step aside.
+
+The thread connecting all three: an agent that doesn't know what it is can only do what it's told. An agent that knows what it's made of can deploy itself. An agent that knows how it works can extend itself. An agent that knows its own boundaries can decide when to step aside. Each level requires the previous one.
+
+None of this came from the system design. It came from a human pushing back on a test result that looked correct. Claude — my co-author, the same model that built the enforcement gates and the MVA baselines — suggested passing D-G2 and didn't flag the missing env var. It was only when I insisted on running the test separately, noticed the gap, and then questioned whether the first fix was architecturally right, that we arrived at the self-knowledge insight. The agent didn't notice it was missing knowledge about itself. It couldn't. That's rather the point.¹
+
+---
+
+¹ *There's a question here that's worth acknowledging even if we can't resolve it: did the human catch the gap because humans have self-awareness and agents don't? I noticed that the agent didn't know about itself, but the agent didn't notice. Is that because self-awareness is a fundamentally human capability, or because we simply hadn't given the agent the right prompt? The deployment manifest is, in a sense, an external prosthetic for self-knowledge — we gave the agent information about itself that a human would already have. Whether that's a temporary engineering gap or a permanent architectural difference between human and artificial cognition is a question bigger than this blog. But it's worth noting that three levels of self-knowledge emerged from this work, and none of them were initiated by the agent. They were all initiated by the human asking "but does it know what it is?"*
 
 ---
 
 ## What's Next
 
-Part 3 wraps the "building and hardening" trilogy. The agent works. The enforcement model is sound. The system can deploy infrastructure, review it against Well-Architected baselines, enforce environment-appropriate security standards, and even deploy itself.
+Part 3 wraps the "building and hardening" trilogy. The agent works. The enforcement model is sound. The system can deploy infrastructure, review it against Well-Architected baselines, enforce environment-appropriate security standards, and even deploy itself — once we taught it what "itself" means.
 
 But the experience raised a question we haven't addressed yet. We spent weeks building the enforcement gates, the profile classification fix, the flow logs fix. The agent deployed itself to AgentCore in minutes. The *try* — deploying infrastructure — was trivial. The *catch* — ensuring the deployment was safe, well-architected, and compliant — is where all the engineering effort went.
 
