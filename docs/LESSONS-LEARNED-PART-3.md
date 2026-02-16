@@ -337,6 +337,24 @@ Three fixes to get here. The first fixed the rule. The second fixed the distribu
 
 ---
 
+### Raw Observation: The CLI That Never Existed
+
+During D-G3 retesting, the discovery sub-agents kept failing. Exit code 252. The agent tried `aws bedrock-agentcore list-agent-runtimes` and got nothing. So it got creative — it tried boto3, asked permission to run Python scripts, explored the filesystem. The orchestrator, seeing its sub-agents fail, spawned new sub-agents with workaround instructions.
+
+We initially dismissed this as noise — the enforcement gate was what we were testing, and we got to it eventually. But the sub-agent failures kept nagging. On closer investigation, the root cause was embarrassing: our CLI playbook had the wrong namespace.
+
+Amazon Bedrock AgentCore uses a control plane / data plane split. Management commands (create, list, update, delete) use `aws bedrock-agentcore-control`. Invocation commands use `aws bedrock-agentcore`. Our playbook put everything under `aws bedrock-agentcore` — the data plane namespace. Every management command in the playbook was wrong. When the sub-agent ran `aws bedrock-agentcore list-agent-runtimes`, it failed because that command lives under `aws bedrock-agentcore-control list-agent-runtimes`.
+
+We got lucky with previous tests because they didn't exercise AgentCore discovery deeply. The commands that worked (Bedrock model listing, VPC discovery, IAM checks) use different, correctly-documented services. AgentCore was the first service where our playbook was fundamentally wrong.
+
+But the more important finding isn't the namespace error — it's what happened next. When the CLI failed, the agent improvised. The sub-agent tried boto3. The orchestrator spawned creative workaround agents. The system operated outside its defined tools without asking the user. That's a trust violation.
+
+The fix has two parts. First, correct the playbook — every management command now uses `bedrock-agentcore-control`. Second, and more importantly, add a CLI failure protocol at all three levels: sub-agent ("if CLI fails, STOP and report"), orchestrator ("if sub-agent reports failure, report to user, don't spawn workaround agents"), and the sub-agent prompt template (inject the protocol into every sub-agent invocation).
+
+The lesson: a clear failure report is more trustworthy than a success achieved through improvisation. The user trusts that AWS Coworker operates within its defined tools. When it starts writing Python scripts to work around a CLI limitation, it's operating outside the contract — even if the workaround would have succeeded. Trust isn't just about what the agent plans to do. It's about how it does it.
+
+---
+
 ## 5. The Self-Extending System
 
 <!--

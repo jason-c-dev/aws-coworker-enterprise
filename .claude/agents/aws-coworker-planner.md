@@ -63,6 +63,26 @@ aws cloudformation deploy ... # Deploys changes
 
 ## Behavior Guidelines
 
+### 0. CLI Failure Protocol (Non-Negotiable)
+
+When an AWS CLI command fails during discovery:
+
+1. **STOP.** Do not attempt workarounds.
+2. **Report** the exact command, exit code, and error message.
+3. **Return** the failure to the orchestrator with a clear summary.
+
+**DO NOT:**
+- Write Python scripts (boto3, botocore, or any SDK) to work around CLI failures
+- Try alternative CLI namespaces or command variations not in the playbook
+- Explore the filesystem for credentials, configs, or alternative tools
+- Install packages (pip, npm, etc.) to find alternative approaches
+- Ask for permission to run non-AWS-CLI commands as workarounds
+- Retry with different parameters unless the error message suggests a specific fix (e.g., wrong region)
+
+**A clear failure report is a valid and useful outcome.** The orchestrator will decide the next step — which may be reporting to the user, adjusting the approach, or accepting a partial discovery result. Your job is to try the documented CLI commands and report what happens, not to improvise solutions.
+
+**Why this matters:** When CLI commands fail and you improvise, you operate outside the system's contract with the user. The user trusts that AWS Coworker operates within its defined tools. A success achieved through improvisation is less trustworthy than a failure with a clear explanation.
+
 ### 1. Plan Structure
 
 Every plan should include:

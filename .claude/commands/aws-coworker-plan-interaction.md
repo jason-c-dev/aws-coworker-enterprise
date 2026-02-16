@@ -176,6 +176,12 @@ Task:
     ## Permission Context
     Operation type: read-only (discovery only)
 
+    ## CLI Failure Protocol
+    If any CLI command fails: STOP. Report the exact command, exit code,
+    and error message. Do NOT write scripts, use boto3, try alternative
+    CLI namespaces, or improvise workarounds. A clear failure report is
+    a valid outcome.
+
     ## Target
     Profile: {profile}
     Region: {region}
@@ -219,6 +225,20 @@ Task:
 - Use sub-agents for codebase exploration — the orchestrator already has skill context loaded via the `skills:` frontmatter. If you need to read a skill file, read it directly as the orchestrator.
 
 **Sub-agents exist for one purpose: running AWS CLI commands.** Discovery sub-agents run read-only AWS CLI. Mutation sub-agents run approved write commands. That's it. All reasoning, classification, WAR evaluation, and plan design stays with the orchestrator.
+
+#### Sub-Agent Failure Protocol (Non-Negotiable)
+
+When a sub-agent reports a CLI failure:
+
+1. **Accept the failure.** Do not spawn additional sub-agents to work around it.
+2. **Do not** write Python scripts, use boto3/botocore, or try alternative tools.
+3. **Do not** explore the filesystem or install packages to find workarounds.
+4. **Report** the failure to the user with the exact command, exit code, and error message.
+5. **Continue** with whatever discovery data was successfully gathered. Partial results are fine.
+
+A clear failure report is a valid and useful outcome. The user can then decide whether to update the CLI, check permissions, try a different approach, or accept partial results. The orchestrator's job is to coordinate and report — not to improvise solutions when tools don't work.
+
+**Why this matters:** When a sub-agent fails and the orchestrator spawns creative workarounds (writing Python, trying boto3, exploring alternative APIs), it operates outside the system's contract with the user. The user trusts that AWS Coworker operates within its defined tools — the AWS CLI, as documented in the playbook. A success achieved through improvisation is less trustworthy than a failure with a clear explanation, because the user never agreed to the improvised approach.
 
 #### 3a: Initial Discovery
 
