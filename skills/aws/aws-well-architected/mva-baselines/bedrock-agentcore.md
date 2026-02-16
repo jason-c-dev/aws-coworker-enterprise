@@ -30,8 +30,8 @@ Items required regardless of environment tier. These are the absolute minimum fo
 | Security | No hardcoded credentials or API keys in container image or environment variables | Critical | Credentials in images are extractable and cannot be rotated without redeployment |
 | Security | Container image sourced from private ECR (not public registries) | High | Public images are untrusted supply chain — no control over contents or updates |
 | Security | Agent runtime role is separate from execution role | High | Role separation limits blast radius — execution role pulls images, agent role acts at runtime |
-| Security | Bedrock model access configured via IAM (not API keys) | Critical | Agent must use IAM-based Bedrock access (e.g. `CLAUDE_CODE_USE_BEDROCK=1`), not hardcoded API keys. The agent runtime role must have `bedrock:InvokeModel` scoped to required foundation models. This is the positive counterpart to "no hardcoded credentials" — without it, the agent cannot invoke models at all. |
-| Reliability | Required Bedrock foundation models enabled and accessible | High | The agent's required models (orchestrator model + sub-agent models) must be enabled in the account and region. For AWS Coworker: Opus (orchestrator), Sonnet (mutations), Haiku (discovery). Missing models cause silent failures or degraded capability. |
+| Security | Agent's model invocation configured via IAM (not API keys) | Critical | The agent runtime role must include `bedrock:InvokeModel` scoped to required foundation models. The container must be configured to use IAM-based authentication for model access. This is the positive counterpart to "no hardcoded credentials" — without it, the agent has no way to invoke models. Application-specific configuration (e.g. runtime flags, SDK settings) should be defined in the application's deployment manifest. |
+| Reliability | Required Bedrock foundation models enabled and accessible | High | The foundation models the agent depends on must be enabled in the target account and region. Missing models cause deployment failures or degraded capability. Consult the application's deployment manifest for the specific model list. |
 | Operational Excellence | Governance tags applied to agent runtime, IAM roles, and VPC resources (Environment, Owner, CostCenter) | High | Tags are required for cost allocation, ownership tracking, and governance compliance |
 | Performance Efficiency | Agent runtime resource limits explicitly configured (memory, timeout) | Medium | Unconfigured resource limits lead to unpredictable costs and potential resource exhaustion |
 
@@ -97,7 +97,7 @@ This table shows ALL MVA items for production, which is the complete superset. L
 |--------|----------|---------|-----|---------|------|----------|
 | Security | IAM execution role follows least privilege | R | R | R | R | Critical |
 | Security | No hardcoded credentials in image/env vars | R | R | R | R | Critical |
-| Security | Bedrock model access configured via IAM (not API keys) | R | R | R | R | Critical |
+| Security | Agent's model invocation configured via IAM (not API keys) | R | R | R | R | Critical |
 | Security | Container image from private ECR | R | R | R | R | High |
 | Security | Separate execution role from agent role | R | R | R | R | High |
 | Security | Agent runtime in VPC (private subnets) | - | R | R | R | Medium |
@@ -143,21 +143,21 @@ For each MVA item, how to detect a gap programmatically:
 - **Remediation:** Remove credentials from image/env vars; use AgentCore Identity (`aws bedrock-agentcore create-api-key-credential`) or IAM roles
 - **Remediation description:** Migrate credentials to AgentCore Identity or Secrets Manager references
 
-### Bedrock Model Access Configured via IAM
+### Agent's Model Invocation Configured via IAM
 
-- **Check command:** Inspect container environment for `CLAUDE_CODE_USE_BEDROCK=1` (or equivalent IAM-based model access flag) via Dockerfile or runtime config; verify agent runtime role has `bedrock:InvokeModel` permission via `aws iam get-role-policy --role-name {agent-role} --policy-name {policy}` → check for `bedrock:InvokeModel` and `bedrock:InvokeModelWithResponseStream` actions scoped to required foundation models
-- **Gap condition:** Container does not set `CLAUDE_CODE_USE_BEDROCK=1` (or equivalent); OR agent runtime role lacks `bedrock:InvokeModel` permission; OR `bedrock:InvokeModel` is not scoped to specific model ARNs
+- **Check command:** Verify agent runtime role has `bedrock:InvokeModel` permission via `aws iam get-role-policy --role-name {agent-role} --policy-name {policy}` → check for `bedrock:InvokeModel` and `bedrock:InvokeModelWithResponseStream` actions scoped to required foundation models. Check the application's deployment manifest for application-specific configuration requirements (e.g. runtime flags, SDK settings, environment variables).
+- **Gap condition:** Agent runtime role lacks `bedrock:InvokeModel` permission; OR `bedrock:InvokeModel` is not scoped to specific model ARNs; OR the application's deployment manifest specifies configuration that is not present in the container/runtime
 - **Severity:** Critical
-- **Remediation:** Set `CLAUDE_CODE_USE_BEDROCK=1` in container environment variables and ensure agent runtime role includes `bedrock:InvokeModel` scoped to `arn:aws:bedrock:{region}::foundation-model/anthropic.*` (or more specifically to required models)
-- **Remediation description:** Configure IAM-based Bedrock model access — the agent must use IAM roles, not API keys, to invoke foundation models
+- **Remediation:** Ensure agent runtime role includes `bedrock:InvokeModel` scoped to required model ARNs. Apply any application-specific configuration from the deployment manifest (e.g. environment variables, SDK configuration).
+- **Remediation description:** Configure IAM-based Bedrock model access and apply application-specific model invocation settings from the deployment manifest
 
 ### Required Bedrock Foundation Models Enabled
 
-- **Check command:** `aws bedrock list-foundation-models --by-provider Anthropic --profile {profile} --region {region}` → verify required models appear and have `modelLifecycle.status` of `ACTIVE`; for AWS Coworker: check Opus (orchestrator), Sonnet (mutations), Haiku (discovery)
-- **Gap condition:** Required models not enabled or not available in the target region. For AWS Coworker: Opus missing means no orchestrator; Sonnet missing means no mutation agents; Haiku missing means no discovery agents
+- **Check command:** Consult the application's deployment manifest for the required model list, then `aws bedrock list-foundation-models --by-provider {provider} --profile {profile} --region {region}` → verify required models appear and have `modelLifecycle.status` of `ACTIVE`
+- **Gap condition:** Required models (as specified in the application's deployment manifest) not enabled or not available in the target region
 - **Severity:** High
 - **Remediation:** Enable required models via Bedrock console Model Access page; if models are not available in region, consider region change
-- **Remediation description:** Enable all required Bedrock foundation models in the target account and region
+- **Remediation description:** Enable all required Bedrock foundation models as specified in the application's deployment manifest
 
 ### Container Image from Private ECR
 

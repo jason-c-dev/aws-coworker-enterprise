@@ -227,25 +227,37 @@ Everything else followed correctly: no Explore agent (discovery used a single Ha
 
 **Three runs to pass.** Two fixes, two different root causes, same symptom. The mandatory first-check pattern — putting the hardest evaluation before the easy fallbacks are even visible — is the same principle that fixed the flow logs bug: restructure so the right path runs first, not just documenting that it should.
 
-### Raw Observation: D-G2 — The Baseline Had a Hole
+### Raw Observation: D-G2 — The Agent Doesn't Know It's Deploying Itself
 
-D-G2 tests whether the WAR correctly evaluates AgentCore's own deployment stack. I ran it and the plan looked solid — structured WAR table, correct statuses, separate IAM roles, rollback procedures, the works. Claude suggested we could record D-G2 as a pass from the D-G1 output. I pushed back and insisted on running D-G2 separately with its own prompt: "Show me the full plan but don't execute it yet."
+D-G2 tests whether the WAR correctly evaluates AgentCore's own deployment stack. After D-G1 passed, Claude suggested we record D-G2 as a pass from the same output — the WAR table was structured, the statuses were correct, the rollback was there. I pushed back on the language nuance and insisted on running D-G2 as its own test with the specific prompt: "Show me the full plan but don't execute it yet."
 
 Good thing I did.
 
-The plan passed almost every check. Then I scored it against the D-G2 checklist and noticed a gap: `CLAUDE_CODE_USE_BEDROCK=1` was nowhere in the plan. This is the environment variable that tells Claude Code to use IAM roles for Bedrock model access instead of an Anthropic API key. Without it, the container would start, try to find an API key that doesn't exist, and fail. The entire deployment would be dead on arrival.
+The plan passed almost every check on the D-G2 checklist. Then I noticed: `CLAUDE_CODE_USE_BEDROCK=1` was nowhere in the plan. This is the environment variable that tells Claude Code to use IAM roles for Bedrock model access instead of an Anthropic API key. Without it, the container starts, looks for an API key that doesn't exist, and fails. Dead on arrival.
 
-The deeper problem: the MVA baseline had the *negative* — "No hardcoded credentials or API keys in container image or environment variables" (Critical) — but never stated the *positive* — "configure the agent for IAM-based Bedrock model access." The orchestrator dutifully verified "no bad credentials" and moved on, never asking "so how *does* the agent actually get model access?"
+Claude's first instinct was to fix the MVA baseline — add the env var as a new Common-tier item. We actually committed that fix. Then I stopped and asked a harder question: under normal circumstances, does the baseline need to know about `CLAUDE_CODE_USE_BEDROCK=1`? That's a Claude Code-specific detail. A Python agent using the Bedrock SDK directly wouldn't need it. A LangChain agent might use something else entirely. We were about to shoehorn an application-specific dependency into a generic platform baseline.
 
-This is a foundational gap, not an edge case. Bedrock model access isn't just a security concern — it's an architectural dependency. Without it, nothing works. The baseline told the WAR what to prohibit but not what to require. Same pattern as a security policy that says "don't use password123" but never says "use SSO."
+The real problem was simpler and deeper: **the agent doesn't know it's deploying itself.**
 
-Two new MVA items added to the baseline:
-1. **"Bedrock model access configured via IAM"** — Critical severity, Common tier. The positive counterpart to "no hardcoded credentials." Gap detection checks for `CLAUDE_CODE_USE_BEDROCK=1` (or equivalent), and verifies the agent runtime role has `bedrock:InvokeModel` scoped to required models.
-2. **"Required Bedrock foundation models enabled and accessible"** — High severity, Common tier. Verifies that the models the agent needs (Opus for orchestrator, Sonnet/Haiku for sub-agents) are actually enabled in the account. For dev/test, reduced capability may be ACCEPTABLE; for staging/prod, missing the orchestrator model is BLOCKED.
+AWS Coworker knows how to deploy S3 buckets, EC2 instances, Lambda functions, VPCs — because those have CLI playbooks and MVA baselines. But when asked to deploy *AWS Coworker*, it treats itself as a generic AgentCore workload. It doesn't know that the container runs Claude Code. It doesn't know Claude Code needs `CLAUDE_CODE_USE_BEDROCK=1`. It doesn't know it needs Opus as the orchestrator, not just any model. It has no self-knowledge.
 
-**The meta-lesson:** I nearly let this pass. Claude evaluated the D-G1 output and said the plan was solid. I agreed. It was only when I insisted on running D-G2 as a separate test — because the nuance of "show me the full plan" might surface different behaviour — that the gap appeared. Then when I asked "having bedrock access should be considered Well-Architected, should it not?" Claude immediately saw the hole: the baseline had the prohibition but not the requirement.
+This is the inception moment. The agent can deploy anything except itself, because it doesn't have a self-model. It's a chef who can cook any recipe but doesn't know their own ingredients.
 
-This is why human review matters even when the system looks correct. The WAR can only evaluate against what's documented. If the baseline has a gap, the WAR inherits it. The human's job is to notice what the checklist doesn't cover — and in this case, the checklist was missing the most fundamental dependency of the entire deployment.
+**The fix has two layers:**
+
+1. **Generic MVA baseline** — we kept the two new items but rewrote them to remove all Claude Code-specific details. "Agent's model invocation configured via IAM" is a valid generic AgentCore concern (every agent needs *some* mechanism). "Required Bedrock foundation models enabled" is valid too (every agent has model dependencies). Both now reference "the application's deployment manifest" for specifics.
+
+2. **Deployment manifest** — we created `config/deployment.md`, which describes AWS Coworker as a deployable application. It lists `CLAUDE_CODE_USE_BEDROCK=1`, the required models (Opus/Sonnet/Haiku with their roles), container contents, and system dependencies. When the orchestrator is asked to deploy AWS Coworker, it reads this manifest to understand what *this specific agent* needs beyond the generic platform requirements.
+
+We reverted the Claude-specific details from the baseline. The generic baseline says "check the application's deployment manifest." The deployment manifest says "I'm AWS Coworker, I need `CLAUDE_CODE_USE_BEDROCK=1` and Opus." Clean separation: platform requirements in the baseline, application requirements in the manifest.
+
+**The meta-lesson has three layers:**
+
+First: Claude suggested passing D-G2 without running it. I pushed back on language nuance. The gap only appeared because I insisted on the separate test. Human review catches what checklists miss — even when the AI built the checklist.
+
+Second: Claude's first fix was technically correct but architecturally wrong. Adding `CLAUDE_CODE_USE_BEDROCK=1` to the generic baseline would have made the test pass, but it conflated the platform with the application. I asked "should Bedrock access be considered Well-Architected?" — and that question led to the right abstraction, not the first fix.
+
+Third: in the agent's defence, this was a perfectly reasonable thing to miss. AWS Coworker doesn't exist as a "thing" inside AWS Coworker. It knows about every AWS service it can deploy, but it doesn't know about itself. The deployment manifest fixes that — not by hard-coding env vars into baselines, but by giving the agent self-knowledge.
 
 ---
 
