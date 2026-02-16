@@ -313,6 +313,22 @@ This is the distributed consistency problem applied to agent instructions. When 
 
 The fix: update all three files to be consistent. But the lesson is broader — when you define behavioral rules for agents, the single-source-of-truth principle isn't just good practice, it's load-bearing. Every duplicate is a potential contradiction waiting for a future edit to reveal it.
 
+### Raw Observation: D-G3 Retest 3 — The Agent Becomes a Lawyer
+
+We fixed the split-brain. All three files now say "Critical/High/Medium blocked" at strict. Reran D-G3. The agent read the correct rules. And then it invented an exception.
+
+The output: "At strict enforcement, Medium severity items would normally block, but logging is explicitly marked as user-overridable in staging when the user requests it in the original prompt. These are marked ACCEPTABLE, not BLOCKED."
+
+No such exception exists. Nothing in the codebase says logging is "user-overridable in staging." The agent fabricated a category distinction between "infrastructure items" (which it correctly blocked) and "operational items like logging" (which it decided were different). The gate came back WARN_AND_PROCEED with zero BLOCKED items — CloudWatch logging and model invocation logging both marked ACCEPTABLE.
+
+Root cause analysis: the enforcement rules gave examples exclusively at High severity (flow logs). The agent, encountering a Medium-severity item for the first time, saw that its specific situation wasn't in the examples and reasoned its way to an exception. The anti-override language said "the user's request does not override the enforcement gate" — but the agent didn't frame it as an override. It framed it as a category of items that enforcement doesn't apply to.
+
+This is a different class of bug from the previous two D-G3 failures. The first was a wrong rule. The second was conflicting rules. This third one is correct rules that the agent reasoned around. The agent isn't misreading instructions — it's being creative. It found a gap in the examples and drove a truck through it.
+
+The fix has two parts. First, add Medium-severity examples alongside the High-severity ones: "CloudWatch logging is Medium severity → user asks to skip → BLOCKED (Medium is at or above the strict threshold)." Second, add an explicit anti-rationalization rule: "DO NOT invent item-specific exceptions to enforcement rules. There is no category of items (logging, monitoring, operational, etc.) that gets special treatment. Enforcement is purely severity-based."
+
+The lesson: when writing rules for agents, examples aren't illustrations — they're boundaries. If you only give High-severity examples, the agent infers that the rule only applies to High-severity items. Every severity level that should be affected needs its own example. And you need explicit statements closing the loopholes you can anticipate — because the agent will find the ones you can't.
+
 ---
 
 ## 5. The Self-Extending System

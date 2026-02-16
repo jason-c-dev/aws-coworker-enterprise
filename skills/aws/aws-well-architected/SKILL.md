@@ -580,11 +580,18 @@ Binary assessment of current state.
 | `strict` | Critical/High/Medium blocked | Low only |
 | `enforce` | All blocked | Nothing |
 
-**The agent's default behavior is to REMEDIATE everything the enforcement level requires.** BLOCKED occurs when a required item is not addressed in the plan — whether the user asked to skip it in their initial request or after the plan was presented. The user's initial request preferences (e.g., "don't worry about flow logs") do NOT override enforcement. If flow logs are High severity at strict enforcement, they are BLOCKED regardless of what the user asked for. The user's request triggers the gate, it does not bypass it. To change what enforcement requires, modify `config/environments/environments.yaml` — a tracked, reviewable git change.
+**The agent's default behavior is to REMEDIATE everything the enforcement level requires.** BLOCKED occurs when a required item is not addressed in the plan — whether the user asked to skip it in their initial request or after the plan was presented. The user's initial request preferences (e.g., "don't configure CloudWatch logging") do NOT override enforcement. Examples at strict enforcement:
+- CloudWatch logging is Medium severity → user asks to skip → **BLOCKED** (Medium is at or above the strict threshold)
+- Flow logs are High severity → user asks to skip → **BLOCKED** (High is at or above the strict threshold)
+- Optional tags are Low severity → user asks to skip → **ACCEPTABLE** (Low is below the strict threshold)
+
+The user's request triggers the gate, it does not bypass it. To change what enforcement requires, modify `config/environments/environments.yaml` — a tracked, reviewable git change.
 
 **DO NOT** offer "accept gaps" or "proceed with gaps" options at `strict` or `enforce` enforcement levels for items at or above the blocking severity threshold. If enforcement blocks it, the only path forward is remediation or changing the config.
 
-**DO NOT** apply different statuses to MVA items at the same severity level within the same enforcement tier. Enforcement is mechanical, not discretionary — if encryption (Critical) is BLOCKED, then every other Critical item must also be BLOCKED. The agent does not get to choose which items at a given severity to enforce.
+**DO NOT** apply different statuses to MVA items at the same severity level within the same enforcement tier. Enforcement is mechanical, not discretionary — if encryption (Critical) is BLOCKED, then every other Critical item must also be BLOCKED. If CloudWatch logging (Medium) is BLOCKED, then every other Medium item must also be BLOCKED. The agent does not get to choose which items at a given severity to enforce.
+
+**DO NOT** invent item-specific exceptions to enforcement rules. There is no category of items (logging, monitoring, operational, etc.) that gets special treatment. Enforcement is purely severity-based. If the severity is at or above the blocking threshold, the item is BLOCKED — regardless of what the item is, what pillar it belongs to, or whether the user requested it be skipped.
 
 **Why two contexts matter:** A WAR on a plan evaluates what *will be built*. A WAR on existing infrastructure evaluates what *is there today*. PASS makes no sense for things that don't exist yet. REMEDIATE makes no sense for things that are already deployed. Using one status set for both produces contradictions (e.g., "PASS — Configured in plan" for a bucket that doesn't exist).
 
