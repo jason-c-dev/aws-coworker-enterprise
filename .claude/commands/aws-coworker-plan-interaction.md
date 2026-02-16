@@ -49,6 +49,27 @@ Example questions:
 
 Based on the target environment, determine the AWS profile, region, and environment classification using this **fallback chain**:
 
+#### MANDATORY FIRST CHECK — Scan User Message Before Anything Else
+
+**Before evaluating profile names, config files, or any other classification method, you MUST scan the user's original message for explicit environment statements.**
+
+Look for phrases like:
+- "this is a development environment"
+- "this is a staging environment"
+- "treat this as production"
+- "development", "staging", "production", "test", "sandbox" used in the context of describing what environment this is
+
+**If the user's message contains ANY such statement, STOP. Use that classification. Do NOT proceed to Step 2b, 2c, or 2d.** The user's explicit statement overrides everything — profile name, config file, inference. Skip all other steps.
+
+**Example:** User says "Deploy to aws-coworker-test. This is a development environment."
+- The profile name contains "test" — IGNORE IT
+- The config file may say "test" — IGNORE IT
+- The user said "development" — USE THAT
+- Classification: `development`
+- Source: `user explicit override`
+
+**Why this must be first:** The profile name indicates where credentials point. The user's statement indicates what governance rules to apply. A user may want to test staging enforcement on a test account, or run development-tier rules against a production profile for planning purposes.
+
 #### Step 2a: User explicit override
 
 If the user explicitly states the environment classification in their request (e.g., "This is a staging environment", "treat this as production"), **use that classification regardless of profile name or config**. The user is the authority.
@@ -57,7 +78,7 @@ If the user explicitly states the environment classification in their request (e
 
 > **Why this takes precedence:** A user may want to test staging enforcement rules using a test profile, or simulate production constraints in development. The profile name indicates where credentials point; the user's statement indicates what governance rules to apply.
 
-#### Step 2b: Infer classification from profile name
+#### Step 2b: Infer classification from profile name (ONLY if Step 2a did not match)
 
 Match the profile name against known patterns:
 
@@ -109,6 +130,16 @@ I will use:
 
 This is a planning session - I will only run read-only discovery commands.
 ```
+
+#### CRITICAL: Classification is Orchestrator-Inline
+
+**The orchestrator MUST perform Steps 2a-2d itself. DO NOT delegate classification to a sub-agent.**
+
+Sub-agents cannot see the user's original message. If Step 2a (user explicit override) is evaluated by a sub-agent, the sub-agent has no way to detect phrases like "this is a development environment" because it only receives the task prompt, not the conversation. The orchestrator is the only entity with visibility into the user's intent.
+
+**What sub-agents may do:** Run `aws sts get-caller-identity` or `aws configure get aws_coworker_classification` — but only as data-gathering commands whose output the orchestrator interprets. The orchestrator makes the classification decision.
+
+**What sub-agents must NOT do:** Decide the environment classification or enforcement level. That is an orchestrator responsibility.
 
 ### Step 3: Discovery and Scope Estimation (Always-Agent Mode)
 
@@ -182,8 +213,12 @@ Task:
 
 **DO NOT:**
 - Use `subagent_type: "Bash"` (bypasses agent context)
+- Use `subagent_type: "Explore"` (codebase exploration burns tokens without AWS value)
 - Spawn "Bash agents" directly
 - Omit agent identity from prompt
+- Use sub-agents for codebase exploration — the orchestrator already has skill context loaded via the `skills:` frontmatter. If you need to read a skill file, read it directly as the orchestrator.
+
+**Sub-agents exist for one purpose: running AWS CLI commands.** Discovery sub-agents run read-only AWS CLI. Mutation sub-agents run approved write commands. That's it. All reasoning, classification, WAR evaluation, and plan design stays with the orchestrator.
 
 #### 3a: Initial Discovery
 
@@ -196,6 +231,16 @@ aws ec2 describe-instances --profile {profile} --region {region}
 aws ec2 describe-vpcs --profile {profile} --region {region}
 aws s3 ls --profile {profile}
 ```
+
+**For Bedrock/AgentCore deployments:** Discovery MUST verify that the orchestrator model is available via Bedrock, not just sub-agent models. AWS Coworker requires Opus (or equivalent) as the orchestrator. If only Haiku and Sonnet are enabled, the deployment cannot function — flag this as a prerequisite failure.
+
+```bash
+# Check orchestrator model availability (not just sub-agent models)
+aws bedrock list-foundation-models --profile {profile} --region {region} \
+  --by-provider Anthropic --query "modelSummaries[?contains(modelId, 'opus')].modelId"
+```
+
+If no Opus model is enabled, report: "AWS Coworker requires Opus as the orchestrator model. Currently enabled models: {list}. Request access to Opus via the Bedrock console before deploying."
 
 Load relevant information from:
 - `aws-cli-playbook` skill for command patterns

@@ -186,7 +186,46 @@ Replace this placeholder with the actual deployment story after the conversation
 ==========================================================================
 -->
 
-*[This section is pending the deployment conversation. The agent will deploy itself to Bedrock AgentCore, and this section will document what happened.]*
+*[This section is pending the full deployment conversation. Below are raw observations from the D-G test runs that will shape the narrative.]*
+
+### Raw Observation: D-G1 — The Orchestrator Got Lazy
+
+The first deployment test asked the agent to deploy itself to AgentCore using the `aws-coworker-test` profile, with the user explicitly stating "this is a development environment." The classification should have been `development` (user explicit override, Step 2a). Instead, the agent classified it as `test` (from AWS CLI config, Step 2c).
+
+**Root cause:** The orchestrator delegated the classification decision to a Haiku sub-agent. The sub-agent ran `aws configure get aws_coworker_classification` and got `test` from the config file. But the sub-agent never saw the user's original message — it only received its task prompt. Step 2a (user explicit override) can only work if evaluated by the entity that can see the user's words. The orchestrator outsourced its own judgment.
+
+This is the same P4 bug from Part 2, resurfacing in a new context. The fix existed in the command file — Step 2a was clearly documented as first in the fallback chain. But documentation doesn't help if the orchestrator delegates the task to something that can't read the documentation's prerequisite: the user's message.
+
+**Second issue: Explore agent token waste.** Before any AWS discovery, the orchestrator spawned an `Explore` agent to search the codebase for deployment artifacts (CDK templates, CloudFormation, Terraform). 31 tool uses. 66,000 tokens. Nearly two minutes. The orchestrator already had the Dockerfile, the MVA baseline, and the CLI playbook loaded through its skills. There was nothing to find because AWS Coworker doesn't use IaC templates — it generates CLI commands. The codebase search was pure waste.
+
+**Third issue: Missing orchestrator model.** Discovery found Claude 3 Haiku, Sonnet, and 3.5 Sonnet enabled in Bedrock and reported "Ready to use." But AWS Coworker needs Opus as the orchestrator. Nobody flagged that the deployment would fail without Opus model access. The discovery checked sub-agent prerequisites but not orchestrator prerequisites.
+
+**Three fixes applied to `aws-coworker-plan-interaction.md`:**
+1. Classification is now explicitly orchestrator-inline — sub-agents may gather config data but cannot make the classification decision
+2. `subagent_type: "Explore"` is prohibited alongside `"Bash"` — sub-agents run AWS CLI, period
+3. Bedrock/AgentCore discovery must verify orchestrator model (Opus) availability, not just sub-agent models
+
+**Blog angle:** The orchestrator is Opus — the most capable model — and its first instinct was to delegate the hard decision to the cheapest model. The enforcement chain existed. The documentation was correct. But LLMs optimise for efficiency, and "ask a sub-agent" looked efficient. This is the agentic version of a manager who delegates without context. The fix isn't better documentation — it's explicit prohibition: "you must do this yourself."
+
+### Raw Observation: D-G1 Retest — Same Bug, Different Cause
+
+After Fix 1 (classification must be orchestrator-inline), the retest showed progress: no Explore agent (66k tokens saved), classification done inline by orchestrator (not delegated), Opus models found in Bedrock. But the classification was still wrong — `test` from Step 2b (profile name pattern `*-test`) instead of `development` from Step 2a (user explicit override).
+
+The orchestrator did the classification itself this time. It just didn't follow the order. Step 2a says "check the user's message first." The orchestrator skipped it and went straight to pattern-matching the profile name. The instruction was correct. The sequence was documented. The model didn't follow the sequence.
+
+**Fix 2:** Added a "MANDATORY FIRST CHECK" block before Step 2a with explicit examples, a concrete scenario matching the exact test prompt ("Deploy to aws-coworker-test. This is a development environment" → classification: development, IGNORE profile name), and a hard STOP instruction. The theory: the model needs the override logic presented as a pre-check with worked examples, not as step 1 of a 4-step chain where steps 2-4 look easier.
+
+**Blog angle (updated):** Two failures, two different root causes, same symptom. First: the orchestrator delegated to a sub-agent that couldn't see the user's words. Fix: "do it yourself." Second: the orchestrator did it itself but skipped the hardest step. Fix: make the hardest step impossible to skip by presenting it as a mandatory gate before the easy steps even appear.
+
+This is the LLM equivalent of a developer who reads the requirements doc top to bottom but implements the easy parts first and "gets to" the hard part later. The fix isn't restructuring documentation — it's restructuring the code so the hard path runs before the easy path is even visible. Same principle as putting validation before business logic.
+
+### Raw Observation: D-G1 Retest 3 — The Fix Holds
+
+Third run, after both fixes applied. The orchestrator's Step 1 output: "Environment: Development (you explicitly stated this)." The classification table showed `development` with source `user explicit override`. The profile name `*-test` was explicitly acknowledged and ignored.
+
+Everything else followed correctly: no Explore agent (discovery used a single Haiku Task agent), Opus 4.6 confirmed available in Bedrock, WAR evaluation done inline by the orchestrator with a full MVA baseline table (9 REMEDIATE items, 1 ACCEPTABLE for VPC private subnets at Medium severity), 7-phase plan with per-phase rollback, governance tags on all resources, and the plan ended with "run `/aws-coworker-execute-nonprod`" — not direct CLI execution.
+
+**Three runs to pass.** Two fixes, two different root causes, same symptom. The mandatory first-check pattern — putting the hardest evaluation before the easy fallbacks are even visible — is the same principle that fixed the flow logs bug: restructure so the right path runs first, not just documenting that it should.
 
 ---
 

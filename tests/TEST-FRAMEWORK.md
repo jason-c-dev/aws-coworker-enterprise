@@ -65,7 +65,7 @@ AWS Coworker tests are **interactive conversations** with Claude. A human execut
 | P2 | ✅ | 2026-02-15 | Non-existent profile detected, correctly suggested aws configure set aws_coworker_classification |
 | P3 | ✅ | 2026-02-15 | aws-coworker-test classified as test via inferred from name (Step 2b), not explicit config (Step 2c). Fallback chain order validated |
 | P4 | ✅ | 2026-02-15 | INITIAL FAIL: agent used test tier from profile name, ignored user's "staging environment" statement. FIX: Added Step 2a user explicit override. RETEST PASS: staging classification, strict enforcement, encryption/logging/versioning BLOCKED |
-| D-G1 | ⬜ | | |
+| D-G1 | ✅ | 2026-02-16 | FAIL 1: Orchestrator delegated classification to Haiku sub-agent — classified test (Step 2c) instead of development (Step 2a). Explore agent burned 66k tokens. Opus not flagged. FIX 1: classification orchestrator-inline, Explore prohibited, Opus check added. FAIL 2: Orchestrator kept classification inline but skipped Step 2a, went straight to Step 2b (profile name → test). FIX 2: Added mandatory first-check block before Step 2a. PASS on retest 3: classification=development, source=user explicit override, no Explore agent, Opus found, WAR inline, 7-phase plan with rollback |
 | D-G2 | ⬜ | | |
 | D-G3 | ⬜ | | |
 | D-G4 | ⬜ | | |
