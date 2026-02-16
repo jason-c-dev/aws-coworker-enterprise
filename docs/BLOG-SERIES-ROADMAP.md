@@ -534,7 +534,7 @@ This is the most ambitious part. Be ruthless about scope:
 
 | Part | Week | Focus | Implementation Load |
 |------|------|-------|-------------------|
-| Part 3 | Week 1 | Master key, Agent Teams decision, W13 bug, profiles.yaml fix | Light — mostly written, small fixes |
+| Part 3 | Week 1 | Deploy Yourself: profiles fix, W13 bug, bastion deployment, self-extending | Medium — one deployment + writing |
 | Part 4 | Week 2 | Try/catch thesis, one-way/two-way doors, bastion skill demo | Medium — one demo + essay writing |
 | Part 5 | Week 3 | AgentCore deployment, inception moment | Heavy — new platform, Docker, IAM |
 | Part 6 | Week 4 | Cloud cannibalization, managed service replacement | Heavy — ambitious build + thesis |
@@ -576,9 +576,9 @@ This is the most ambitious part. Be ruthless about scope:
 | Agent Teams analysis | ✅ Decision documented | Part 3 |
 | W13 enforcement bug fix | ✅ Fixed & retested | Part 3 |
 | M14/W14 IAM testing | ✅ Complete | Part 3 |
-| Profiles.yaml wiring | ⬜ Not started | Part 3 |
+| Profile classification fallback chain | ✅ Built & tested (P1-P4) | Part 3 |
 | Scoped IAM role design | ⬜ Not started | Part 3 |
-| Bastion host → reusable skill | ⬜ Not started | Part 4 |
+| Bastion host deployment + reusable skill | ⬜ Not started | Part 3 |
 | Try/catch thesis + research | ✅ Research complete | Part 4 |
 | One-way/two-way doors research | ✅ Research complete | Part 4 |
 | Bedrock AgentCore deployment | ⬜ Not started | Part 5 |
