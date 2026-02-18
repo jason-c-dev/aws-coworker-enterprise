@@ -112,12 +112,12 @@ else
 fi
 
 # Test key permissions
-if aws bedrock-agentcore help 2>&1 | grep -q "AVAILABLE COMMANDS\|Available Commands\|list-agent-runtimes"; then
-    check_pass "bedrock-agentcore CLI commands available"
-elif aws bedrock-agentcore list-agent-runtimes --profile "$AWS_PROFILE" --region "$AWS_REGION" 2>/dev/null; then
-    check_pass "bedrock-agentcore API access confirmed"
+if aws bedrock-agentcore-control help 2>&1 | grep -q "AVAILABLE COMMANDS\|Available Commands\|list-agent-runtimes"; then
+    check_pass "bedrock-agentcore-control CLI commands available"
+elif aws bedrock-agentcore-control list-agent-runtimes --profile "$AWS_PROFILE" --region "$AWS_REGION" 2>/dev/null; then
+    check_pass "bedrock-agentcore-control API access confirmed"
 else
-    check_warn "Cannot verify bedrock-agentcore access — may need to update AWS CLI or check permissions"
+    check_warn "Cannot verify bedrock-agentcore-control access — may need to update AWS CLI or check permissions"
 fi
 
 # 5. CLAUDE_CODE_USE_BEDROCK
@@ -139,13 +139,13 @@ echo "   AWS CLI version: $AWS_VERSION"
 if echo "$AWS_VERSION" | grep -qE "aws-cli/2\.(1[5-9]|[2-9][0-9])"; then
     check_pass "AWS CLI version supports bedrock-agentcore"
 else
-    check_warn "AWS CLI may need updating for bedrock-agentcore support — verify with: aws bedrock-agentcore help"
+    check_warn "AWS CLI may need updating for bedrock-agentcore support — verify with: aws bedrock-agentcore-control help"
 fi
 
 # 7. Clean State
 echo ""
 echo "7. Clean State"
-EXISTING_RUNTIMES=$(aws bedrock-agentcore list-agent-runtimes \
+EXISTING_RUNTIMES=$(aws bedrock-agentcore-control list-agent-runtimes \
     --profile "$AWS_PROFILE" \
     --region "$AWS_REGION" \
     --query 'agentRuntimeSummaries | length(@)' \
