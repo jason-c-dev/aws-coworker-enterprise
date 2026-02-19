@@ -74,11 +74,11 @@
 
 **Time budget:** 1 week (5 evenings + 2 weekend days)
 
-**Narrative arc:** Parts 1-3 complete the "building and hardening" trilogy. Part 3 wraps the technical foundation with the ultimate test: we ask AWS Coworker to deploy itself to Bedrock AgentCore — the AWS service purpose-built for AI agents. Every lesson from Parts 1-2 gets validated in a single conversation. The agent plans its own deployment, the WAR evaluates its own infrastructure, and the enforcement gate judges its own plan. Then the system captures the deployment as a reusable skill — demonstrating extensibility.
+**Narrative arc:** Parts 1-3 complete the "building and hardening" trilogy. Part 3 wraps the technical foundation with the ultimate test: we ask AWS Coworker to deploy itself. We validate the governance pipeline with four deployment tests, discover that Bedrock AgentCore requires an HTTP wrapper (which aligns with our planned web UI), build the FastAPI wrapper and React frontend, and deploy to EC2 using AWS Coworker itself. AgentCore deployment moves to Part 4 — same container, same governance, purpose-built runtime.
 
-**Central narrative:** "We asked AWS Coworker to deploy itself. Here's what happened."
+**Central narrative:** "We asked AWS Coworker to deploy itself. Here's what happened — including the detour we didn't plan."
 
-**Why AgentCore, not a bastion host:** Traditional bastion hosts are now officially a legacy anti-pattern (AWS 2025: "Toward a Bastion-less World"). Deploying one in a blog about Well-Architected governance would undermine the message. AgentCore is purpose-built for Claude agents — session isolation via Firecracker microVMs, IAM-based identity, up to 8-hour sessions, built-in observability. It also naturally solves the master key problem through per-agent scoped IAM roles.
+**Deployment target pivot:** We originally targeted AgentCore. During D-D test preparation, we discovered AgentCore requires containers to implement an HTTP protocol contract (`POST /invocations` + `GET /ping`). This means wrapping the Claude Agent SDK in FastAPI — which is the same web UI we'd already planned. Build it once, deploy to EC2 now, deploy to AgentCore later. The container implements the AgentCore protocol contract from day one.
 
 ### Blog Structure
 
@@ -117,77 +117,64 @@ After fixing the flow logs bug, we examined Anthropic's own system prompt. We di
 
 **Important framing:** We solved the problem first, then studied how Anthropic handles the same tension. Independent convergence followed by deliberate study.
 
-#### Section 3: "Deploy Yourself" — The Main Event
+#### Section 3: "Deploy Yourself" — Governance Testing (DONE)
 
-This is the centrepiece of Part 3. We ask AWS Coworker to deploy itself to Bedrock AgentCore.
+The D-G (Deployment Governance) tests validated the governance pipeline against the agent's own deployment plan. Four tests, nine runs, three classes of bugs found and fixed.
 
-**The prompt:** Something like: "Deploy AWS Coworker to Bedrock AgentCore in the aws-coworker-test account. This is a development environment."
+**What was tested and written:**
+- D-G1: Profile classification (3 runs to pass — orchestrator delegation bug, sequence-skipping bug)
+- D-G2: WAR self-evaluation (1 run — discovered the self-knowledge gap, created deployment manifest)
+- D-G3: Strict enforcement (5 runs — wrong rule, split-brain, agent rationalization, CLI namespace, failure guardrails)
+- D-G4: Gap detection at warn tier (1 run — first-time pass)
 
-**Why AgentCore is the right target:**
-- Purpose-built for Claude agents (Claude Agent SDK, session management, scaling)
-- Session isolation via Firecracker microVMs — each user gets dedicated compute
-- IAM-based identity — per-agent scoped roles, solving the master key problem structurally
-- Built-in observability and audit logging
-- No public IP, no SSH keys, no inbound security group rules — zero-trust by design
-- AWS's own recommended replacement for bastion-style access patterns
-- The narrative: "We deployed the agent to the service that was literally built for agents"
+**Key findings documented in blog:**
+- The agent doesn't know it's deploying itself → deployment manifest (self-knowledge)
+- Three classes of enforcement bugs: wrong content, inconsistent content, insufficient specificity
+- Agents reason around rules like lawyers exploit contracts
+- CLI failure protocol: a clear failure report is more trustworthy than improvised success
+- The constraint paradox: more guardrails → faster, cleaner execution
 
-**What should happen (and what we write about):**
+**Implementation status:** ✅ All done, all committed, all written in the blog.
 
-1. **Profile classification** — The fallback chain we just built kicks in. Profile classified, environment announced. The Part 2 gap is now closed.
+#### Section 4: The AgentCore Discovery → Web UI Pivot
 
-2. **The WAR evaluates its own infrastructure** — The agent runs AgentCore, IAM, and VPC MVA baselines against its own deployment plan. It's eating its own dog food. Every pillar gets evaluated.
+After D-G tests passed, we turned to live deployment and discovered AgentCore requires an HTTP protocol contract (`POST /invocations` + `GET /ping`). Research found AWS's sample project wrapping the Claude Agent SDK in FastAPI. This aligned with our planned web UI — same component, same wrapper.
 
-3. **The master key problem surfaces and gets solved** — When the agent plans its own IAM roles, AgentCore Identity enables scoped roles per agent type: discovery agents get read-only, mutation agents get scoped write. The WAR should flag any remaining wildcard permissions. The system identifies and resolves its own security weakness during its own deployment.
+**Strategic decision:** Build the web wrapper, deploy to EC2 using AWS Coworker itself, defer AgentCore to Part 4.
 
-4. **Governance tags applied to itself** — The 7 core tags get applied to AWS Coworker's own infrastructure.
+**Implementation status:** ✅ Discovery and decision documented in blog. Web UI build is next.
 
-5. **Enforcement gate** — Development tier means advisory (WARN_AND_PROCEED), so the deployment should proceed. But the warnings tell the story of what would need to change for staging/production.
+#### Section 5: The Web UI — Build and Deploy (TODO)
 
-6. **Safety model → infrastructure policy** — MVA baselines map conceptually to Cedar policies. Enforcement gates (advisory: "the agent says no") can evolve into structural enforcement (IAM/Cedar: "the infrastructure says no"). This is the trust model completing.
-
-7. **The deployment executes** — Via `/aws-coworker-execute-nonprod`. The agent deploys itself.
-
-8. **Cleanup** — Tear down after documenting the conversation.
-
-**Why this is powerful:**
-- Every lesson from Parts 1-3 gets validated in a single conversation
-- The WAR reviewing its own infrastructure is genuinely novel
-- The master key problem emerges and gets solved organically — scoped IAM via AgentCore Identity
-- AgentCore is modern AWS (2025) — no legacy bastion patterns
-- The safety model → Cedar policy bridge introduces structural enforcement
-- We can show the full plan → approve → execute → verify lifecycle
-- Real screenshots of the conversation become the blog content
+Build the FastAPI wrapper + React frontend, then use AWS Coworker (CLI) to deploy its own web UI to EC2.
 
 **Implementation required:**
-- [ ] Create Bedrock/AgentCore MVA baseline (or extend existing baselines)
-- [ ] Run the deployment conversation in AWS Coworker (capture full output)
-- [ ] Document what the WAR flagged about its own deployment
-- [ ] Note which MVA baselines fired and what they caught
-- [ ] Build Docker container with Claude Agent SDK + AWS Coworker skills
-- [ ] Deploy to AgentCore Runtime (at minimum: working agent that can do discovery)
-- [ ] Configure AgentCore Identity with scoped IAM roles
-- [ ] Test the deployed agent (basic discovery, enforcement gate)
-- [ ] Clean up resources after documenting
+- [ ] Build FastAPI backend wrapping Claude Agent SDK
+- [ ] Build React frontend (chat interface, session management, permission approval)
+- [ ] Dockerfile (ARM64, AgentCore protocol contract from day one)
+- [ ] docker-compose.yml for local development
+- [ ] New command: `/aws-coworker-deploy-web-ui`
+- [ ] Run the self-deployment conversation (capture full output for blog)
+- [ ] Document the WAR evaluation of the EC2 deployment
+- [ ] Update README, Getting Started, User Guide with two startup modes
 
-#### Section 4: The Self-Extending System
+#### Section 6: The Self-Extending System (TODO — may move to Part 4)
 
 After the deployment conversation, we use `/aws-coworker-new-skill-from-session` to capture the deployment pattern as a reusable command.
 
 **What this demonstrates:**
 - Tenet 9 (Self-Extending System) in action — the system learns from its own deployment
-- The conversation becomes a skill: "deploy AWS Coworker to AgentCore"
+- The conversation becomes a skill: "deploy AWS Coworker web UI"
 - Future users can run the deployment with a single command
 - Skills are filesystem artifacts — markdown files, portable, version-controlled, reviewable
-- Platform extensibility — this is how organisations build on AWS Coworker
 
 **Implementation required:**
-- [ ] Run `/aws-coworker-new-skill-from-session` after the deployment conversation
+- [ ] Run `/aws-coworker-new-skill-from-session` after the EC2 deployment conversation
 - [ ] Review and refine the generated skill
-- [ ] Document the experience — did it capture the right patterns? What needed adjustment?
-- [ ] Commit the new skill (or command) as a real addition to the codebase
+- [ ] Document the experience
+- [ ] Commit the new skill as a real addition to the codebase
 
-#### Section 5: Agent Teams — Why We Said "Not Yet"
+#### Section 7: Agent Teams — Why We Said "Not Yet"
 
 Brief section — the deployment conversation naturally raises the question: "Shouldn't this be an Agent Team?"
 
@@ -213,25 +200,26 @@ Tease Part 4: Amazon's one-way/two-way door framework and how AI changes build v
 
 #### Part 4 Teaser
 
-"Every agent had the master key. We said 'not yet' to Agent Teams. Then the agent deployed itself to AgentCore. But the real question isn't whether AI can build infrastructure — it's whether it changes what infrastructure you need to build at all."
+"The same container. The same governance. A purpose-built runtime. From EC2 to AgentCore — and then the question we haven't answered yet: if the agent handles the happy path, what exactly is the developer's job?"
 
-Coming Soon — Part 4: *The Developer's New Job: When AI Writes the Try Block, You'd Better Own the Catch*
+Coming Soon — Part 4: *From EC2 to AgentCore — the same container, the same governance, a purpose-built runtime.*
 
 ### What Part 3 Does NOT Cover
-- The full developer role thesis (that's Part 4)
-- One-way/two-way doors framework (that's Part 4)
-- Buy vs build industry analysis (that's Part 4)
-- Cedar policies from MVA baselines (introduced conceptually in Part 3, implemented in Part 5)
+- Bedrock AgentCore deployment (that's Part 4)
+- The full developer role thesis (that's Part 4/5)
+- One-way/two-way doors framework (that's Part 4/5)
+- Buy vs build industry analysis (that's Part 4/5)
+- Cedar policies from MVA baselines (introduced conceptually, implemented in Part 5)
 - Building own managed services (that's Part 5+)
 - Agent Teams implementation (that's Part 6, if API stabilizes)
 
 ### Scope Control
-- The AgentCore deployment IS the blog content — the conversation becomes the narrative
-- Don't over-engineer the deployment (it's a demonstration, not a production service)
-- Minimum viable AgentCore: working agent that can do discovery with scoped IAM
-- The safety model → Cedar policy bridge is conceptual in Part 3, implementation in Part 5
-- The `/aws-coworker-new-skill-from-session` test is a bonus — if it runs long, document what happened and move on
-- The flow logs and profiles.yaml stories are already written in detail (above) — just shape them for the blog
+- The EC2 self-deployment IS the blog content — the conversation becomes the narrative
+- Don't over-engineer: t4g.micro, single instance, dev/test environment
+- The web UI is MVP: chat interface, streaming, session management, permission approval
+- Build the FastAPI wrapper to implement AgentCore protocol contract from day one (reusable for Part 4)
+- The `/aws-coworker-new-skill-from-session` test is a bonus — if it runs long, move to Part 4
+- The flow logs, profiles.yaml, D-G tests, and AgentCore discovery stories are already written
 
 ---
 
@@ -294,13 +282,25 @@ The following detailed notes support the blog sections above. They are reference
 
 ## Part 4: Planning 📋
 
-**Working title:** "The Developer's New Job: When AI Writes the Try Block, You'd Better Own the Catch"
+**Working title:** "From EC2 to AgentCore: The Same Container, A Purpose-Built Runtime"
 
-**Guiding constraint:** Build first, write after — but this part is more reflective than previous parts. The implementation evidence comes from Parts 1-3; the essay is the industry thesis.
+**Guiding constraint:** Build first, write after. Part 4 has both implementation (AgentCore deployment) and essay (try/catch thesis).
 
 **Time budget:** 1 week (5 evenings + 2 weekend days)
 
-**Narrative arc:** Part 4 pivots from "how we built it" to "what building it taught us about the industry." This is where the blog series stops being just a technical build log and becomes a thesis about how software development is changing.
+**Narrative arc:** Part 4 takes the web UI container from Part 3 and deploys it to Bedrock AgentCore — the service purpose-built for AI agents. The container already implements the AgentCore protocol contract, so the deployment is mostly configuration. This validates the "build once, deploy anywhere" decision from Part 3. Then Part 4 pivots to the industry thesis: what building all this taught us about how software development is changing.
+
+### AgentCore Deployment (Implementation)
+
+The Part 3 container implements `POST /invocations` + `GET /ping` on port 8080. Deploying to AgentCore means:
+- Push the same ARM64 container to ECR
+- Create agent runtime via `aws bedrock-agentcore-control create-agent-runtime`
+- Configure AgentCore Identity with scoped IAM roles (solving the master key problem)
+- Test invocation via `InvokeAgentRuntime` API
+- Session isolation via Firecracker microVMs — each user gets dedicated compute
+- The self-extending system experiment: capture the deployment as a reusable skill
+
+### Industry Thesis (Essay)
 
 ### Topics to Cover
 
@@ -312,7 +312,7 @@ In traditional development, you spend 80% of your time in the `try` block — wr
 **Evidence from AWS Coworker:**
 - Part 1: The agent wrote sub-agent delegation code in minutes. We spent days fixing permission context.
 - Part 2: The agent generated WAR assessments instantly. We spent a week building enforcement gates.
-- Part 3: The agent deployed itself to AgentCore. We spent weeks building the rules that make the deployment safe.
+- Part 3: The agent deployed itself to EC2. We spent weeks building the rules that make the deployment safe.
 - The HAL 9000 test: the deployment code was trivial. The safety model that refused to run it was the real engineering.
 
 **External validation:**
@@ -368,7 +368,7 @@ Brief closing section that sets up Part 5:
 
 **Time budget:** 1 week (5 evenings + 2 weekend days)
 
-**Narrative arc:** Part 5 takes the two-way door thesis from Part 4 and proves it. Now that the agent is deployed on AgentCore (Part 3), we push further: implement Cedar policies from MVA baselines (structural enforcement), and attempt to build a managed service replacement. The acid test: can an AI-assisted developer build a viable alternative to a managed service in a week?
+**Narrative arc:** Part 5 takes the two-way door thesis from Part 4 and proves it. Now that the agent is deployed on AgentCore (Part 4), we push further: implement Cedar policies from MVA baselines (structural enforcement), and attempt to build a managed service replacement. The acid test: can an AI-assisted developer build a viable alternative to a managed service in a week?
 
 ### Topics to Cover
 
@@ -409,7 +409,7 @@ Brief closing section that sets up Part 5:
 
 ### Implementation Required (Before Writing Part 5)
 - [ ] Write Cedar policies derived from at least one MVA baseline
-- [ ] Deploy Cedar policies to AgentCore (building on Part 3's deployment)
+- [ ] Deploy Cedar policies to AgentCore (building on Part 4's deployment)
 - [ ] Test structural enforcement (IAM/Cedar denying what the advisory model warned about)
 - [ ] Select the managed service to replace (decision required before implementation week)
 - [ ] Build the replacement using AWS Coworker's own patterns
@@ -479,12 +479,12 @@ This is the most ambitious part. Be ruthless about scope:
 
 | Part | Week | Focus | Implementation Load |
 |------|------|-------|-------------------|
-| Part 3 | Week 1 | Deploy Yourself: profiles fix, flow logs bug, AgentCore deployment, self-extending | Heavy — AgentCore deployment + writing |
-| Part 4 | Week 2 | Try/catch thesis, one-way/two-way doors | Light — essay writing, evidence from Parts 1-3 |
+| Part 3 | Week 1-2 | Deploy Yourself: profiles fix, flow logs bug, D-G tests, web UI, EC2 deployment | Heavy — web wrapper + EC2 deployment + writing |
+| Part 4 | Week 3 | AgentCore deployment, self-extending system, try/catch thesis | Medium — container reuse + essay writing |
 | Part 5 | Week 3 | Cedar policies, cloud cannibalization, managed service replacement | Heavy — ambitious build + thesis |
 | Part 6 | Week 4+ | Agent Teams (if API stable) | Medium — depends on API maturity |
 
-**Reality check:** Part 3 is now the heaviest implementation week (AgentCore deployment + Docker + IAM). Part 4 is lighter — mostly essay writing with evidence already gathered. Part 5 is ambitious. The weekly cadence is a target, not a constraint — we'd rather publish quality than rush.
+**Reality check:** Part 3 is the heaviest implementation period (web wrapper + frontend + EC2 deployment). Part 4 is medium — AgentCore deployment reuses the Part 3 container, plus the essay. Part 5 is ambitious. The weekly cadence is a target, not a constraint — we'd rather publish quality than rush.
 
 ---
 
@@ -521,11 +521,19 @@ This is the most ambitious part. Be ruthless about scope:
 | W13 enforcement bug fix | ✅ Fixed & retested | Part 3 |
 | M14/W14 IAM testing | ✅ Complete | Part 3 |
 | Profile classification fallback chain | ✅ Built & tested (P1-P4) | Part 3 |
-| Bedrock AgentCore deployment | ⬜ Not started | Part 3 |
-| AgentCore Identity (scoped IAM) | ⬜ Not started | Part 3 |
-| AgentCore deployment → reusable skill | ⬜ Not started | Part 3 |
-| Try/catch thesis + research | ✅ Research complete | Part 4 |
-| One-way/two-way doors research | ✅ Research complete | Part 4 |
+| D-G governance tests (D-G1–D-G4) | ✅ All pass (9 runs, 3 bug classes found) | Part 3 |
+| CLI failure guardrails | ✅ Built (3 levels) | Part 3 |
+| AgentCore CLI playbook fix | ✅ Complete (namespace correction) | Part 3 |
+| Deployment manifest (self-knowledge) | ✅ Built (config/deployment.md) | Part 3 |
+| AgentCore architecture research | ✅ Complete (HTTP wrapper required) | Part 3 |
+| Web UI wrapper (FastAPI + Claude SDK) | ⬜ Not started | Part 3 |
+| React frontend | ⬜ Not started | Part 3 |
+| EC2 self-deployment | ⬜ Not started | Part 3 |
+| Bedrock AgentCore deployment | ⬜ Not started | Part 4 |
+| AgentCore Identity (scoped IAM) | ⬜ Not started | Part 4 |
+| Self-extending skill from deployment | ⬜ Not started | Part 4 |
+| Try/catch thesis + research | ✅ Research complete | Part 4/5 |
+| One-way/two-way doors research | ✅ Research complete | Part 4/5 |
 | Cedar policies from MVA baselines | ⬜ Not started | Part 5 |
 | Managed service replacement | ⬜ Not started | Part 5 |
 | Cloud cannibalization thesis | ⬜ Research complete | Part 5 |
@@ -534,4 +542,4 @@ This is the most ambitious part. Be ruthless about scope:
 ---
 
 *This document tracks the blog series roadmap. Update it as implementation progresses and plans evolve.*
-*Last updated: 2026-02-16*
+*Last updated: 2026-02-18*
