@@ -20,17 +20,17 @@ WARN=0
 
 check_pass() {
     echo -e "${GREEN}  ✓ $1${NC}"
-    ((PASS++))
+    PASS=$((PASS + 1))
 }
 
 check_fail() {
     echo -e "${RED}  ✗ $1${NC}"
-    ((FAIL++))
+    FAIL=$((FAIL + 1))
 }
 
 check_warn() {
     echo -e "${YELLOW}  ⚠ $1${NC}"
-    ((WARN++))
+    WARN=$((WARN + 1))
 }
 
 echo "═══════════════════════════════════════════════════"

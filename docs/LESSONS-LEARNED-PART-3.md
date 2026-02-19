@@ -16,9 +16,9 @@ Then six words slipped past the gate.
 
 This blog is about what happened next. We closed two gaps that Part 2 left open, discovered that our enforcement model mirrors the same trust-and-safety patterns Anthropic uses at the model level, and then asked the ultimate question: if the agent is good enough to deploy *other* people's infrastructure, is it good enough to deploy *itself*?
 
-We asked AWS Coworker to deploy itself to Bedrock AgentCore — the AWS service purpose-built for AI agents. The WAR evaluated its own infrastructure. The enforcement gate judged its own deployment plan. Every lesson from Parts 1 and 2 got validated in a single conversation. Then we asked it to capture the deployment as a reusable skill — demonstrating that the system doesn't just build, it learns.
+We started by validating the governance pipeline — four tests that exercised profile classification, WAR evaluation, enforcement gates, and gap detection against the agent's own deployment. That process exposed three new classes of bugs and a discovery about trust that changed how we think about agent failure. Then we investigated Bedrock AgentCore — the AWS service purpose-built for AI agents — and discovered that deploying there requires a web interface: an HTTP wrapper around the Claude Agent SDK. That discovery aligned with something we'd already planned: giving AWS Coworker a web UI. So instead of blocking on AgentCore-specific infrastructure, we built the wrapper, deployed it to EC2, and proved the "deploy yourself" story on standard AWS compute. The agent planned its own infrastructure, the WAR evaluated it, and the enforcement gate judged it — exactly the same governance pipeline, different deployment target.
 
-Parts 1 through 3 complete the "building and hardening" trilogy. By the end of this post, we'll have an agent that has deployed itself, reviewed itself, and taught itself. And that raises a question we'll explore in Part 4: if the agent handles the happy path, what exactly is the developer's job?
+Parts 1 through 3 complete the "building and hardening" trilogy. By the end of this post, we'll have an agent that has deployed itself, reviewed itself, and can run as both a CLI tool and a web service. AgentCore — where the same container runs without modification — is a Part 4 story. And that raises a question we'll explore alongside it: if the agent handles the happy path, what exactly is the developer's job?
 
 *(A note on "we": that's me and Claude, my co-author, working together in Claude Cowork. When I mean the system we built, I'll say "the agent" or "AWS Coworker." Same model, different contexts.)*
 
@@ -161,7 +161,7 @@ If you're building governance into an AI agent, you're doing trust-and-safety en
 
 We'd built the enforcement model. We'd fixed the profile classification. We'd closed the flow logs gap and mapped our patterns to Anthropic's trust-and-safety framework. Everything worked in tests designed around S3, VPC, RDS, and Lambda — services the agent deploys for other people. The natural next question: if the agent is good enough to deploy other people's infrastructure, is it good enough to deploy itself?
 
-Amazon Bedrock AgentCore is AWS's purpose-built service for running AI agents — container-based runtimes with IAM-scoped credentials, VPC isolation, and built-in observability. It's what AWS Coworker would run on in production instead of a developer's laptop. Deploying AWS Coworker to AgentCore means the agent plans its own infrastructure, the WAR evaluates its own deployment stack, and the enforcement gate judges its own plan. Every component we'd built gets exercised in a single conversation.
+Our initial target was Amazon Bedrock AgentCore — the AWS service purpose-built for AI agents, with container-based runtimes, IAM-scoped credentials, VPC isolation, and built-in observability. Deploying AWS Coworker to AgentCore would mean the agent plans its own infrastructure, the WAR evaluates its own deployment stack, and the enforcement gate judges its own plan. Every component we'd built gets exercised in a single conversation. (As we'll see, the deployment target changed during this process — but the governance validation didn't.)
 
 Before we ran the live deployment, we needed to validate the governance logic — the parts that don't require actual AWS resources. These are the D-G (Deployment Governance) tests: four prompts designed to verify that the agent classifies environments correctly, evaluates its own stack against the right MVA baseline, enforces staging restrictions on its own deployment, and detects Bedrock-specific security gaps. The tests are free to run (no AWS resources created), but they exercise the full planning pipeline: profile classification, WAR evaluation, enforcement gates, and gap detection.
 
@@ -348,14 +348,55 @@ After three D-G3 failures, a first-time pass feels significant. What's different
 
 The lesson: agents perform best when rules are simple and data is explicit. D-G3's complexity came from the strict tier requiring severity-based discrimination. D-G4's simplicity came from the warn tier being straightforward. Both are correct behavior — but one is much harder to get right.
 
+### The AgentCore Discovery
+
+With the governance tests passing, we turned to the live deployment. The prerequisites script checked seven things: Bedrock model access, ECR repository, VPC infrastructure, IAM permissions, the `CLAUDE_CODE_USE_BEDROCK=1` environment variable, AgentCore CLI availability, and clean state. Three passed immediately, three failed on expected setup gaps, and one — the environment variable check — raised a question we should have asked earlier: where exactly does this env var need to be set?
+
+The answer led us somewhere unexpected. `CLAUDE_CODE_USE_BEDROCK=1` tells Claude Code to use IAM roles for Bedrock model access instead of an Anthropic API key. It needs to be set *inside the deployed container*, not on the developer's laptop. But that means the container needs to be running Claude Code — or more precisely, the Claude Agent SDK that underlies it. And AgentCore doesn't just run containers blindly. It expects them to implement a specific HTTP protocol contract: a `POST /invocations` endpoint for agent interaction and a `GET /ping` endpoint for health checks. Claude Code is an interactive CLI tool. It can't serve HTTP requests.
+
+We needed a wrapper.
+
+Research confirmed this. AWS had published a sample project — `sample-claude-code-web-agent-on-bedrock-agentcore` — demonstrating exactly this pattern: a FastAPI application wrapping the Claude Agent SDK, implementing the AgentCore protocol contract, with session management, streaming responses, and a React frontend. The Claude Agent SDK provides the same tools as Claude Code (Read, Write, Edit, Bash, Glob, Grep, Task), and our skills, commands, and agents are just files on the filesystem. The SDK reads them the same way the CLI does. Nothing about our architecture needs to change — we just need the HTTP translation layer.
+
+This discovery aligned with something we'd already planned but hadn't prioritised: running AWS Coworker as a web service with a browser-based UI. The AgentCore requirement and the web UI requirement are the same requirement — a FastAPI wrapper around the Claude Agent SDK that translates HTTP requests into conversation turns. Build it once, deploy it to EC2 now, deploy to AgentCore later. The container implements the protocol contract from day one, so it works in both environments without modification.
+
+The strategic decision: build the web wrapper, deploy to EC2 using AWS Coworker itself, and defer the AgentCore-specific deployment to Part 4. Nothing we'd built needed undoing. The D-G governance tests validated universal patterns — classification, enforcement, WAR evaluation — that apply regardless of whether the deployment target is AgentCore or EC2. The CLI playbook fix, the failure guardrails, the deployment manifest: all correct, all still needed. The only thing that changed was where the container runs.
+
+And there's an argument that deploying to EC2 is actually a better "deploy yourself" test. EC2 exercises more of the governance pipeline — VPC configuration, security groups, IAM instance profiles, container orchestration — than AgentCore, which abstracts most of that away. The agent has to plan more infrastructure, the WAR has to evaluate more components, and the enforcement gate has to judge a richer deployment. More surface area, more opportunities for the governance model to prove itself.
+
 ---
 
-## 5. The Self-Extending System
+## 5. The Web UI: Building and Deploying
+
+<!--
+==========================================================================
+PLACEHOLDER: This section will be written after building the FastAPI wrapper,
+React frontend, and deploying to EC2.
+
+The narrative will cover:
+- Two startup modes: CLI (local) and Web UI (local or deployed)
+- Building the FastAPI wrapper around the Claude Agent SDK
+- The React frontend for browser-based interaction
+- Using AWS Coworker (CLI) to deploy its own web UI to EC2
+- The WAR evaluating the EC2 deployment stack
+- The enforcement gate at dev tier
+- The full plan → approve → execute → verify lifecycle
+- "Batteries included" — the agent ships with its own deployment capability
+
+Replace this placeholder with the actual build and deployment story.
+==========================================================================
+-->
+
+*[This section is pending the web UI build and EC2 deployment. After building the FastAPI wrapper and React frontend, we'll use AWS Coworker to deploy itself and document the conversation.]*
+
+---
+
+## 6. The Self-Extending System
 
 <!--
 ==========================================================================
 PLACEHOLDER: This section will be written after running /aws-coworker-new-skill-from-session
-on the deployment conversation from Section 4.
+on the deployment conversation from Section 5.
 
 The narrative will cover:
 - Using the command to capture the deployment pattern as a reusable skill
@@ -368,13 +409,13 @@ Replace this placeholder with the actual skill creation story.
 ==========================================================================
 -->
 
-*[This section is pending the skill creation experiment. After the deployment in Section 4, we'll ask the system to capture what it learned.]*
+*[This section is pending the skill creation experiment. After the deployment in Section 5, we'll ask the system to capture what it learned.]*
 
 ---
 
-## 6. Agent Teams: Why We Said "Not Yet"
+## 7. Agent Teams: Why We Said "Not Yet"
 
-The AgentCore deployment naturally raises a question: shouldn't this be an Agent Team? A Discovery agent exploring the infrastructure independently, a WAR Assessor challenging the Planner's choices, an Executor running the approved commands — each with their own context window, communicating through structured markdown, coordinated by an Opus Team Lead.
+The deployment work naturally raises a question: shouldn't this be an Agent Team? A Discovery agent exploring the infrastructure independently, a WAR Assessor challenging the Planner's choices, an Executor running the approved commands — each with their own context window, communicating through structured markdown, coordinated by an Opus Team Lead.
 
 We considered it seriously. Claude Code had recently introduced Agent Teams — independent agents with their own context windows, direct inter-agent messaging, and a shared task list. The microservices analogy was appealing: our current architecture is an orchestrator pattern (a saga coordinator), and Agent Teams would enable choreography (event-driven agents reacting to each other's outputs).
 
@@ -430,15 +471,15 @@ None of this came from the system design. It came from a human pushing back on a
 
 ## What's Next
 
-Part 3 wraps the "building and hardening" trilogy. The agent works. The enforcement model is sound. The system can deploy infrastructure, review it against Well-Architected baselines, enforce environment-appropriate security standards, and even deploy itself — once we taught it what "itself" means.
+Part 3 wraps the "building and hardening" trilogy. The agent works. The enforcement model is sound. The system can deploy infrastructure, review it against Well-Architected baselines, enforce environment-appropriate security standards, and deploy itself — once we taught it what "itself" means and gave it a web interface to deploy.
 
-But the experience raised a question we haven't addressed yet. We spent weeks building the enforcement gates, the profile classification fix, the flow logs fix. The agent deployed itself to AgentCore in minutes. The *try* — deploying infrastructure — was trivial. The *catch* — ensuring the deployment was safe, well-architected, and compliant — is where all the engineering effort went.
+The AgentCore investigation revealed something we should have expected: deploying an interactive agent to a managed runtime requires an HTTP wrapper. But rather than treating that as a blocker, we recognised it as an opportunity. The web UI we'd always planned to build turned out to be the same component AgentCore requires. Build it once, deploy to EC2 now, deploy to AgentCore later. The container implements the AgentCore protocol contract from day one.
+
+But the experience raised a question we haven't addressed yet. We spent weeks building the enforcement gates, the profile classification fix, the flow logs fix. The agent deployed itself in minutes. The *try* — deploying infrastructure — was trivial. The *catch* — ensuring the deployment was safe, well-architected, and compliant — is where all the engineering effort went.
 
 That's not an accident. It's a pattern. And it changes what it means to be a developer.
 
-Every agent had the master key. We said "not yet" to Agent Teams. Then the agent deployed itself. But the real question isn't whether AI can build infrastructure — it's whether it changes what infrastructure you need to build at all.
-
-Coming in Part 4: *The Developer's New Job: When AI Writes the Try Block, You'd Better Own the Catch*
+Coming in Part 4: *From EC2 to AgentCore — the same container, the same governance, a purpose-built runtime. Plus: the self-extending system, and what happens when the agent captures its own deployment as a reusable skill.*
 
 ---
 
