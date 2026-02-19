@@ -143,7 +143,7 @@ Sub-agents cannot see the user's original message. If Step 2a (user explicit ove
 
 ### Step 3: Discovery and Scope Estimation (Always-Agent Mode)
 
-**Configuration:** Read thresholds from `.claude/config/orchestration-config.md`
+**Configuration:** Read thresholds from `config/orchestration-config.md`
 
 Run read-only AWS CLI commands to understand current state and estimate task complexity.
 
@@ -265,7 +265,7 @@ If no Opus model is enabled, report: "AWS Coworker requires Opus as the orchestr
 Load relevant information from:
 - `aws-cli-playbook` skill for command patterns
 - `aws-org-strategy` skill for account/OU context
-- `.claude/config/orchestration-config.md` for thresholds
+- `config/orchestration-config.md` for thresholds
 - Existing infrastructure state
 
 #### 3b: Scope Estimation Against Thresholds
@@ -593,7 +593,7 @@ The command produces:
 
 ## Always-Agent Mode Orchestration
 
-**Configuration:** `.claude/config/orchestration-config.md`
+**Configuration:** `config/orchestration-config.md`
 
 AWS Coworker operates in Always-Agent Mode: every request spawns at least one agent. Thresholds determine whether to use single or parallel execution.
 

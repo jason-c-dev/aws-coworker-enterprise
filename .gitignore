@@ -91,6 +91,7 @@ Thumbs.db
 # -----------------------
 dist/
 build/
+web-ui/dist/
 out/
 target/
 *.zip
@@ -132,6 +133,7 @@ __pycache__/
 *.egg
 venv/
 .venv/
+server/.venv/
 ENV/
 env/
 pip-log.txt
@@ -163,6 +165,11 @@ local-config.*
 # Conversation Archives
 # -----------------------
 docs/conversations/
+
+# -----------------------
+# Runtime Data
+# -----------------------
+server/workspaces/
 
 # -----------------------
 # Temporary Files

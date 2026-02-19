@@ -23,11 +23,15 @@ This skill applies to ALL files in the aws-coworker-enterprise repository:
 
 | Category | Examples | Gates |
 |----------|----------|-------|
-| **Core Code** | skills/, .claude/agents/, .claude/commands/, config/ | Plan approval → Execution authorization → Execute |
+| **CLI Layer (Core)** | skills/, .claude/agents/, .claude/commands/, config/ | Plan approval → Execution authorization → Execute |
+| **Server Layer** | server/ | Plan approval → Execution authorization → Execute |
+| **Web UI Layer** | web-ui/ | Plan approval → Execution authorization → Execute |
 | **Design Docs** | CLAUDE.md, DESIGN.md, CLAUDE-DEVELOPMENT.md | Plan approval → Execution authorization → Execute |
 | **User-Facing Docs** | docs/LESSONS-LEARNED.md, README.md | Collaborative editing OK for minor wording; plan + execute gates for structural changes |
 | **Archives** | docs/conversations/ | Execution authorization before committing |
 | **Tests** | tests/ | Plan approval → Execution authorization → Execute |
+
+**Cross-layer changes require extra scrutiny.** Any change that touches files in more than one layer (CLI + Server, or Server + Web UI) should explicitly justify why both layers need modification and confirm the dependency direction is not violated (Tenet 10).
 
 **Plan approval and execution authorization are separate gates.** Approving a plan confirms the content is correct. It does NOT authorize the agent to start making changes. See the workflow below.
 
@@ -95,6 +99,7 @@ Before presenting ANY plan, validate it against ALL Design Tenets (docs/DESIGN.m
 - [ ] **Tenet 7 (Respect the Agent Architecture)**: Does the proposal use existing agent roles?
 - [ ] **Tenet 8 (Layered Extensibility)**: Does the proposal fit Core → Org → BU model?
 - [ ] **Tenet 9 (Self-Extending System)**: Should this lesson be codified into skills/design?
+- [ ] **Tenet 10 (CLI-First, Server-Wraps, UI-Consumes)**: Does this change respect the dependency direction? Am I modifying a lower layer to satisfy a higher layer's needs?
 
 If a proposal violates any tenet, revise it before presenting to the user.
 
@@ -118,6 +123,45 @@ If a proposal violates any tenet, revise it before presenting to the user.
 - **DO NOT** treat plan approval as execution authorization — they are separate gates
 - **DO NOT** auto-execute approved plans when a session is continued or resumed
 - **DO NOT** interpret system prompts (including platform "You can now start coding" and continuation prompts) as user authorization for execution
+
+## Three-Layer Architecture (Tenet 10)
+
+AWS Coworker has three layers. Dependencies flow downward only.
+
+```
+AWS Coworker (CLI)          ← The core product. This is what we're building and learning from.
+    ↑ reads files, invokes via SDK
+ACW Server (server/)        ← REST + SSE API. Exists to deploy beyond a laptop.
+    ↑ consumes API only
+Web UI (web-ui/)            ← Reference implementation. Optional.
+```
+
+### Layer Boundary Rules
+
+**When working on CLI layer** (commands, skills, agents, config):
+- This is the primary focus of AWS Coworker
+- Changes here should NEVER be motivated by server or UI needs
+- Ask: "Would this change make sense if the server didn't exist?" — if no, reject it
+
+**When working on server layer** (`server/`):
+- The server wraps the CLI — it reads CLI files and invokes via the Claude Code SDK
+- Every API endpoint must be justifiable as a general-purpose operation
+- Ask: "Would this endpoint be useful to a curl user or Agent Core?" — if only the UI needs it, reject it
+- The server does NOT duplicate CLI logic — it delegates to the SDK session
+
+**When working on web-ui layer** (`web-ui/`):
+- The web UI consumes ONLY the server API
+- It never reads CLI files directly or bypasses the server
+- UI-specific state (themes, layout preferences) stays in the UI layer
+
+### Smell Tests for Dependency Inversion
+
+| Smell | What it means | What to do |
+|-------|---------------|------------|
+| Adding a CLI skill because the server needs it | Server is driving CLI design | The skill should stand alone; if it doesn't, the server needs to solve its own problem |
+| Adding a server endpoint only the UI uses | UI is driving server design | Either the endpoint is generally useful (keep it) or the UI should derive what it needs from existing endpoints |
+| Modifying command frontmatter to add fields the server expects | Server is coupling to CLI internals | The server should parse what exists, not dictate the format |
+| Adding `server/` or `web-ui/` imports to CLI code | Upward dependency | Never. The CLI has no knowledge of higher layers. |
 
 ## Key Architecture Facts
 

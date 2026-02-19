@@ -16,9 +16,11 @@ Then six words slipped past the gate.
 
 This blog is about what happened next. We closed two gaps that Part 2 left open, discovered that our enforcement model mirrors the same trust-and-safety patterns Anthropic uses at the model level, and then asked the ultimate question: if the agent is good enough to deploy *other* people's infrastructure, is it good enough to deploy *itself*?
 
-We started by validating the governance pipeline — four tests that exercised profile classification, WAR evaluation, enforcement gates, and gap detection against the agent's own deployment. That process exposed three new classes of bugs and a discovery about trust that changed how we think about agent failure. Then we investigated Bedrock AgentCore — the AWS service purpose-built for AI agents — and discovered that deploying there requires a web interface: an HTTP wrapper around the Claude Agent SDK. That discovery aligned with something we'd already planned: giving AWS Coworker a web UI. So instead of blocking on AgentCore-specific infrastructure, we built the wrapper, deployed it to EC2, and proved the "deploy yourself" story on standard AWS compute. The agent planned its own infrastructure, the WAR evaluated it, and the enforcement gate judged it — exactly the same governance pipeline, different deployment target.
+We started by validating the governance pipeline — four tests that exercised profile classification, WAR evaluation, enforcement gates, and gap detection against the agent's own deployment. That process exposed three new classes of bugs and a discovery about trust that changed how we think about agent failure. Then we investigated Bedrock AgentCore — the AWS service purpose-built for AI agents — and discovered that deploying there requires an HTTP wrapper around the Claude Agent SDK. AWS Coworker is a CLI tool. AgentCore expects `POST /invocations`. Something has to bridge that gap.
 
-Parts 1 through 3 complete the "building and hardening" trilogy. By the end of this post, we'll have an agent that has deployed itself, reviewed itself, and can run as both a CLI tool and a web service. AgentCore — where the same container runs without modification — is a Part 4 story. And that raises a question we'll explore alongside it: if the agent handles the happy path, what exactly is the developer's job?
+That discovery forced a question we'd been circling around: what is AWS Coworker once it leaves a developer's laptop? The CLI is the core product — the commands, skills, agents, and governance guardrails we've been building across this series. But the CLI can't serve HTTP requests. We needed a server: not a "backend for the frontend," but a distinct layer that wraps the CLI via the Claude Agent SDK for remote deployment. And once we had a server with a clean API, a web UI became a natural — but optional — reference implementation showing how to consume that API. Three layers, with dependencies flowing in one direction: CLI at the foundation, server wrapping it, web UI consuming the server. Build the server once, deploy to EC2 now, deploy to AgentCore later. The container implements the protocol contract from day one.
+
+Parts 1 through 3 complete the "building and hardening" trilogy. By the end of this post, we'll have an agent that can run as both a CLI tool and a web service, with a clear architectural separation between the core product, the deployment wrapper, and the UI. AgentCore — where the same container runs without modification — is a Part 4 story. And that raises a question we'll explore alongside it: if the agent handles the happy path, what exactly is the developer's job?
 
 *(A note on "we": that's me and Claude, my co-author, working together in Claude Cowork. When I mean the system we built, I'll say "the agent" or "AWS Coworker." Same model, different contexts.)*
 
@@ -360,34 +362,82 @@ Research confirmed this. AWS had published a sample project — `sample-claude-c
 
 This discovery aligned with something we'd already planned but hadn't prioritised: running AWS Coworker as a web service with a browser-based UI. The AgentCore requirement and the web UI requirement are the same requirement — a FastAPI wrapper around the Claude Agent SDK that translates HTTP requests into conversation turns. Build it once, deploy it to EC2 now, deploy to AgentCore later. The container implements the protocol contract from day one, so it works in both environments without modification.
 
-The strategic decision: build the web wrapper, deploy to EC2 using AWS Coworker itself, and defer the AgentCore-specific deployment to Part 4. Nothing we'd built needed undoing. The D-G governance tests validated universal patterns — classification, enforcement, WAR evaluation — that apply regardless of whether the deployment target is AgentCore or EC2. The CLI playbook fix, the failure guardrails, the deployment manifest: all correct, all still needed. The only thing that changed was where the container runs.
+The strategic decision: build the server wrapper, deploy to EC2 using AWS Coworker itself, and defer the AgentCore-specific deployment to Part 4. Nothing we'd built needed undoing. The D-G governance tests validated universal patterns — classification, enforcement, WAR evaluation — that apply regardless of whether the deployment target is AgentCore or EC2. The CLI playbook fix, the failure guardrails, the deployment manifest: all correct, all still needed. The only thing that changed was where the container runs.
 
-And there's an argument that deploying to EC2 is actually a better "deploy yourself" test. EC2 exercises more of the governance pipeline — VPC configuration, security groups, IAM instance profiles, container orchestration — than AgentCore, which abstracts most of that away. The agent has to plan more infrastructure, the WAR has to evaluate more components, and the enforcement gate has to judge a richer deployment. More surface area, more opportunities for the governance model to prove itself.
+But the wrapper decision turned out to be more than a deployment prerequisite. It forced us to think clearly about what AWS Coworker actually *is* once it leaves a laptop — and that thinking led to an architectural separation of concerns that we should have established from the start. The wrapper isn't a shim. It's a distinct layer with its own purpose, and understanding that distinction changes how you think about the whole system. Section 5 covers this in detail.
+
+There's also an argument that deploying to EC2 is actually a better "deploy yourself" test. EC2 exercises more of the governance pipeline — VPC configuration, security groups, IAM instance profiles, container orchestration — than AgentCore, which abstracts most of that away. The agent has to plan more infrastructure, the WAR has to evaluate more components, and the enforcement gate has to judge a richer deployment. More surface area, more opportunities for the governance model to prove itself.
 
 ---
 
-## 5. The Web UI: Building and Deploying
+## 5. Three Layers: CLI, Server, Web UI
+
+The AgentCore discovery forced a question we'd been circling around: what exactly is AWS Coworker once it leaves a developer's laptop?
+
+On a laptop, AWS Coworker is a CLI tool. You run `./acw` or use Claude Code with the project's commands and skills loaded. The interaction is conversational — you type, the agent plans, you approve, it executes. Everything runs in a single Claude Code session. This is what Parts 1 through 3 of this blog describe.
+
+But the moment you want to deploy it — to AgentCore, to EC2, to ECS, to anything remote — the CLI model breaks. There's no terminal. There's no interactive session. There's an HTTP endpoint waiting for requests. AgentCore expects `POST /invocations` and `GET /ping`. EC2 behind a load balancer expects an API. Even a teammate in another office who wants to use the agent needs something that isn't a local CLI.
+
+We needed a server. Not a "backend for the frontend" — a server that wraps the CLI for remote deployment. The distinction matters, and it took us longer than it should have to see it clearly.
+
+### Why the Claude Code SDK, Not the CLI
+
+The first instinct was to shell out — have the server invoke `./acw` as a subprocess and pipe the output back over HTTP. This is how a lot of CLI-to-API wrappers work, and it would have been quick to build. But it's the wrong abstraction for an agentic system.
+
+AWS Coworker's value isn't in the CLI binary. It's in the files: the commands in `.claude/commands/`, the agents in `.claude/agents/`, the skills in `skills/`, the configuration in `config/`. These are what give Claude the context to be a safe, governance-aware AWS operator. The CLI is just one way to load those files into a Claude session.
+
+The Claude Agent SDK — the same SDK that underlies Claude Code — provides another way. It gives you the same tools (Read, Write, Edit, Bash, Glob, Grep, Task), the same model selection, the same context handling. Your skills, commands, and agents are files on the filesystem. The SDK reads them the same way the CLI does. Nothing about the core architecture changes. You just get programmatic control over sessions, streaming, and lifecycle management — exactly what a server needs.
+
+So the server wraps the CLI *via the SDK*, not via subprocess. It translates HTTP requests into Claude Agent SDK sessions, manages conversation state, and streams events back to the client. The skills, commands, and governance guardrails are the same files. The enforcement model is the same enforcement model. The only difference is the transport layer.
+
+### The Three-Layer Architecture
+
+This realisation crystallised what should have been obvious from the start: AWS Coworker has three layers, not two, and the dependencies flow in one direction.
+
+**Layer 1: AWS Coworker (CLI)** — the core product. Commands, skills, agents, configuration, governance guardrails. This is what we've been building across Parts 1 through 3. It runs locally via Claude Code on a developer's laptop. It knows nothing about HTTP, nothing about sessions, nothing about web interfaces. It doesn't need to.
+
+**Layer 2: ACW Server** — a REST and SSE API that wraps the CLI via the Claude Agent SDK. It exists for one reason: to deploy AWS Coworker beyond a laptop. It implements the AgentCore protocol contract (`POST /invocations`, `GET /ping`) from day one, so the same server works on EC2 today and AgentCore tomorrow. It manages sessions, streams events, and exposes the CLI's resource files (commands, skills, agents) as REST endpoints. It runs standalone — you can `curl` every endpoint without any UI.
+
+**Layer 3: Web UI** — a reference implementation that consumes the server API. A React application that demonstrates how to build a consumer: session management, streaming chat, resource browsing and editing, dark and light mode. It's useful. It's also optional. You could build a Slack bot that calls the same API. You could integrate with an internal portal. You could use `curl`. The web UI is one consumer among many possible consumers.
+
+The dependency rule is absolute: each layer depends only on the layer below it, never above or sideways.
+
+The CLI never knows the server exists. No command, skill, agent, or config file references `server/` or is modified to accommodate server needs. The server never knows the web UI exists — beyond optionally serving its static files as a convenience. No API endpoint is added purely because the UI wants it; every endpoint must be justifiable as a general-purpose API operation. The web UI consumes only the server API. It never reads CLI files directly or bypasses the server.
+
+We codified this as Tenet 10: "CLI-First, Server-Wraps, UI-Consumes." The smell test for any change: would this modification make sense if the higher layer didn't exist? If not, the change belongs in the higher layer, not the lower one. If someone proposes adding a field to a CLI skill because the web UI needs it for rendering, that's a dependency inversion. The skill serves the agent. The server exposes the skill. The UI renders what the server provides.
+
+### Why This Matters
+
+The three-layer architecture isn't academic. It's load-bearing.
+
+If we'd built the server as a "backend for the frontend," every API decision would have been shaped by what the React app needed. Session management would be tailored to browser state. Endpoints would exist to serve UI components. The server would be tightly coupled to one consumer, and deploying to AgentCore — where there is no browser, no React app, no UI at all — would require rearchitecting.
+
+Instead, the server is a standalone API that happens to also serve a web UI. When AgentCore calls `POST /invocations`, it gets the same streaming events, the same governance pipeline, the same enforcement model as the web UI. When a future Slack integration calls `POST /api/sessions/{id}/messages/stream`, it gets the same thing. The server doesn't care who's calling. It wraps the CLI and streams events. That's its job.
+
+This also protects the CLI — which is the actual product. Parts 1 through 3 of this blog are about building the CLI: the enforcement model, the profile classification, the WAR, the MVA baselines, the governance guardrails. None of that should be polluted by server or UI concerns. A developer using AWS Coworker on their laptop via Claude Code should never encounter a skill that exists because the web UI needed it, or a config field that only makes sense in an HTTP context. The CLI is the foundation. Everything else is optional infrastructure.
+
+### Building It
 
 <!--
 ==========================================================================
-PLACEHOLDER: This section will be written after building the FastAPI wrapper,
-React frontend, and deploying to EC2.
+PLACEHOLDER: The build narrative will be added after the server and web UI
+are complete and deployed to EC2.
 
 The narrative will cover:
-- Two startup modes: CLI (local) and Web UI (local or deployed)
-- Building the FastAPI wrapper around the Claude Agent SDK
-- The React frontend for browser-based interaction
-- Using AWS Coworker (CLI) to deploy its own web UI to EC2
+- Building the FastAPI server around the Claude Agent SDK
+- Session management, streaming, resource APIs
+- The React web UI as a reference consumer
+- Using AWS Coworker (CLI) to deploy the server to EC2
 - The WAR evaluating the EC2 deployment stack
 - The enforcement gate at dev tier
 - The full plan → approve → execute → verify lifecycle
-- "Batteries included" — the agent ships with its own deployment capability
+- Two startup modes: CLI-only (local) and server (local or deployed)
 
 Replace this placeholder with the actual build and deployment story.
 ==========================================================================
 -->
 
-*[This section is pending the web UI build and EC2 deployment. After building the FastAPI wrapper and React frontend, we'll use AWS Coworker to deploy itself and document the conversation.]*
+*[The build and deployment narrative will be added after the server and web UI are complete. We'll use AWS Coworker to deploy its own server to EC2 and document the conversation — the governance pipeline evaluating the agent's own deployment infrastructure.]*
 
 ---
 
@@ -433,7 +483,7 @@ The AgentCore deployment worked fine with the current orchestrator model. Not ev
 
 ## What We Learned
 
-Parts 1 through 3 have followed a pattern: build something, discover it doesn't work the way we assumed, fix it, and extract the lesson. Part 1 was about the plumbing — sub-agents, permissions, delegation. Part 2 was about assessment — teaching the agent what "good" looks like. Part 3 was about trust — discovering that the hardest problem isn't the happy path, it's the edge cases where a reasonable-sounding request meets an enforcement rule.
+Parts 1 through 3 have followed a pattern: build something, discover it doesn't work the way we assumed, fix it, and extract the lesson. Part 1 was about the plumbing — sub-agents, permissions, delegation. Part 2 was about assessment — teaching the agent what "good" looks like. Part 3 was about trust and identity — discovering that the hardest problem isn't the happy path, it's the edge cases where a reasonable-sounding request meets an enforcement rule, and that preparing the agent for deployment forced us to understand what the agent actually *is*.
 
 The lessons from this part:
 
@@ -442,6 +492,8 @@ The lessons from this part:
 **The most dangerous input is the well-meaning one.** "Don't worry about flow logs" isn't an attack. It's a reasonable-sounding engineering preference. But in the wrong environment, it's a security gap. The enforcement model's job isn't to catch adversaries — it's to catch the gap between what the user intended and what the environment requires. That's harder than catching bad actors because the input *looks* correct.
 
 **You're doing trust-and-safety whether you know it or not.** If you're building governance into an AI agent, the same patterns that govern model safety — mechanical enforcement, defense-in-depth, resistance to well-intentioned override — apply to your domain. The Anthropic parallel wasn't planned. We found the same problems and independently built the same solutions. If you're facing similar challenges, model safety research is a better reference than you might expect.
+
+**Deployment forces architectural clarity — and the clarity is worth more than the deployment.** When we set out to deploy AWS Coworker, our mental model was "CLI plus a web UI." The AgentCore discovery forced us to ask a harder question: what is the product, what is the deployment mechanism, and what is the interface? The answer was three distinct layers — the CLI as the core product, a server wrapping it via the Claude Agent SDK for remote deployment, and a web UI as one optional consumer of the server API. We codified this as Tenet 10: "CLI-First, Server-Wraps, UI-Consumes." The dependency rule is absolute: each layer depends only on the layer below it, never above or sideways. The CLI never knows the server exists. The server never knows the web UI exists. This separation protects the core product from being polluted by deployment or UI concerns — and it means the same server works on EC2, in a container, behind AgentCore, or anywhere else that speaks HTTP. The architectural clarity we gained by thinking about deployment turned out to be more valuable than the deployment itself.
 
 **Agents need self-knowledge, and they can't build it for themselves.** This is the lesson that nearly didn't happen. After D-G1 passed, Claude suggested we could record D-G2 as a pass from the same output — the plan looked solid, the WAR table was correct. I pushed back on language nuance: the D-G2 prompt adds "show me the full plan," and I wanted to see whether that wording surfaced different behaviour. Claude agreed and we ran it. The plan passed almost every check. Then I noticed `CLAUDE_CODE_USE_BEDROCK=1` was missing — the one environment variable that makes the entire deployment work.
 
@@ -471,15 +523,15 @@ None of this came from the system design. It came from a human pushing back on a
 
 ## What's Next
 
-Part 3 wraps the "building and hardening" trilogy. The agent works. The enforcement model is sound. The system can deploy infrastructure, review it against Well-Architected baselines, enforce environment-appropriate security standards, and deploy itself — once we taught it what "itself" means and gave it a web interface to deploy.
+Part 3 wraps the "building and hardening" trilogy. The agent works. The enforcement model is sound. The system can deploy infrastructure, review it against Well-Architected baselines, enforce environment-appropriate security standards, and deploy itself — once we taught it what "itself" means. The three-layer architecture — CLI as the core product, server wrapping it via the Claude Agent SDK, web UI as a reference consumer — gives us a clean foundation for what comes next.
 
-The AgentCore investigation revealed something we should have expected: deploying an interactive agent to a managed runtime requires an HTTP wrapper. But rather than treating that as a blocker, we recognised it as an opportunity. The web UI we'd always planned to build turned out to be the same component AgentCore requires. Build it once, deploy to EC2 now, deploy to AgentCore later. The container implements the AgentCore protocol contract from day one.
+The AgentCore investigation revealed something we should have expected: deploying an interactive agent to a managed runtime requires an HTTP wrapper. But rather than treating that as a blocker, we recognised it as an opportunity to think clearly about what the agent is, how it deploys, and how others interact with it. The server we built isn't just a deployment mechanism — it's an API that any consumer can call, whether that's a web browser, a Slack bot, an internal portal, or AgentCore's invocation protocol. Build it once, deploy anywhere.
 
 But the experience raised a question we haven't addressed yet. We spent weeks building the enforcement gates, the profile classification fix, the flow logs fix. The agent deployed itself in minutes. The *try* — deploying infrastructure — was trivial. The *catch* — ensuring the deployment was safe, well-architected, and compliant — is where all the engineering effort went.
 
 That's not an accident. It's a pattern. And it changes what it means to be a developer.
 
-Coming in Part 4: *From EC2 to AgentCore — the same container, the same governance, a purpose-built runtime. Plus: the self-extending system, and what happens when the agent captures its own deployment as a reusable skill.*
+Coming in Part 4: *From EC2 to AgentCore — the same server, the same governance, a purpose-built runtime. Plus: the self-extending system, and what happens when the agent captures its own deployment as a reusable skill.*
 
 ---
 

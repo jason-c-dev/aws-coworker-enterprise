@@ -397,7 +397,7 @@ echo "Run: gh pr create --title '...' --body '...'"
 
 ## Task Invocation Specification (Always-Agent Mode)
 
-**Configuration:** Read thresholds and model selection from `.claude/config/orchestration-config.md`
+**Configuration:** Read thresholds and model selection from `config/orchestration-config.md`
 
 When the Core Agent spawns this agent via the Task tool:
 
@@ -411,7 +411,7 @@ Task:
     You are acting as aws-coworker-executor.
 
     ## Configuration Reference
-    Read settings from: .claude/config/orchestration-config.md
+    Read settings from: config/orchestration-config.md
 
     ## Permission Context
     User has approved: "{approved_scope}"

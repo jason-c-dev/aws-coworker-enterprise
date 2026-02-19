@@ -229,7 +229,7 @@ Thresholds determine **how many agents** to spawn, not **whether** to spawn agen
 | Regions | <= 3 | > 3 |
 | Accounts | <= 3 | > 3 |
 
-**Configuration:** `.claude/config/orchestration-config.md`
+**Configuration:** `config/orchestration-config.md`
 
 ### Example: Large-Scale Audit
 
@@ -351,14 +351,9 @@ aws-coworker/
 - **`/config/`** at root contains *AWS environment templates* (profile classification, environment definitions)
 - **`skills/`** at root contains *knowledge documents* (policies, patterns) — intentionally visible and human-maintainable
 
-**Two config directories explained:**
+All configuration lives in `config/` at the project root — orchestration, environments, and org-specific settings in one place.
 
-| Directory | Purpose | Contents |
-|-----------|---------|----------|
-| **`.claude/config/`** | How Claude orchestrates agents | Thresholds, model selection (haiku/sonnet), parallelization limits |
-| **`/config/`** (root) | How AWS environments are classified | Core defaults (committed) + org overrides (`*.local.yaml`, gitignored) |
-
-Core config files (`environments.yaml`) ship with the repo and work after `git clone`. Profile classification uses your existing `~/.aws/config` — set `aws_coworker_classification` on any profile whose name doesn't match auto-classify patterns. Organization-specific configuration uses `*.local.yaml` overrides or `config/org-config/`. See [DESIGN.md Section 6.4](docs/DESIGN.md#64-core-vs-organization-vs-bu-separation) for the full config ownership model.
+Core config files (`environments.yaml`, `orchestration-config.md`) ship with the repo and work after `git clone`. Profile classification uses your existing `~/.aws/config` — set `aws_coworker_classification` on any profile whose name doesn't match auto-classify patterns. Organization-specific configuration uses `*.local.yaml` overrides or `config/org-config/`. See [DESIGN.md Section 6.4](docs/DESIGN.md#64-core-vs-organization-vs-bu-separation) for the full config ownership model.
 
 Skills are loaded by agents via explicit `Read` operations, making their location flexible. Placing them at root (not `.claude/skills/`) emphasizes they are core content meant to be browsed, edited, and referenced beyond just Claude tooling.
 

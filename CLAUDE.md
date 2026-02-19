@@ -17,6 +17,18 @@ AWS Coworker is built on **[Claude Code](https://claude.ai/code)** and **Anthrop
 
 AWS Coworker gives Claude the right context, guardrails, and patterns for enterprise cloud work.
 
+### Three-Layer Architecture
+
+AWS Coworker has three layers. The CLI is the core product — everything else exists to support it.
+
+| Layer | What | Purpose |
+|-------|------|---------|
+| **AWS Coworker (CLI)** | Commands, skills, agents, config | The core. What we're building. |
+| **ACW Server** (`server/`) | REST + SSE API | Wraps the CLI for remote deployment |
+| **Web UI** (`web-ui/`) | Reference implementation | Demonstrates the server API. Optional. |
+
+**Dependencies flow downward only.** The CLI never knows the server exists. The server never knows the web UI exists. See Tenet 10 in `docs/DESIGN.md`.
+
 ---
 
 ## Critical Instruction
@@ -287,7 +299,7 @@ Task:
 
 Thresholds determine **how many agents** to spawn, not **whether** to spawn agents.
 
-**Configuration:** `.claude/config/orchestration-config.md`
+**Configuration:** `config/orchestration-config.md`
 
 | Factor | Single Agent | Parallel Agents |
 |--------|--------------|-----------------|
@@ -311,7 +323,7 @@ I'll work in parallel (8 agents) to minimize time. Do you want to proceed?
 ### Permission Delegation
 
 When spawning sub-agents via the Task tool:
-1. Read thresholds from `.claude/config/orchestration-config.md`
+1. Read thresholds from `config/orchestration-config.md`
 2. Pass the user's explicit approval scope
 3. Constrain sub-agent to approved actions only
 4. Sub-agents cannot expand scope beyond user's approval

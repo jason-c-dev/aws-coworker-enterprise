@@ -146,8 +146,25 @@ These tenets guide all AWS Coworker development and usage:
 | 7 | **Respect the Agent Architecture** | If you designed agent roles, use them |
 | 8 | **Layered Extensibility** | Core → Org → BU; customize without forking |
 | 9 | **Self-Extending System** | Learn from sessions, codify patterns as skills |
+| 10 | **CLI-First, Server-Wraps, UI-Consumes** | Dependencies flow downward only: CLI ← Server ← Web UI |
 
 When a tenet is violated, things break. When tenets are enforced explicitly, things work.
+
+**Tenet 10 Implementation:** AWS Coworker has three distinct layers with strict dependency direction:
+
+| Layer | Directory | Purpose | Depends On |
+|-------|-----------|---------|------------|
+| **AWS Coworker (CLI)** | Root (commands, skills, agents, config) | The core product. Commands, skills, sub-agents, governance. | Nothing — this is the foundation |
+| **ACW Server** | `server/` | REST + SSE API wrapping the CLI via Claude Code SDK. Exists to deploy beyond a laptop. | CLI (reads its files, invokes via SDK) |
+| **Web UI** | `web-ui/` | Reference implementation consuming the server API. Optional. | Server API only |
+
+The dependency rule is absolute: **each layer depends only on the layer below it, never above or sideways.**
+
+- The CLI **never knows** the server exists. No command, skill, agent, or config file should reference `server/` or be modified to accommodate server needs.
+- The server **never knows** the web UI exists (beyond optionally serving its static files). No server endpoint should be added purely because the UI wants it — every endpoint must be justifiable as a general-purpose API operation.
+- The web UI **consumes only the server API**. It never reads CLI files directly or bypasses the server.
+
+If you find yourself modifying a lower layer to satisfy the needs of a higher layer, that is a dependency inversion and must be rejected. The smell test: "Would this change make sense if the higher layer didn't exist?" If not, the change belongs in the higher layer, not the lower one.
 
 **Tenet 3 Implementation:** AWS Coworker defines a Minimum Viable Architecture (MVA) per service — what the Well-Architected Framework says you should have for a service at a given environment tier. The gap between MVA and Minimum Needed Architecture (MNA — what's technically required for the thing to function) is where the user makes informed decisions. For non-production, the user can accept MVA gaps but only after AWS Coworker clearly presents what they're foregoing and why it matters. For production, MVA is enforced — no override. The trust model is asymmetric: the user never needs to trust the agent's judgment, but the agent can trust the user's decision after ensuring full knowledge.
 
@@ -232,7 +249,7 @@ AWS Coworker's architecture extends Claude Code's built-in capabilities with AWS
 
 AWS Coworker operates in **Always-Agent Mode**: every request spawns at least one agent via the Task tool. This ensures consistent execution paths, comprehensive audit trails, and efficient handling of enterprise workloads.
 
-**Configuration:** Thresholds are defined in `.claude/config/orchestration-config.md`
+**Configuration:** Thresholds are defined in `config/orchestration-config.md`
 
 ```
 User Request (free-form or explicit command)
@@ -331,7 +348,7 @@ User Request (free-form or explicit command)
 
 AWS Coworker operates in **Always-Agent Mode**: every request spawns at least one agent via the Task tool. This design choice optimizes for enterprise environments where complex tasks are common, consistency is valued, and audit trails are critical.
 
-**Configuration:** `.claude/config/orchestration-config.md`
+**Configuration:** `config/orchestration-config.md`
 
 #### Why Always-Agent Mode?
 
@@ -431,7 +448,7 @@ Thresholds determine **how many agents** to spawn, not **whether** to spawn agen
 | **Accounts** | <= 3 | 4-9 | >= 10 |
 | **Est. Time** | < 5 min | 5-10 min (advise) | > 10 min (approval required) |
 
-These thresholds are **configurable** in `.claude/config/orchestration-config.md`.
+These thresholds are **configurable** in `config/orchestration-config.md`.
 
 #### When Parallelization Kicks In
 
@@ -447,7 +464,7 @@ These thresholds are **configurable** in `.claude/config/orchestration-config.md
 
 #### Scope Estimation and User Advisement
 
-During discovery, the Core Agent estimates task complexity and compares against thresholds from `.claude/config/orchestration-config.md`:
+During discovery, the Core Agent estimates task complexity and compares against thresholds from `config/orchestration-config.md`:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -525,7 +542,7 @@ After all sub-agents complete, the Core Agent:
 
 #### Technical Implementation
 
-**Configuration:** `.claude/config/orchestration-config.md`
+**Configuration:** `config/orchestration-config.md`
 
 Sub-agents are spawned using the **Task tool** with parameters determined by configuration:
 
@@ -536,7 +553,7 @@ task_invocation:
     You are acting as aws-coworker-planner for region us-east-1.
 
     ## Configuration Reference
-    Read thresholds from: .claude/config/orchestration-config.md
+    Read thresholds from: config/orchestration-config.md
 
     ## Context
     - User approved: "Audit S3 buckets for public access"
@@ -562,7 +579,7 @@ task_invocation:
 
 To modify orchestration behavior:
 
-1. Edit `.claude/config/orchestration-config.md`
+1. Edit `config/orchestration-config.md`
 2. All agents read this configuration dynamically
 3. No code changes required
 
@@ -640,12 +657,10 @@ aws-coworker/
 │   │   ├── aws-coworker-refactor-skills.md
 │   │   └── aws-coworker-audit-library.md
 │   │
-│   ├── config/                          # Agent orchestration configuration
-│   │   └── orchestration-config.md      # Thresholds, model selection, parallelization
-│   │
 │   └── settings.json                    # Claude Code settings
 │
-├── config/                              # AWS environment configuration
+├── config/                              # All configuration (orchestration + environments + org)
+│   ├── orchestration-config.md          # Thresholds, model selection, parallelization
 │   ├── environments/                    # Environment definitions
 │   │   ├── environments.yaml            # Core: tier definitions + safety rules (committed)
 │   │   └── example-environments.yaml    # Reference: original template

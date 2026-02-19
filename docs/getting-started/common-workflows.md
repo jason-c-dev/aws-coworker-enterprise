@@ -295,7 +295,7 @@ AWS Coworker will:
 
 ## Always-Agent Mode Workflows
 
-AWS Coworker operates in **Always-Agent Mode**: every request spawns at least one agent. Thresholds (configurable in `.claude/config/orchestration-config.md`) determine whether to use single or parallel agents.
+AWS Coworker operates in **Always-Agent Mode**: every request spawns at least one agent. Thresholds (configurable in `config/orchestration-config.md`) determine whether to use single or parallel agents.
 
 ### Simple Workflow (Below Thresholds)
 
@@ -397,7 +397,7 @@ Estimated remaining: 3 minutes
 
 ### Configuring Thresholds
 
-Edit `.claude/config/orchestration-config.md` to adjust:
+Edit `config/orchestration-config.md` to adjust:
 
 | Setting | Default | Effect |
 |---------|---------|--------|

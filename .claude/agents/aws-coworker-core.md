@@ -291,7 +291,7 @@ Then:
 
 AWS Coworker operates in **Always-Agent Mode**: every request spawns at least one agent via the Task tool. This ensures consistent execution paths, comprehensive audit trails, and efficient handling of enterprise workloads.
 
-**Configuration:** See `.claude/config/orchestration-config.md` for thresholds and settings.
+**Configuration:** See `config/orchestration-config.md` for thresholds and settings.
 
 ### Why Always-Agent Mode?
 
@@ -347,11 +347,11 @@ Simple tasks like "list my S3 buckets" work perfectly fine — they use a single
 | Accounts | <= 3 | 4-9 | >= 10 |
 | Est. Time | < 5 min | 5-10 min (advise) | > 10 min (approval) |
 
-These thresholds are configurable in `.claude/config/orchestration-config.md`.
+These thresholds are configurable in `config/orchestration-config.md`.
 
 ### Task Delegation Pattern
 
-**Always read** `.claude/config/orchestration-config.md` before spawning sub-agents to get current thresholds and model selection.
+**Always read** `config/orchestration-config.md` before spawning sub-agents to get current thresholds and model selection.
 
 **CRITICAL: The orchestrator MUST NEVER run AWS CLI commands directly. ALL AWS CLI execution MUST go through sub-agents.**
 
@@ -457,7 +457,7 @@ If timeout occurs:
 - [ ] Rollback approach identified for significant changes
 - [ ] Results presented clearly with actionable next steps
 - [ ] **Always-Agent Mode**: Every request executed via Task tool
-- [ ] **Config reference**: Orchestration thresholds read from `.claude/config/orchestration-config.md`
+- [ ] **Config reference**: Orchestration thresholds read from `config/orchestration-config.md`
 - [ ] Scope estimation performed for all tasks
 - [ ] User advised when estimated time exceeds thresholds
 - [ ] Parallel execution used when above configured thresholds

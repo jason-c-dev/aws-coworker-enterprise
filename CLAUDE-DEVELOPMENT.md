@@ -31,6 +31,29 @@ The `CLAUDE.md` file is **mandatory** for safe AWS operations. Without it, free-
 
 ---
 
+## Three-Layer Architecture (Tenet 10)
+
+AWS Coworker has three layers with strict dependency direction. This is the most important structural concept in the project.
+
+| Layer | Directory | What it is | Depends on |
+|-------|-----------|-----------|------------|
+| **AWS Coworker (CLI)** | Root (`.claude/`, `skills/`, `config/`) | The core product. This is the primary focus of the project — what we're building and learning from. | Nothing |
+| **ACW Server** | `server/` | REST + SSE API wrapping the CLI via Claude Code SDK. Exists to deploy beyond a laptop. | CLI files (reads them, invokes via SDK) |
+| **Web UI** | `web-ui/` | Reference implementation consuming the server API. Optional. | Server API only |
+
+**The CLI is the foundation. The server wraps it. The web UI demonstrates the server API.**
+
+Dependencies flow **downward only**:
+- The CLI **never knows** the server or web UI exist. No CLI file should ever reference `server/` or `web-ui/`.
+- The server **never knows** the web UI exists (beyond optionally serving its static files). API endpoints must be general-purpose.
+- The web UI consumes **only** the server API. It never reads CLI files directly.
+
+**When you're tempted to modify a lower layer to satisfy a higher layer's needs, that is a dependency inversion. Reject it.**
+
+See `docs/DESIGN.md` section 2.6 (Tenet 10) and `skills/meta/aws-coworker-development/SKILL.md` for the full boundary rules and smell tests.
+
+---
+
 ## Directory Structure Convention
 
 ```
@@ -45,7 +68,9 @@ aws-coworker/
 │   └── core/            # Non-AWS core skills
 ├── config/              # Configuration (core defaults + org overrides)
 ├── docs/                # Documentation
-└── examples/            # Example implementations
+├── examples/            # Example implementations
+├── server/              # ACW Server (REST + SSE API) — see Tenet 10
+└── web-ui/              # Reference implementation (optional) — see Tenet 10
 ```
 
 ### Why This Structure?

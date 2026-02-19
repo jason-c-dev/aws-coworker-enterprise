@@ -43,24 +43,29 @@
 
 ---
 
-## Part B: Web UI Architecture
+## Part B: Three-Layer Architecture
 
 ### Overview
 
-Two startup modes for AWS Coworker:
+AWS Coworker has three distinct layers, each serving a different purpose:
 
-| Mode | How it runs | Use case |
-|------|-------------|----------|
-| **CLI (current)** | `./acw` on local machine | Local AWS management, development, testing |
-| **Web UI** | FastAPI + React, deployed to AWS | Team access, persistent sessions, production use |
+| Layer | What it is | Directory | Purpose |
+|-------|-----------|-----------|---------|
+| **AWS Coworker (CLI)** | The core product | Root (commands, skills, agents, config) | Commands, skills, sub-agents, governance. Runs via Claude Code on a laptop. |
+| **ACW Server** | REST + SSE API | `server/` | Wraps the CLI via Claude Code SDK. Deploys to containers, Agent Core, EC2 — anywhere beyond a laptop. |
+| **Web UI** | Reference implementation | `web-ui/` | React app that consumes the server API. Demonstrates how to build a UI consumer. Optional. |
 
-The web UI is not just a chat wrapper — it's a **developer workbench** that exposes AWS Coworker's internals (commands, skills, agents, config) as browsable and editable resources. The streaming protocol is **fully transparent**: every tool call, sub-agent spawn, error, and log entry flows to the client. The UI decides what to surface versus collapse, the backend hides nothing.
+**The ACW Server is the primary deployment artifact.** Once AWS Coworker leaves a developer's laptop — whether deployed to Bedrock Agent Core, an ECS container, a Lambda function, or any remote infrastructure — the CLI is no longer the interface. The server's REST + SSE API is what external systems talk to.
+
+The Web UI is a reference implementation: it shows how to consume the server API, and it's useful for local development, but it's not required. You can `curl` the server API directly, integrate it with Agent Core's invocation protocol, or build your own consumer.
+
+The streaming protocol is **fully transparent**: every tool call, sub-agent spawn, error, and log entry flows from server to client. Any consumer of the API gets full observability — the server hides nothing.
 
 ### Components
 
-#### 1. Backend: FastAPI Wrapper
+#### 1. ACW Server (REST + SSE API)
 
-**Purpose:** Translate HTTP requests into Claude Agent SDK sessions and expose AWS Coworker's resource files as REST APIs.
+**Purpose:** Translate HTTP requests into Claude Agent SDK sessions and expose AWS Coworker's resource files as REST APIs. Runs standalone — no UI required.
 
 ##### 1a. Chat & Session Endpoints (AgentCore Protocol)
 
@@ -137,7 +142,7 @@ All resource endpoints read/write markdown files on disk via a `SafeFileManager`
 
 ##### 1d. Streaming Event Protocol (SSE)
 
-The streaming endpoint (`/api/sessions/{id}/messages/stream`) emits Server-Sent Events. Every execution event becomes a typed message — the backend hides nothing from the client.
+The streaming endpoint (`/api/sessions/{id}/messages/stream`) emits Server-Sent Events. Every execution event becomes a typed message — the server hides nothing from the client.
 
 | Event Type | When Emitted | Key Fields |
 |---|---|---|
@@ -176,16 +181,16 @@ Session Message
 ##### 1e. Permission Flow
 
 When the SDK session triggers a `can_use_tool` callback for a mutation:
-1. Backend emits `permission_request` SSE event with action description and blast radius
-2. Backend pauses the SDK session (awaiting response)
-3. Frontend renders a permission modal with approve/deny buttons
-4. User clicks approve → frontend POSTs to `/api/sessions/{id}/permissions/{permissionId}`
-5. Backend receives grant, resumes SDK session
-6. Backend emits `permission_grant` SSE event
+1. Server emits `permission_request` SSE event with action description and blast radius
+2. Server pauses the SDK session (awaiting response)
+3. Client renders a permission modal (or auto-approves via API)
+4. User clicks approve → client POSTs to `/api/sessions/{id}/permissions/{permissionId}`
+5. Server receives grant, resumes SDK session
+6. Server emits `permission_grant` SSE event
 
 ##### 1f. File Operations Module
 
-New `backend/file_ops/` module for reading and writing markdown files:
+New `server/file_ops/` module for reading and writing markdown files:
 
 **`markdown.py`** — `MarkdownFile` class:
 - Parses YAML frontmatter from `---` delimiters
@@ -221,9 +226,9 @@ New `backend/file_ops/` module for reading and writing markdown files:
 - `lastActivity` — timestamp of last message
 - `artifactCount` — number of artifacts
 
-**Session workspace** — each session gets a directory:
+**Session workspace** — each session gets a directory under `server/workspaces/` (override via `WORKSPACE_BASE_PATH` env var):
 ```
-workspaces/
+server/workspaces/
 ├── {session-id}/
 │   ├── session.json          # Session metadata (name, description, profile, etc.)
 │   ├── history.jsonl         # Conversation history (messages + events)
@@ -251,7 +256,7 @@ Artifacts are created by:
 
 **Session naming flow:**
 1. User creates session → optionally provides a name
-2. If no name provided → first message is sent → model generates a name from the prompt → backend emits a `session_info` event with the suggested name → backend saves it
+2. If no name provided → first message is sent → model generates a name from the prompt → server emits a `session_info` event with the suggested name → server saves it
 3. As conversation continues → model may suggest an updated name if the scope has shifted → emitted as `session_info` event with `suggestedName` field
 4. User can rename at any time via `PATCH /api/sessions/{id}` with `{ "name": "...", "description": "..." }`
 
@@ -276,9 +281,9 @@ Artifacts are created by:
 - Resource management (commands/skills/agents/config) is pure file I/O — read/parse/validate/write markdown files
 - Implement the AgentCore protocol contract (`/invocations` + `/ping` on port 8080) from day one, so the same container works on EC2 now and AgentCore later
 
-#### 2. Frontend: Developer Workbench
+#### 2. Web UI: Reference Implementation (Developer Workbench)
 
-**Purpose:** Browser-based developer workbench for interacting with AWS Coworker and managing its internals.
+**Purpose:** Browser-based reference implementation demonstrating how to consume the ACW Server API. Serves as a developer workbench for interacting with AWS Coworker and managing its internals.
 
 This is more than a chat interface. It's a multi-panel workbench with these views:
 
@@ -390,7 +395,7 @@ Each session's artifacts are browsable as a dedicated view:
 **Technology:**
 - React with TypeScript + Tailwind CSS
 - No heavy dependencies — keep it lightweight
-- Communicate with backend via REST API + SSE
+- Communicate with ACW Server via REST API + SSE
 - Vite for build tooling
 - Lucide React for icons
 
@@ -494,8 +499,8 @@ The workbench includes diagram generation for visualizing AWS infrastructure dis
 - Backend endpoint: `POST /api/diagrams/generate` — accepts discovery data, returns SVG/PNG
 - Uses official AWS architecture icons (looks like a Solutions Architect diagram)
 - Used for: blog posts, documentation, Well-Architected reviews, export to PNG/SVG
-- Library: `diagrams` (mingrammer/diagrams) + Graphviz on backend
-- Optional: Claude generates the Python code from discovery data, backend executes and returns rendered image
+- Library: `diagrams` (mingrammer/diagrams) + Graphviz on server
+- Optional: Claude generates the Python code from discovery data, server executes and returns rendered image
 
 **Diagram data flow:**
 ```
@@ -513,7 +518,7 @@ Discovery (aws s3 ls, describe-vpcs, etc.)
 - Python 3.12+ with UV package manager
 - Claude Agent SDK dependencies
 - FastAPI + Uvicorn
-- Node.js build for React frontend (serve static files from FastAPI)
+- Node.js build for web UI reference implementation (serve static files from FastAPI)
 - Copy AWS Coworker files (skills, commands, agents, config, CLAUDE.md)
 - Expose port 8080
 
@@ -525,80 +530,119 @@ Discovery (aws s3 ls, describe-vpcs, etc.)
 
 #### 4. Local Development Mode
 
-**For running on your laptop:**
+**First-time setup (venv to keep global packages clean):**
 ```bash
-# Option 1: CLI mode (current, unchanged)
-./acw
+cd aws-coworker-enterprise
 
-# Option 2: Web UI mode (new)
-./acw --server
-# or
-docker-compose up
+# Server: create venv and install dependencies
+python3 -m venv server/.venv
+source server/.venv/bin/activate
+pip install -r server/requirements.txt
+
+# Web UI (optional): install and build
+cd web-ui
+npm install
+npm run build
+cd ..
 ```
 
-The `--server` flag (or docker-compose) starts the FastAPI server locally. You open `http://localhost:8080` in your browser. The backend uses your local AWS credentials (no `CLAUDE_CODE_USE_BEDROCK` needed locally — that's only for deployed environments).
+**Running the ACW Server (API only — no UI needed):**
+```bash
+source server/.venv/bin/activate
+python -m server
+
+# Test it:
+curl http://localhost:8080/ping
+curl http://localhost:8080/api/sessions
+curl http://localhost:8080/docs    # OpenAPI/Swagger docs
+```
+
+**Running with the Web UI reference implementation:**
+```bash
+# Build the web UI first (if not already done)
+cd web-ui && npm install && npm run build && cd ..
+
+# Start the server — it auto-detects web-ui/dist/ and serves it
+source server/.venv/bin/activate
+python -m server
+
+# Open http://localhost:8080 in your browser
+```
+
+**Development mode (hot reload):**
+```bash
+# Terminal 1: Server with auto-reload
+source server/.venv/bin/activate
+python -m server.server --reload
+
+# Terminal 2: Web UI dev server (proxies API to server)
+cd web-ui
+npm run dev
+# Opens at http://localhost:5173 with hot module replacement
+```
+
+The server uses your local AWS credentials (no `CLAUDE_CODE_USE_BEDROCK` needed locally — that's only for deployed environments).
 
 ### Project Structure
 
 ```
 aws-coworker-enterprise/
-├── backend/
-│   ├── main.py                     # FastAPI app initialization
-│   ├── server.py                   # Entry point (arg parsing, uvicorn)
-│   ├── config.py                   # Environment config
+├── server/                          # ACW Server — the primary deployment artifact
+│   ├── __init__.py
+│   ├── __main__.py                  # python -m server entry point
+│   ├── main.py                      # FastAPI app initialization
+│   ├── server.py                    # Entry point (arg parsing, uvicorn)
+│   ├── config.py                    # Environment config
 │   ├── api/
 │   │   ├── __init__.py
-│   │   ├── agentcore.py            # /ping, /invocations
-│   │   ├── sessions.py             # Session CRUD + message endpoints
-│   │   ├── resources.py            # Commands/Skills/Agents/Config CRUD
-│   │   ├── observability.py        # Trace/logs endpoints
-│   │   └── schemas.py              # Pydantic request/response models
+│   │   ├── agentcore.py             # /ping, /invocations
+│   │   ├── sessions.py              # Session CRUD + message endpoints
+│   │   ├── resources.py             # Commands/Skills/Agents/Config CRUD
+│   │   ├── observability.py         # Trace/logs endpoints
+│   │   ├── diagrams.py              # Diagram generation endpoint
+│   │   └── schemas.py               # Pydantic request/response models
 │   ├── core/
 │   │   ├── __init__.py
-│   │   ├── session_manager.py      # Session lifecycle (ClaudeSDKClient pool, workspace dirs)
-│   │   ├── artifact_manager.py     # Artifact CRUD, file storage, cascading deletes
-│   │   ├── sdk_client.py           # Claude Agent SDK wrapper
-│   │   ├── event_stream.py         # SSE event types, serialization, streaming
-│   │   └── permission_handler.py   # Permission request/grant async flow
+│   │   ├── session_manager.py       # Session lifecycle (ClaudeSDKClient pool, workspace dirs)
+│   │   ├── artifact_manager.py      # Artifact CRUD, file storage, cascading deletes
+│   │   ├── sdk_client.py            # Claude Agent SDK wrapper
+│   │   ├── event_stream.py          # SSE event types, serialization, streaming
+│   │   └── permission_handler.py    # Permission request/grant async flow
 │   ├── file_ops/
 │   │   ├── __init__.py
-│   │   ├── markdown.py             # MarkdownFile class (YAML frontmatter parser)
-│   │   ├── safe_manager.py         # SafeFileManager (path-safe file I/O)
-│   │   └── validators.py           # Schema validation per file type
+│   │   ├── markdown.py              # MarkdownFile class (YAML frontmatter parser)
+│   │   ├── safe_manager.py          # SafeFileManager (path-safe file I/O)
+│   │   └── validators.py            # Schema validation per file type
 │   └── requirements.txt
-├── frontend/
-│   ├── public/
-│   │   └── index.html
+├── web-ui/                           # Reference implementation (optional)
+│   ├── index.html
 │   ├── src/
-│   │   ├── App.tsx                 # Root component with sidebar + main panel
+│   │   ├── App.tsx                  # Root component with sidebar + main panel
 │   │   ├── components/
-│   │   │   ├── ChatPanel/          # Chat interface + streaming + event badges
-│   │   │   ├── CommandBrowser/     # List, detail, editor for commands
-│   │   │   ├── SkillBrowser/       # Tree, detail, editor for skills
-│   │   │   ├── AgentBrowser/       # List, detail, editor for agents
-│   │   │   ├── ConfigBrowser/      # Tabbed config viewer/editor
-│   │   │   ├── ExecutionTrace/     # DevTools-style tree trace viewer
+│   │   │   ├── ChatPanel/           # Chat interface + streaming + event badges
+│   │   │   ├── CommandBrowser/      # List, detail, editor for commands
+│   │   │   ├── SkillBrowser/        # Tree, detail, editor for skills
+│   │   │   ├── AgentBrowser/        # List, detail, editor for agents
+│   │   │   ├── ConfigBrowser/       # Tabbed config viewer/editor
+│   │   │   ├── ExecutionTrace/      # DevTools-style tree trace viewer
 │   │   │   ├── InfrastructureDiagram/ # React Flow interactive AWS topology
-│   │   │   ├── ArtifactBrowser/   # Grid/list view, preview, upload, download
-│   │   │   ├── SessionManager/    # Session list, create, rename, delete, switcher
-│   │   │   ├── Common/            # Header, Sidebar, ViewToggle, ProfileIndicator, ThemeToggle
-│   │   │   └── Modals/             # Permission, Error, FileConflict, Confirmation
+│   │   │   ├── ArtifactBrowser/    # Grid/list view, preview, upload, download
+│   │   │   ├── SessionManager/     # Session list, create, rename, delete, switcher
+│   │   │   └── Common/             # Header, Sidebar, ThemeToggle, ResourceEditor
 │   │   ├── hooks/
-│   │   │   ├── useSSE.ts           # SSE with typed event parsing
-│   │   │   ├── useResources.ts     # CRUD hooks for commands/skills/agents/config
-│   │   │   └── useSession.ts       # Session state management
+│   │   │   ├── useSSE.ts            # SSE with typed event parsing
+│   │   │   ├── useResources.ts      # CRUD hooks for commands/skills/agents/config
+│   │   │   └── useSession.ts        # Session state management
 │   │   ├── services/
-│   │   │   ├── api.ts              # REST + SSE client
-│   │   │   ├── resources.ts        # Resource API calls
-│   │   │   └── events.ts           # Event type parsing + tree construction
+│   │   │   └── api.ts               # REST + SSE client for ACW Server
 │   │   └── types/
-│   │       ├── event.ts            # SSE event type definitions (12 types)
-│   │       └── resource.ts         # Command/Skill/Agent/Config type defs
+│   │       ├── event.ts             # SSE event type definitions (12 types)
+│   │       └── resource.ts          # Command/Skill/Agent/Config type defs
 │   ├── package.json
 │   ├── tsconfig.json
 │   └── vite.config.ts
-├── Dockerfile                       # ARM64 production build
-└── docker-compose.yml               # Local development
+├── Dockerfile                        # ARM64 production build
+└── docker-compose.yml                # Local development
 ```
 
 ---
@@ -656,8 +700,8 @@ This is the "batteries included" command — a new slash command that orchestrat
 | `config/deployment.md` | Update | Add web UI deployment requirements |
 | `.claude/commands/aws-coworker-deploy-web-ui.md` | Create | New deployment command |
 | `skills/aws/aws-cli-playbook/commands/ec2.md` | Verify | Ensure EC2 playbook covers user data, instance profiles |
-| `backend/` | Create | FastAPI wrapper (new directory) |
-| `frontend/` | Create | React web UI (new directory) |
+| `server/` | Create | ACW Server — REST + SSE API (new directory) |
+| `web-ui/` | Create | Reference implementation web UI (new directory) |
 | `Dockerfile` | Create | Container packaging |
 | `docker-compose.yml` | Create | Local development |
 | `docs/LESSONS-LEARNED-PART-3.md` | Update | Reorganize as described in Part A |
@@ -696,8 +740,8 @@ docker-compose up
 - Update Part 3 narrative (intro, Section 4, Section 5 placeholder, What's Next)
 - Commit and push
 
-### Phase 2: Backend (FastAPI wrapper)
-- Set up `backend/` directory structure (api/, core/, file_ops/)
+### Phase 2: ACW Server (REST + SSE API)
+- Set up `server/` directory structure (api/, core/, file_ops/)
 - Implement core: server.py, session lifecycle management (workspace dirs, metadata, SDK client pool, idle timeout)
 - Implement artifact manager: file storage per session, cascading deletes, type detection
 - Implement session endpoints: `/api/sessions` CRUD with naming/rename, `/api/sessions/{id}/artifacts` CRUD
@@ -710,8 +754,8 @@ docker-compose up
 - Implement diagram endpoint: `POST /api/diagrams/generate` (Python `diagrams` library for exportable architecture SVGs)
 - Test locally with curl/httpie
 
-### Phase 3: Frontend (Developer Workbench)
-- Set up `frontend/` directory (Vite + React + TypeScript + Tailwind)
+### Phase 3: Web UI (Reference Implementation)
+- Set up `web-ui/` directory (Vite + React + TypeScript + Tailwind)
 - Implement visual design system: AWS Console-inspired color palette, dark/light mode toggle, CSS custom properties, Inter + JetBrains Mono typography
 - Build layout: dark navy sidebar with Lucide icons + header with profile indicator and theme toggle + breadcrumbs + dynamic main panel
 - Build Chat Panel: message list, input, SSE streaming, inline event badges, inline permission approval banners
