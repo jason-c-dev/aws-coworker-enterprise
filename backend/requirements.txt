@@ -1,0 +1,20 @@
+# AWS Coworker Web UI Backend
+# FastAPI + Claude Agent SDK
+
+# Web framework
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+sse-starlette>=2.1.0
+python-multipart>=0.0.12
+
+# Claude Agent SDK
+claude-code-sdk>=0.1.0
+
+# YAML parsing (for markdown frontmatter)
+pyyaml>=6.0.2
+
+# Diagram generation
+diagrams>=0.24.0
+
+# Utilities
+python-dotenv>=1.0.1
