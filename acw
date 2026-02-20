@@ -1,20 +1,85 @@
 #!/bin/bash
-# acw - Launch AWS Coworker (Claude Code with enterprise context)
-# Usage: ./acw [claude-code-args...]
+# acw - AWS Coworker launcher
+#
+# Usage:
+#   acw                     Local CLI (Claude Code with enterprise context)
+#   acw server [opts]       Start the ACW Server (FastAPI + SDK)
+#   acw connect [url]       Connect to a running ACW Server (Remote CLI)
+#   acw [claude-code-args]  Pass-through to Claude Code
+#
 # Works via symlink: ln -s /path/to/aws-coworker-enterprise/acw /usr/local/bin/acw
 
-# Resolve symlinks to find the real script location
+set -euo pipefail
+
+# ── Resolve symlinks to find the real script location ────────
 SOURCE="${BASH_SOURCE[0]}"
 while [ -L "$SOURCE" ]; do
   DIR="$(cd "$(dirname "$SOURCE")" && pwd)"
   SOURCE="$(readlink "$SOURCE")"
-  # Handle relative symlinks
   [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
 done
 SCRIPT_DIR="$(cd "$(dirname "$SOURCE")" && pwd)"
 
-# Show the banner
-bash "$SCRIPT_DIR/.claude/scripts/session-start.sh"
+# ── Subcommand routing ───────────────────────────────────────
+SUBCOMMAND="${1:-}"
 
-# Drop into Claude Code in the project directory
-cd "$SCRIPT_DIR" && exec claude "$@"
+case "$SUBCOMMAND" in
+
+  server|serve)
+    # Start the ACW Server — delegates to Python
+    shift
+    echo "Starting ACW Server..."
+    cd "$SCRIPT_DIR" && exec python -m server "$@"
+    ;;
+
+  connect)
+    # Connect to a running ACW Server — delegates to Python
+    shift
+    cd "$SCRIPT_DIR" && exec python -m cli "$@"
+    ;;
+
+  help|--help|-h)
+    cat <<'HELP'
+acw - AWS Coworker launcher
+
+Usage:
+  acw                          Local CLI (default — Claude Code with enterprise context)
+  acw server [--port N]        Start the ACW Server (FastAPI + Claude Agent SDK)
+  acw connect [url] [opts]     Connect to a running ACW Server (Remote CLI)
+  acw [claude-code-args]       Pass-through to local Claude Code
+
+Server options:
+  --host HOST                  Bind address (default: 127.0.0.1)
+  --port PORT                  Bind port (default: 8080)
+  --reload                     Enable auto-reload for development
+
+Connect options:
+  url                          Server URL (default: http://localhost:8080)
+  --api-key KEY                API key for remote auth (or set ACW_API_KEY)
+  --resume                     List and resume an existing session
+  --session ID                 Resume a specific session by ID
+  --profile PROFILE            AWS profile name
+  --region REGION              AWS region
+
+Environment variables:
+  ACW_SERVER_URL               Default server URL for 'acw connect'
+  ACW_API_KEY                  API key for remote server auth
+  PORT                         Server bind port (default: 8080)
+
+Examples:
+  acw                          Start local CLI
+  acw server                   Start server on localhost:8080
+  acw connect                  Connect to localhost:8080
+  acw connect https://host:8080 --api-key secret
+  acw connect --resume         Resume an existing remote session
+HELP
+    exit 0
+    ;;
+
+  *)
+    # Default: local CLI mode — show banner and drop into Claude Code
+    bash "$SCRIPT_DIR/.claude/scripts/session-start.sh"
+    cd "$SCRIPT_DIR" && exec claude "$@"
+    ;;
+
+esac

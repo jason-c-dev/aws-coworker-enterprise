@@ -134,6 +134,7 @@ async def send_message(session_id: str, request: MessageRequest) -> MessageRespo
             project_root=str(PROJECT_ROOT),
             profile=meta.profile,
             region=meta.region,
+            permission_handler=state.get("permission_handler"),
         )
 
     client = sdk_clients[session_id]
@@ -199,6 +200,7 @@ async def stream_message(session_id: str, request: MessageRequest):
             project_root=str(PROJECT_ROOT),
             profile=meta.profile,
             region=meta.region,
+            permission_handler=state.get("permission_handler"),
         )
 
     client = sdk_clients[session_id]
