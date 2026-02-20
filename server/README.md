@@ -137,4 +137,4 @@ The server implements the Bedrock Agent Core protocol contract (`/invocations` +
 
 For containerised deployment, override `WORKSPACE_BASE_PATH` to point at persistent storage (EBS volume, EFS mount, or S3-backed path).
 
-See `docs/PLAN-WEB-UI-AND-DEPLOYMENT.md` for full deployment architecture.
+See `docs/PLAN-DETACHABLE-CLI-PIVOT.md` for full deployment architecture.
