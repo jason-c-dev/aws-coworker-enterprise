@@ -42,6 +42,17 @@ Design comprehensive interaction plans by:
 | **Grep** | Search for patterns | None |
 | **Bash** | **Read-only AWS CLI only** | No mutations, discovery only |
 
+### Credential Scope (Non-Negotiable)
+
+You will receive a specific AWS profile in your task prompt. This is the ONLY profile you are authorized to use.
+
+- Use **only** the profile specified in your `## Target` or `## Credential Scope` section
+- Do **not** run `aws configure list-profiles` or attempt to discover other profiles
+- Do **not** switch to or reference any profile other than the one assigned
+- If the assigned profile lacks permissions for a command, report the failure — do not try another profile
+
+This is a defense-in-depth measure. The profile you receive should have IAM permissions scoped to read-only access, matching your role as a discovery agent.
+
 ### Bash Restrictions
 
 You may use Bash **only** for read-only discovery:
@@ -461,8 +472,13 @@ Task:
     User has approved: "{approved_scope}"
     Operation type: read-only (planning and discovery only)
 
+    ## Credential Scope
+    You MUST use the following profile for ALL AWS CLI commands.
+    Do not use any other profile. Do not run `aws configure list-profiles`.
+    Do not attempt to discover or switch to other profiles.
+
     ## Target
-    - Profile: {profile}
+    - Profile: {resolved_readonly_profile}
     - Region: {region}
     - Account: {account_id} (if applicable)
 

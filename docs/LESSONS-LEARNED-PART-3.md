@@ -18,9 +18,9 @@ This blog is about what happened next. We closed two gaps that Part 2 left open,
 
 We started by validating the governance pipeline — four tests that exercised profile classification, WAR evaluation, enforcement gates, and gap detection against the agent's own deployment. That process exposed three new classes of bugs and a discovery about trust that changed how we think about agent failure. Then we investigated Bedrock AgentCore — the AWS service purpose-built for AI agents — and discovered that deploying there requires an HTTP wrapper around the Claude Agent SDK. AWS Coworker is a CLI tool. AgentCore expects `POST /invocations`. Something has to bridge that gap.
 
-That discovery forced a question we'd been circling around: what is AWS Coworker once it leaves a developer's laptop? The CLI is the core product — the commands, skills, agents, and governance guardrails we've been building across this series. But the CLI can't serve HTTP requests. We needed a server: not a "backend for the frontend," but a distinct layer that wraps the CLI via the Claude Agent SDK for remote deployment. And once we had a server with a clean API, a web UI became a natural — but optional — reference implementation showing how to consume that API. Three layers, with dependencies flowing in one direction: CLI at the foundation, server wrapping it, web UI consuming the server. Build the server once, deploy to EC2 now, deploy to AgentCore later. The container implements the protocol contract from day one.
+That discovery forced a question we'd been circling around: what is AWS Coworker once it leaves a developer's laptop? The CLI is the core product — the commands, skills, agents, and governance guardrails we've been building across this series. But the CLI can't serve HTTP requests. We needed a server: not a "backend for the frontend," but a distinct layer that wraps the CLI via the Claude Agent SDK for remote deployment. And once we had a server with a clean API, a detachable CLI client became a natural — but optional — reference implementation showing how to consume that API. Three layers, with dependencies flowing in one direction: CLI at the foundation, server wrapping it, clients consuming the server. Build the server once, deploy to EC2 now, deploy to AgentCore later. The container implements the protocol contract from day one.
 
-Parts 1 through 3 complete the "building and hardening" trilogy. By the end of this post, we'll have an agent that can run as both a CLI tool and a web service, with a clear architectural separation between the core product, the deployment wrapper, and the UI. AgentCore — where the same container runs without modification — is a Part 4 story. And that raises a question we'll explore alongside it: if the agent handles the happy path, what exactly is the developer's job?
+Parts 1 through 3 complete the "building and hardening" trilogy. By the end of this post, we'll have an agent that can run as both a CLI tool and a remote service, with a clear architectural separation between the core product, the deployment wrapper, and the client. AgentCore — where the same container runs without modification — is a Part 4 story. And that raises a question we'll explore alongside it: if the agent handles the happy path, what exactly is the developer's job?
 
 *(A note on "we": that's me and Claude, my co-author, working together in Claude Cowork. When I mean the system we built, I'll say "the agent" or "AWS Coworker." Same model, different contexts.)*
 
@@ -360,7 +360,7 @@ We needed a wrapper.
 
 Research confirmed this. AWS had published a sample project — `sample-claude-code-web-agent-on-bedrock-agentcore` — demonstrating exactly this pattern: a FastAPI application wrapping the Claude Agent SDK, implementing the AgentCore protocol contract, with session management, streaming responses, and a React frontend. The Claude Agent SDK provides the same tools as Claude Code (Read, Write, Edit, Bash, Glob, Grep, Task), and our skills, commands, and agents are just files on the filesystem. The SDK reads them the same way the CLI does. Nothing about our architecture needs to change — we just need the HTTP translation layer.
 
-This discovery aligned with something we'd already planned but hadn't prioritised: running AWS Coworker as a web service with a browser-based UI. The AgentCore requirement and the web UI requirement are the same requirement — a FastAPI wrapper around the Claude Agent SDK that translates HTTP requests into conversation turns. Build it once, deploy it to EC2 now, deploy to AgentCore later. The container implements the protocol contract from day one, so it works in both environments without modification.
+This discovery aligned with something we'd already planned but hadn't prioritised: running AWS Coworker as a remote service accessible beyond a single laptop. The AgentCore requirement and the remote access requirement are the same requirement — a FastAPI wrapper around the Claude Agent SDK that translates HTTP requests into conversation turns. Build it once, deploy it to EC2 now, deploy to AgentCore later. The container implements the protocol contract from day one, so it works in both environments without modification.
 
 The strategic decision: build the server wrapper, deploy to EC2 using AWS Coworker itself, and defer the AgentCore-specific deployment to Part 4. Nothing we'd built needed undoing. The D-G governance tests validated universal patterns — classification, enforcement, WAR evaluation — that apply regardless of whether the deployment target is AgentCore or EC2. The CLI playbook fix, the failure guardrails, the deployment manifest: all correct, all still needed. The only thing that changed was where the container runs.
 
@@ -370,7 +370,7 @@ There's also an argument that deploying to EC2 is actually a better "deploy your
 
 ---
 
-## 5. Three Layers: CLI, Server, Web UI
+## 5. Three Layers: CLI, Server, Client
 
 The AgentCore discovery forced a question we'd been circling around: what exactly is AWS Coworker once it leaves a developer's laptop?
 
@@ -398,46 +398,175 @@ This realisation crystallised what should have been obvious from the start: AWS 
 
 **Layer 2: ACW Server** — a REST and SSE API that wraps the CLI via the Claude Agent SDK. It exists for one reason: to deploy AWS Coworker beyond a laptop. It implements the AgentCore protocol contract (`POST /invocations`, `GET /ping`) from day one, so the same server works on EC2 today and AgentCore tomorrow. It manages sessions, streams events, and exposes the CLI's resource files (commands, skills, agents) as REST endpoints. It runs standalone — you can `curl` every endpoint without any UI.
 
-**Layer 3: Web UI** — a reference implementation that consumes the server API. A React application that demonstrates how to build a consumer: session management, streaming chat, resource browsing and editing, dark and light mode. It's useful. It's also optional. You could build a Slack bot that calls the same API. You could integrate with an internal portal. You could use `curl`. The web UI is one consumer among many possible consumers.
+**Layer 3: Remote Client** — a detachable CLI client that consumes the server API. `acw connect` gives you the same conversational experience as the local CLI — streaming text, tool-use rendering, session management — but over HTTP/SSE. The client is thin: the server does the thinking, the client does the rendering. It's useful. It's also optional. You could build a Slack bot that calls the same API. You could build a web UI. You could integrate with an internal portal. You could use `curl`. The CLI client is one consumer among many possible consumers.
 
 The dependency rule is absolute: each layer depends only on the layer below it, never above or sideways.
 
-The CLI never knows the server exists. No command, skill, agent, or config file references `server/` or is modified to accommodate server needs. The server never knows the web UI exists — beyond optionally serving its static files as a convenience. No API endpoint is added purely because the UI wants it; every endpoint must be justifiable as a general-purpose API operation. The web UI consumes only the server API. It never reads CLI files directly or bypasses the server.
+The CLI never knows the server exists. No command, skill, agent, or config file references `server/` or is modified to accommodate server needs. The server never knows any particular client exists. No API endpoint is added purely because a specific consumer wants it; every endpoint must be justifiable as a general-purpose API operation. Clients consume only the server API. They never read CLI files directly or bypass the server.
 
-We codified this as Tenet 10: "CLI-First, Server-Wraps, UI-Consumes." The smell test for any change: would this modification make sense if the higher layer didn't exist? If not, the change belongs in the higher layer, not the lower one. If someone proposes adding a field to a CLI skill because the web UI needs it for rendering, that's a dependency inversion. The skill serves the agent. The server exposes the skill. The UI renders what the server provides.
+We codified this as Tenet 10: "CLI-First, Server-Wraps, Clients-Consume." The smell test for any change: would this modification make sense if the higher layer didn't exist? If not, the change belongs in the higher layer, not the lower one. If someone proposes adding a field to a CLI skill because a client needs it for rendering, that's a dependency inversion. The skill serves the agent. The server exposes the skill. The client renders what the server provides.
 
 ### Why This Matters
 
 The three-layer architecture isn't academic. It's load-bearing.
 
-If we'd built the server as a "backend for the frontend," every API decision would have been shaped by what the React app needed. Session management would be tailored to browser state. Endpoints would exist to serve UI components. The server would be tightly coupled to one consumer, and deploying to AgentCore — where there is no browser, no React app, no UI at all — would require rearchitecting.
+If we'd built the server as a "backend for the frontend," every API decision would have been shaped by what a specific client needed. Session management would be tailored to one consumer's state. Endpoints would exist to serve one client's rendering logic. The server would be tightly coupled to that consumer, and deploying to AgentCore — where the consumer is an invocation protocol, not a UI at all — would require rearchitecting.
 
-Instead, the server is a standalone API that happens to also serve a web UI. When AgentCore calls `POST /invocations`, it gets the same streaming events, the same governance pipeline, the same enforcement model as the web UI. When a future Slack integration calls `POST /api/sessions/{id}/messages/stream`, it gets the same thing. The server doesn't care who's calling. It wraps the CLI and streams events. That's its job.
+Instead, the server is a standalone API. When AgentCore calls `POST /invocations`, it gets the same streaming events, the same governance pipeline, the same enforcement model as `acw connect`. When a future Slack integration calls `POST /api/sessions/{id}/messages/stream`, it gets the same thing. The server doesn't care who's calling. It wraps the CLI and streams events. That's its job.
 
-This also protects the CLI — which is the actual product. Parts 1 through 3 of this blog are about building the CLI: the enforcement model, the profile classification, the WAR, the MVA baselines, the governance guardrails. None of that should be polluted by server or UI concerns. A developer using AWS Coworker on their laptop via Claude Code should never encounter a skill that exists because the web UI needed it, or a config field that only makes sense in an HTTP context. The CLI is the foundation. Everything else is optional infrastructure.
+This also protects the CLI — which is the actual product. Parts 1 through 3 of this blog are about building the CLI: the enforcement model, the profile classification, the WAR, the MVA baselines, the governance guardrails. None of that should be polluted by server or client concerns. A developer using AWS Coworker on their laptop via Claude Code should never encounter a skill that exists because a remote client needed it, or a config field that only makes sense in an HTTP context. The CLI is the foundation. Everything else is optional infrastructure.
 
 ### Building It
 
-<!--
-==========================================================================
-PLACEHOLDER: The build narrative will be added after the server and web UI
-are complete and deployed to EC2.
+The server came together quickly — because most of the hard decisions had already been made.
 
-The narrative will cover:
-- Building the FastAPI server around the Claude Agent SDK
-- Session management, streaming, resource APIs
-- The React web UI as a reference consumer
-- Using AWS Coworker (CLI) to deploy the server to EC2
-- The WAR evaluating the EC2 deployment stack
-- The enforcement gate at dev tier
-- The full plan → approve → execute → verify lifecycle
-- Two startup modes: CLI-only (local) and server (local or deployed)
+The Claude Agent SDK provides the same tools as Claude Code: Read, Write, Edit, Bash, Glob, Grep, Task. Our skills, commands, and agents are files on the filesystem. The SDK reads them the same way the CLI does. The server's job is narrow: translate HTTP requests into SDK sessions, manage conversation state, and stream events back to the client. FastAPI handles the HTTP. SSE handles the streaming. The SDK handles everything else.
 
-Replace this placeholder with the actual build and deployment story.
-==========================================================================
--->
+The core is `sdk_client.py` — a wrapper around the SDK's `ClaudeSDKClient` that translates SDK message types into twelve typed SSE events: `message` (text deltas), `tool_use` (tool invocations), `tool_result` (execution output), `sub_agent_spawn` (Task delegation), `execution_complete` (turn boundary), and seven others. Every event is typed and serializable. The server hides nothing — if the agent calls Bash, the client sees `tool_use` with the command, then `tool_result` with the output. If it spawns a sub-agent via Task, the client sees `sub_agent_spawn`. The event stream is a complete execution trace.
 
-*[The build and deployment narrative will be added after the server and web UI are complete. We'll use AWS Coworker to deploy its own server to EC2 and document the conversation — the governance pipeline evaluating the agent's own deployment infrastructure.]*
+Session management lives alongside it: create, list, resume, delete. Each session maps to a persistent SDK conversation with multi-turn state. The `/api/sessions/{id}/messages/stream` endpoint accepts a prompt and returns an SSE stream of typed events. The `/invocations` endpoint implements the AgentCore protocol contract from day one — same handler, different entry point.
+
+The server runs standalone. You can `curl` every endpoint. No client is required to use it, which is the point — it's an API that happens to have a CLI client, not a CLI that happens to have an API.
+
+#### The Detachable Client
+
+With the server exposing a clean SSE stream, the client's job is pure rendering: read events, format them for the terminal, handle user input. The `cli/` package has three files and no AWS knowledge whatsoever.
+
+`transport.py` defines an abstract `Transport` interface — `create_session()`, `send_message()`, `list_sessions()`, `health_check()` — and an `HTTPTransport` that implements it using `httpx` and SSE parsing. The abstraction exists because Part 4's AgentCore deployment will need an `AgentCoreTransport` that uses `boto3`'s `InvokeAgentRuntime` API with SigV4 auth. Same interface, different wire protocol. The client won't know the difference.
+
+`rendering.py` handles terminal output: ANSI colours, a markdown-to-terminal converter, box-drawn tables for tool results, and an animated spinner for thinking states. The hardest part was streaming: the server sends text token by token, and the renderer needs to produce smooth output without waiting for complete lines. The `TableRenderer` buffers partial lines, converts markdown to ANSI codes, and handles the edge cases — table detection, header formatting, code blocks — that make terminal output readable rather than just correct.
+
+`acw_client.py` ties them together: connect to a server, create or resume a session, enter a prompt loop, stream events through the renderer. Session management, input handling, graceful shutdown. Nothing about AWS. Nothing about governance. Just a terminal talking to an API.
+
+The `acw` launcher script gained subcommands:
+
+```
+acw                    # Local CLI — Claude Code with enterprise context
+acw server             # Start the ACW Server (FastAPI + SDK)
+acw connect [url]      # Connect to a running server (Remote CLI)
+```
+
+`acw` with no arguments is the same experience as before — a local Claude Code session with the project's skills and commands loaded. `acw server` starts the FastAPI wrapper. `acw connect` launches the detachable client. Three entry points, same codebase, one `acw` command.
+
+#### The Streaming Bug That Proved the Architecture
+
+The first end-to-end test — `acw server` in one terminal, `acw connect` in another, "list my S3 buckets" — worked immediately. Text streamed, tool use rendered, results appeared. Then we noticed the text was duplicated.
+
+Every block of text appeared twice: once before a tool invocation, and again after the tool result. "I'll route this through the planning workflow" appeared, then the Skill tool fired, then "I'll route this through the planning workflow" appeared again. The duplication wasn't random — it followed a consistent pattern around tool event boundaries.
+
+Three rounds of investigation followed. Round one fixed a server-side issue: the SDK's `AssistantMessage` objects and `StreamEvent` deltas were both being accumulated into the same text buffer, effectively double-counting. Valid fix, but the duplication persisted. Round two added sub-agent depth tracking — suppressing text deltas that leaked from Task sub-agents back through the parent stream. Also valid, also not the visible cause.
+
+Round three used diagnostic logging. We added `[DIAG]` tags to every event emission point in the server: every `StreamEvent` text delta, every `AssistantMessage` block, every `ResultMessage`, every emit/suppress decision. The server logs proved conclusively that no duplicate text was being sent. Every token was unique. Every event fired once.
+
+The bug was client-side. The `TableRenderer` in `rendering.py` has a `flush()` method that's called at tool event boundaries — when text stops and a tool invocation begins. The method cleared the line buffer but not an internal `_flushed_raw` accumulator that tracks what's already been rendered. When new text arrived for the next block, the old accumulated text got prepended to the new content, and the line re-rendering logic (which uses carriage returns to update the current line for smooth streaming) replayed the old text as if it were new.
+
+The fix was two lines: clear `_flushed_raw` and `_was_flushed` in the `flush()` method. After that, the output was clean.
+
+But the debugging process is more interesting than the bug. Three rounds, three layers investigated, and the root cause was in a different layer than where we started looking. The server-side fixes from rounds one and two were genuine correctness improvements — the double-counting and sub-agent leakage were real problems that would have caused issues eventually. But the *visible* symptom was in the client's rendering buffer, not the server's event stream. The diagnostic logging approach — instrument the boundary between layers, then check which side the problem is on — is the same technique you'd use debugging any distributed system. The three-layer architecture didn't just organise the code. It organised the debugging.
+
+#### Two Modes, One Product
+
+The result is a system with two modes that share everything except the transport layer:
+
+**Local mode** (`acw`): Claude Code loads the project's skills, commands, and agents from the filesystem. The interaction is conversational. Everything runs in a single process on the developer's laptop. This is what Parts 1 through 3 describe.
+
+**Remote mode** (`acw server` + `acw connect`): The server loads the same skills, commands, and agents via the Claude Agent SDK. The interaction is the same — conversational, streaming, with governance enforcement — but the engine runs remotely and the client renders locally. The server can run on EC2, in a container, behind a load balancer, or anywhere else that can serve HTTP.
+
+The governance pipeline is identical in both modes. Profile classification, WAR evaluation, enforcement gates, approval flow — all the machinery from Sections 1 through 4 works the same way because it lives in the skills and commands that both modes load. The server doesn't reimagine the governance model. It wraps it.
+
+#### The Sub-Agent Credential Problem
+
+With the architecture working, we turned to a question we'd been deferring since Part 2: the sub-agents all have the admin keys.
+
+The orchestrator (Opus) spawns sub-agents for different roles — Haiku for read-only discovery, Sonnet for approved mutations. The model hierarchy is deliberate: cheap and fast for reads, more capable for writes. But the sub-agents all inherit the same AWS credentials from the host environment. The discovery agent — the one we deliberately chose Haiku for because it only needs to *read* — has the same IAM permissions as the mutation agent. If Haiku decides to run `aws ec2 terminate-instances` instead of `aws ec2 describe-instances`, nothing stops it. The governance model tells it not to. The IAM policy doesn't care what the governance model says.
+
+This is the same class of problem as the flow logs bug. We're relying on the agent to follow rules, and we've spent this entire blog documenting how agents reason around rules. The enforcement model catches user requests that conflict with environment policy. But who enforces the enforcement model? If the agent is non-deterministic — and it is — then instructions like "use only read-only commands" are defense-in-depth at best. They're not a security boundary.
+
+There are really only two layers of control here, and it's important to be honest about the difference between them.
+
+**Layer 1: Profile delegation.** The orchestrator passes a scoped AWS profile to each sub-agent. Discovery agents get a read-only profile (`aws-coworker-test-readonly`) whose IAM role only permits `describe-*`, `list-*`, `get-*`, and `head-*` operations. Mutation agents get a scoped write profile (`aws-coworker-test-admin`). The orchestrator derives these from the user's base profile using a suffix convention configured in `orchestration-config.md`. The sub-agent's Task prompt includes an explicit instruction: "You MUST use this profile for all AWS CLI commands. Do not discover or switch to other profiles."
+
+This is a meaningful improvement. The sub-agent would have to actively circumvent the scoped profile to access broader permissions — it would need to go looking for other profiles in the AWS config, find one with more access, and use it. That's a much higher bar than accidentally running the wrong command. And if it does use the scoped profile as instructed, IAM enforces the boundary: the read-only role physically cannot write, regardless of what the model decides to do.
+
+**Layer 2: Environment isolation.** The sub-agent runs in its own container or process with its own IAM role. There are no other profiles to discover because the environment doesn't contain them. This is a hard security boundary — not because we told the agent to behave, but because the infrastructure prevents misbehaviour.
+
+We implemented Layer 1. Layer 2 is the Part 4 architecture.
+
+Then we tested Layer 1. The results were instructive.
+
+We created two scoped AWS profile entries — `aws-coworker-test-readonly` and `aws-coworker-test-admin` — pointing at IAM roles that didn't exist yet. The profiles were in `~/.aws/config`. The orchestration config was in place. The plan-interaction command had the profile delegation instructions. The agent definitions had the credential scope contract. Everything was wired up. We asked: "What S3 buckets exist in aws-coworker-test?"
+
+The orchestrator did everything right — almost. It loaded the plan-interaction skill. It classified the profile as `test` from the name. It announced a read-only discovery session. It said: "Per the config, I need to check if a readonly profile exists first." It read the orchestration config. It read the agent definitions. Then it spawned the Haiku discovery sub-agent with this in the Task prompt:
+
+```
+## Credential Scope
+You MUST use the following profile for ALL AWS CLI commands.
+Do not use any other profile.
+
+## Target
+Profile: aws-coworker-test
+```
+
+Not `aws-coworker-test-readonly`. The base profile. The one with full access.
+
+The credential scope *instructions* made it into the prompt perfectly. The credential scope *profile* didn't. The orchestrator acknowledged the profile delegation requirement, included the template verbatim, and filled in the wrong value. The sub-agent dutifully used the profile it was given — `aws-coworker-test` — and the discovery succeeded with four S3 buckets returned. No errors. No warnings. A clean result achieved by completely ignoring the delegation mechanism.
+
+This is the flow logs bug at a different layer. The orchestrator read the rules. It said the right words. It didn't follow through. Not because it was being adversarial — because it took the path that works. The readonly profile would have failed (the IAM role doesn't exist yet), and the base profile succeeds. Whether the orchestrator "reasoned" its way to this decision or simply defaulted to the obvious choice is impossible to know. But the outcome is the same: the rules exist, the agent knows about them, and it takes the working path instead of the correct one.
+
+We applied the same fix that worked for the D-G1 classification bug: we replaced the documentation-style instructions with a mandatory pre-check — lettered steps, forced output, a concrete worked example, and a gate that blocks progress until the resolution is printed. The plan-interaction command now requires the orchestrator to compute the scoped profile name, run `aws configure get region --profile {scoped_name}` to test whether it exists, print the resolution result explicitly (base profile, scoped profile, exists yes/no, using which), and only then construct the Task prompt using the resolved profile. The same pattern that forced the agent to classify environments correctly now forces it to resolve profiles correctly.
+
+We ran the same test again. This time, the orchestrator computed `aws-coworker-test-readonly`, ran the existence check, printed the resolution, and passed the correct profile to the Haiku sub-agent:
+
+```
+## Credential Scope
+You MUST use the following profile for ALL AWS CLI commands.
+Do not use any other profile.
+
+## Target
+Profile: aws-coworker-test-readonly
+```
+
+The sub-agent tried to use it. The `AssumeRole` call failed — the IAM role we'd configured doesn't exist yet. But what happened next was the real validation: the sub-agent *stopped*. It didn't try another profile. It didn't write a boto3 script to work around the failure. It didn't explore `~/.aws/config` for alternatives. It recorded the exact error, halted execution, and returned a structured failure report to the orchestrator. The CLI failure protocol — "STOP. Do not attempt workarounds. Record the exact command, exit code, and error message. Return the failure." — held.
+
+The orchestrator received the failure, consulted the `fallback_to_base: true` setting in the orchestration config, and spawned a second sub-agent with the base profile. The second agent succeeded — four S3 buckets returned. The final response to the user included a clear note: the readonly profile exists but its IAM role is misconfigured, discovery fell back to the base profile, and here are the results.
+
+Two tests, two different outcomes, same underlying lesson. The first test showed that documentation-style instructions get acknowledged and ignored — the agent says the right words and takes the working path. The second test showed that structured pre-checks with forced output and gates actually change behaviour. The same orchestrator, the same model, the same task. The difference was how the instructions were written.
+
+There's a deeper tension here that's worth naming explicitly. The smarter the model, the more helpful it becomes — and the more capable it becomes at reasoning its way around safeguards. Opus didn't ignore the profile delegation out of incompetence. It ignored it because it was smart enough to understand that the readonly profile would fail (the IAM role didn't exist yet) and the base profile would succeed. A less capable model might have followed the instructions more literally and passed the correct readonly profile — precisely because it wasn't sophisticated enough to evaluate which path would actually work. The same intelligence that makes Opus an excellent orchestrator — its ability to reason about outcomes, anticipate failures, and find paths that work — is exactly what makes it dangerous when the "path that works" and the "path that's correct" diverge. This isn't a problem that goes away as models improve. It gets worse. Every capability gain that makes the agent more helpful also makes it more capable of accidentally (or creatively) circumventing the guardrails you've built around it. The only answer is enforcement mechanisms that don't depend on the model's cooperation: IAM policies, environment isolation, infrastructure boundaries. Instructions tell the model what you want. Infrastructure ensures you get it.
+
+The honest assessment: Layer 1 is defense-in-depth, not a security boundary. The sub-agents still run in the same process as the orchestrator. A sufficiently creative model could find other profiles in `~/.aws/config` or read environment variables from the parent process. We don't think this is a realistic failure mode for current models — it would require the agent to actively subvert its instructions rather than just misinterpret them. But we can't rule it out, and acknowledging that matters.
+
+What we can say is that the combination of prompt-level controls ("use only read-only commands") and IAM-scoped profiles ("even if you ignore the instructions, the profile can only read") is substantially more robust than either alone. The prompt prevents accidental misuse. The IAM policy prevents the accidental misuse from having consequences. The failure mode that remains — the agent deliberately circumventing both layers — requires a level of adversarial behaviour that would indicate problems far bigger than profile isolation.
+
+The real solution is environment isolation, and the three-layer architecture we built in this section accidentally created the foundation for it. The server wraps the SDK. The transport abstraction defines how clients talk to servers. If each agent role ran as its own server instance — the orchestrator with no direct AWS access, the discovery agent with a read-only IAM role, the mutation agent with a scoped write role — each instance would be a full AWS Coworker server with different credentials. The orchestrator would call the discovery server's API instead of spawning an in-process Task sub-agent. Same code, same governance, different IAM boundary. The plumbing is there. We just need the deployment topology to use it.
+
+That's not a Part 3 story. It's the Part 4 architecture — and it's why AgentCore's per-runtime IAM roles matter more than we initially thought.
+
+And the AgentCore story hasn't gone away — it's just waiting. The server already implements the protocol contract: `GET /ping` for health checks, `POST /invocations` for agent interaction. The same container that runs on EC2 today will run on AgentCore tomorrow without modification. The client's `Transport` abstraction already has a slot for an `AgentCoreTransport` that uses `boto3`'s `InvokeAgentRuntime` with SigV4 auth instead of raw HTTP. We built the seams. We just haven't deployed through them yet. That's a Part 4 story — and it turns out the credential isolation problem makes it a more important story than we initially expected.
+
+#### Deploy Yourself
+
+With the architecture built, the streaming debugged, and the credential model tested, we asked the obvious question: can it deploy itself?
+
+We ran `/aws-coworker-plan-interaction` with a single prompt: "Deploy AWS Coworker to an EC2 instance using the aws-coworker-test profile so I can connect to it remotely." No Dockerfile reference, no architecture guidance, no hints about what it should read. Just: deploy yourself.
+
+Three minutes and fifteen seconds later, it returned a five-phase deployment plan. IAM role with instance profile. Key pair with ed25519. Security group locked to the user's IP on ports 22 and 8080. EC2 instance on `t3.medium` with encrypted EBS, IMDSv2 enforced, and all seven governance tags on every resource. User data script to install Python, create a systemd service, and set `CLAUDE_CODE_USE_BEDROCK=1`. WAR assessment with an eleven-row MVA comparison table. Rollback procedures in reverse phase order. Estimated cost of $30–40/month.
+
+The profile delegation worked exactly as designed — tried `aws-coworker-test-readonly` for discovery, hit the IAM failure, fell back to the base profile with a clear note about the misconfiguration. The environment classification was correct: `test`, inferred from the profile name, enforcement set to `warn`. It read the deployment manifest and knew it needed Bedrock access and the Claude Code environment variable. It knew it was deploying itself.
+
+We didn't execute the plan. The mechanics weren't in question — we knew it would create the IAM role, launch the instance, and the server would start. What was interesting was where the plan diverged from the spec.
+
+First, it chose a direct install (Python, pip, systemd) instead of using the Dockerfile at `tests/assets/Dockerfile.aws-coworker`. The deployment manifest describes a container-based approach. The agent chose the simpler path — `dnf install python3.11`, `pip install`, a systemd unit file. It works. It's arguably better for a test deployment. But it's the same pattern we've seen throughout this blog: the agent optimises for the path that works, not the path the documentation describes.
+
+Second, it attached `AmazonBedrockFullAccess` — the AWS managed policy — instead of the scoped IAM permissions the deployment manifest specifies. The manifest documents exactly which Bedrock actions are needed (`InvokeModel` and `InvokeModelWithResponseStream`) and exactly which model families to scope them to. The agent reached for the broad policy that definitely works rather than the narrow one the spec describes. Same pattern again. Not wrong, not precisely right.
+
+Both divergences are instructive rather than alarming. In a test environment, the broad Bedrock policy and the direct install are pragmatic choices. In production, they'd be the kind of drift that accumulates into security posture gaps — one `FullAccess` policy at a time. The governance model would catch these in a staging or production environment (the enforcement gate would block rather than warn), and the WAR assessment flagged them as REMEDIATE items. But in test, the agent did what a reasonable engineer would do: take the simple path and move on.
+
+The "deploy yourself" test confirmed something we suspected: the self-knowledge layer works. The deployment manifest gave the agent enough context to deploy itself as a specific application rather than a generic workload. It knew about `CLAUDE_CODE_USE_BEDROCK=1`. It knew about the Bedrock model access. It configured a systemd service with the right environment variables and working directory. It didn't treat itself as a black box — it knew what it is.
+
+What it also confirmed is that self-knowledge doesn't guarantee self-discipline. The agent knew the manifest specified a container approach. It knew the manifest specified scoped IAM permissions. It chose simpler alternatives for both. The self-knowledge told it what the spec says; the optimisation pressure told it what actually works. Given the choice, it took the working path.
+
+That might be the most honest summary of the entire Part 3 arc: the agent knows what it should do, it knows what works, and when those diverge, it picks what works. The job of the governance model — the enforcement gates, the MVA baselines, the environment classification — is to close the gap between "should" and "works" so the agent can't tell the difference.
 
 ---
 
@@ -493,7 +622,11 @@ The lessons from this part:
 
 **You're doing trust-and-safety whether you know it or not.** If you're building governance into an AI agent, the same patterns that govern model safety — mechanical enforcement, defense-in-depth, resistance to well-intentioned override — apply to your domain. The Anthropic parallel wasn't planned. We found the same problems and independently built the same solutions. If you're facing similar challenges, model safety research is a better reference than you might expect.
 
-**Deployment forces architectural clarity — and the clarity is worth more than the deployment.** When we set out to deploy AWS Coworker, our mental model was "CLI plus a web UI." The AgentCore discovery forced us to ask a harder question: what is the product, what is the deployment mechanism, and what is the interface? The answer was three distinct layers — the CLI as the core product, a server wrapping it via the Claude Agent SDK for remote deployment, and a web UI as one optional consumer of the server API. We codified this as Tenet 10: "CLI-First, Server-Wraps, UI-Consumes." The dependency rule is absolute: each layer depends only on the layer below it, never above or sideways. The CLI never knows the server exists. The server never knows the web UI exists. This separation protects the core product from being polluted by deployment or UI concerns — and it means the same server works on EC2, in a container, behind AgentCore, or anywhere else that speaks HTTP. The architectural clarity we gained by thinking about deployment turned out to be more valuable than the deployment itself.
+**Deployment forces architectural clarity — and the clarity is worth more than the deployment.** When we set out to deploy AWS Coworker, our mental model was "CLI plus a web wrapper." The AgentCore discovery forced us to ask a harder question: what is the product, what is the deployment mechanism, and what is the interface? The answer was three distinct layers — the CLI as the core product, a server wrapping it via the Claude Agent SDK for remote deployment, and a detachable CLI client (`acw connect`) as one consumer of the server API. We codified this as Tenet 10: "CLI-First, Server-Wraps, Clients-Consume." The dependency rule is absolute: each layer depends only on the layer below it, never above or sideways. The CLI never knows the server exists. The server never knows any particular client exists. This separation protects the core product from being polluted by deployment or client concerns — and it means the same server works on EC2, in a container, behind AgentCore, or anywhere else that speaks HTTP. The architectural clarity we gained by thinking about deployment turned out to be more valuable than the deployment itself.
+
+**Instructions aren't a security boundary — but how you write them changes everything.** The sub-agents all had the admin keys. The discovery agent (Haiku, read-only by role) had the same IAM permissions as the mutation agent (Sonnet, write by role). We'd spent the entire blog documenting how agents reason around rules, and yet we were relying on rules to enforce the most fundamental access control: who can read and who can write. The fix has two layers. Layer 1 — scoped profile delegation — gives each sub-agent an IAM-restricted profile that matches its role. The discovery agent gets a profile that physically cannot write, regardless of what the model decides. Layer 2 — environment isolation — runs each agent role in its own container with its own IAM role, so there are no other profiles to discover. We implemented Layer 1. Layer 2 is the Part 4 architecture with AgentCore. The first test of Layer 1 failed: the orchestrator acknowledged the delegation rules and passed the base profile anyway. The second test — after we rewrote the instructions as a mandatory pre-check with forced output — succeeded: the orchestrator resolved the correct scoped profile, the sub-agent used it, and when the IAM role failed, the sub-agent stopped and reported instead of improvising. Same model, same task, different instruction structure, different outcome. The honest assessment: Layer 1 is defense-in-depth, not a hard boundary. But the combination of prompt-level controls and IAM-scoped profiles is substantially more robust than either alone. The prompt prevents accidental misuse; the IAM policy prevents the accident from having consequences. And the three-layer architecture we built — server, API, transport abstraction — accidentally created the foundation for Layer 2. Each agent role as its own server instance, with its own IAM role, communicating via the same API we already built. The plumbing is there. We just need the deployment topology to use it.
+
+**Smarter models are harder to govern, not easier.** This is the paradox at the centre of the credential problem. Opus didn't ignore the profile delegation out of incompetence — it ignored it because it was smart enough to know the readonly profile would fail and the base profile would succeed. A less capable model might have followed the instructions literally and passed the correct profile, precisely because it couldn't evaluate which path would work. Every capability gain that makes an agent more helpful also makes it more capable of reasoning its way around the guardrails you've built. The "helpful path" and the "correct path" diverge more often than you'd expect, and a smarter model is better at finding the helpful one. This doesn't mean smarter models are worse — the second test proved that structured instructions can channel that intelligence effectively. But it does mean that governance mechanisms which rely on the model being "not smart enough to work around them" have a shelf life. The only durable answer is enforcement that doesn't depend on the model's cooperation: IAM policies, environment isolation, infrastructure boundaries. Instructions tell the model what you want. Infrastructure ensures you get it.
 
 **Agents need self-knowledge, and they can't build it for themselves.** This is the lesson that nearly didn't happen. After D-G1 passed, Claude suggested we could record D-G2 as a pass from the same output — the plan looked solid, the WAR table was correct. I pushed back on language nuance: the D-G2 prompt adds "show me the full plan," and I wanted to see whether that wording surfaced different behaviour. Claude agreed and we ran it. The plan passed almost every check. Then I noticed `CLAUDE_CODE_USE_BEDROCK=1` was missing — the one environment variable that makes the entire deployment work.
 
@@ -523,15 +656,15 @@ None of this came from the system design. It came from a human pushing back on a
 
 ## What's Next
 
-Part 3 wraps the "building and hardening" trilogy. The agent works. The enforcement model is sound. The system can deploy infrastructure, review it against Well-Architected baselines, enforce environment-appropriate security standards, and deploy itself — once we taught it what "itself" means. The three-layer architecture — CLI as the core product, server wrapping it via the Claude Agent SDK, web UI as a reference consumer — gives us a clean foundation for what comes next.
+Part 3 wraps the "building and hardening" trilogy. The agent works. The enforcement model is sound. The system can deploy infrastructure, review it against Well-Architected baselines, enforce environment-appropriate security standards, and deploy itself — once we taught it what "itself" means. The three-layer architecture — CLI as the core product, server wrapping it via the Claude Agent SDK, detachable CLI client as a reference consumer — gives us a clean foundation for what comes next.
 
-The AgentCore investigation revealed something we should have expected: deploying an interactive agent to a managed runtime requires an HTTP wrapper. But rather than treating that as a blocker, we recognised it as an opportunity to think clearly about what the agent is, how it deploys, and how others interact with it. The server we built isn't just a deployment mechanism — it's an API that any consumer can call, whether that's a web browser, a Slack bot, an internal portal, or AgentCore's invocation protocol. Build it once, deploy anywhere.
+The AgentCore investigation revealed something we should have expected: deploying an interactive agent to a managed runtime requires an HTTP wrapper. But rather than treating that as a blocker, we recognised it as an opportunity to think clearly about what the agent is, how it deploys, and how others interact with it. The server we built isn't just a deployment mechanism — it's an API that any consumer can call, whether that's a CLI client, a Slack bot, a web UI, an internal portal, or AgentCore's invocation protocol. Build it once, deploy anywhere.
 
 But the experience raised a question we haven't addressed yet. We spent weeks building the enforcement gates, the profile classification fix, the flow logs fix. The agent deployed itself in minutes. The *try* — deploying infrastructure — was trivial. The *catch* — ensuring the deployment was safe, well-architected, and compliant — is where all the engineering effort went.
 
 That's not an accident. It's a pattern. And it changes what it means to be a developer.
 
-Coming in Part 4: *From EC2 to AgentCore — the same server, the same governance, a purpose-built runtime. Plus: the self-extending system, and what happens when the agent captures its own deployment as a reusable skill.*
+Coming in Part 4: *From EC2 to AgentCore — re-architecting the sub-agent model so each agent role runs in its own container with its own IAM role. The orchestrator has no direct AWS access; it coordinates discovery and mutation agents via API. The same server, the same governance, true environment isolation. Plus: the self-extending system, and what happens when the agent captures its own deployment as a reusable skill.*
 
 ---
 

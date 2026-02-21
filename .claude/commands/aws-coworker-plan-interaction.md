@@ -164,6 +164,42 @@ WRONG (raw Bash - no agent context):
 
 **Sub-agent invocation pattern (from agent definitions):**
 
+#### MANDATORY PRE-CHECK: Profile Delegation — Do This BEFORE Constructing Any Task Prompt
+
+**STOP. Before you write a single line of any sub-agent Task prompt, you MUST complete this checklist. Do NOT skip this. Do NOT "plan to do it later." Do it NOW.**
+
+**Step A:** Read `config/orchestration-config.md` → find the `profile_delegation` section. Note the suffixes: `readonly` suffix and `admin` suffix.
+
+**Step B:** Compute the scoped profile name:
+- For a **discovery** sub-agent: `{base_profile}` + readonly suffix → e.g., `aws-coworker-test` + `-readonly` = `aws-coworker-test-readonly`
+- For a **mutation** sub-agent: `{base_profile}` + admin suffix → e.g., `aws-coworker-test` + `-admin` = `aws-coworker-test-admin`
+
+**Step C:** Run this command to check if the scoped profile exists:
+```bash
+aws configure get region --profile {scoped_profile_name} 2>/dev/null
+```
+
+**Step D:** Print your resolution result:
+```
+Profile delegation:
+  Base profile: {base_profile}
+  Scoped profile: {scoped_profile_name}
+  Exists: {yes/no}
+  Using: {scoped_profile_name OR base_profile (fallback)}
+```
+
+**Step E:** The profile you printed in "Using:" is the ONLY profile that goes into the Task prompt's `## Target` section. Not the base profile. The resolved profile.
+
+**Concrete example:**
+- User asks about `aws-coworker-test`
+- You compute: `aws-coworker-test` + `-readonly` = `aws-coworker-test-readonly`
+- You run: `aws configure get region --profile aws-coworker-test-readonly`
+- It returns a region → profile exists → Using: `aws-coworker-test-readonly`
+- Your Task prompt says: `Profile: aws-coworker-test-readonly` — NOT `Profile: aws-coworker-test`
+- If the command fails → check `fallback_to_base` in config → if true, use base profile WITH a warning printed to the user
+
+**DO NOT pass the base profile to a sub-agent if a scoped profile exists. This is the same class of bug as the flow logs bypass — acknowledging the rule and then not following it.**
+
 For discovery (read-only):
 ```yaml
 Task:
@@ -176,6 +212,11 @@ Task:
     ## Permission Context
     Operation type: read-only (discovery only)
 
+    ## Credential Scope
+    You MUST use the following profile for ALL AWS CLI commands.
+    Do not use any other profile. Do not run `aws configure list-profiles`.
+    Do not attempt to discover or switch to other profiles.
+
     ## CLI Failure Protocol
     If any CLI command fails: STOP. Report the exact command, exit code,
     and error message. Do NOT write scripts, use boto3, try alternative
@@ -183,12 +224,12 @@ Task:
     a valid outcome.
 
     ## Target
-    Profile: {profile}
+    Profile: {resolved_readonly_profile}
     Region: {region}
 
     ## Task
     Run these discovery commands and report findings:
-    aws ec2 describe-vpcs --profile {profile} --region {region}
+    aws ec2 describe-vpcs --profile {resolved_readonly_profile} --region {region}
 ```
 
 For mutations (after approval):
@@ -203,8 +244,13 @@ Task:
     ## Permission Context
     User has approved this operation.
 
+    ## Credential Scope
+    You MUST use the following profile for ALL AWS CLI commands.
+    Do not use any other profile. Do not run `aws configure list-profiles`.
+    Do not attempt to discover or switch to other profiles.
+
     ## Target
-    Profile: {profile}
+    Profile: {resolved_admin_profile}
     Region: {region}
 
     ## Approved Actions

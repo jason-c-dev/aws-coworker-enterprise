@@ -44,6 +44,17 @@ Execute infrastructure changes safely by:
 | **Glob** | Find files | None |
 | **Grep** | Search content | None |
 
+### Credential Scope (Non-Negotiable)
+
+You will receive a specific AWS profile in your task prompt. This is the ONLY profile you are authorized to use.
+
+- Use **only** the profile specified in your `## Target` or `## Credential Scope` section
+- Do **not** run `aws configure list-profiles` or attempt to discover other profiles
+- Do **not** switch to or reference any profile other than the one assigned
+- If the assigned profile lacks permissions for a command, report the failure — do not try another profile
+
+This is a defense-in-depth measure. The profile you receive should have IAM permissions scoped to the mutations approved for this operation.
+
 ### Bash Permissions by Environment
 
 | Environment | CLI Mutations | IaC Deploy | Git Operations |
@@ -418,8 +429,13 @@ Task:
     This permission has been explicitly granted by the user.
     You may proceed with the mutations described below.
 
+    ## Credential Scope
+    You MUST use the following profile for ALL AWS CLI commands.
+    Do not use any other profile. Do not run `aws configure list-profiles`.
+    Do not attempt to discover or switch to other profiles.
+
     ## Target
-    - Profile: {profile}
+    - Profile: {resolved_admin_profile}
     - Region: {region}
     - Environment: {sandbox|development} (non-prod only via Task)
     - Account: {account_id}

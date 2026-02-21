@@ -280,8 +280,66 @@ To modify these thresholds:
 
 ---
 
+## Profile Delegation
+
+Sub-agents receive scoped AWS profiles to limit their blast radius. The orchestrator derives sub-agent profile names from the user's base profile using a suffix convention.
+
+```yaml
+profile_delegation:
+  enabled: true
+
+  # Suffix convention: appended to the user's base profile name
+  # Example: base profile "aws-coworker-test" produces:
+  #   - Discovery agent: "aws-coworker-test-readonly"
+  #   - Mutation agent:  "aws-coworker-test-admin"
+  suffixes:
+    readonly: "-readonly"     # Discovery/audit sub-agents (Haiku)
+    admin: "-admin"           # Mutation sub-agents (Sonnet)
+
+  # Fallback: if a scoped profile doesn't exist, fall back to the base profile
+  # Set to false to REQUIRE scoped profiles (fail if not found)
+  fallback_to_base: true
+```
+
+### How It Works
+
+1. The user specifies a base profile (e.g., `aws-coworker-test`) — either in their request or via the default AWS profile.
+2. The orchestrator resolves sub-agent profiles by appending the configured suffixes.
+3. Before spawning a sub-agent, the orchestrator checks whether the scoped profile exists (`aws configure get region --profile {scoped-profile}`).
+4. If the scoped profile exists, the sub-agent receives **only** that profile name in its Task prompt.
+5. If the scoped profile doesn't exist and `fallback_to_base` is `true`, the sub-agent receives the base profile (with a warning logged). If `fallback_to_base` is `false`, the operation fails with an instruction to create the missing profile.
+
+### IAM Policy Expectations
+
+The scoped profiles should have IAM permissions matching their role:
+
+| Profile Suffix | Agent Role | Expected IAM Permissions |
+|----------------|------------|--------------------------|
+| `-readonly` | Discovery (Haiku) | `describe-*`, `list-*`, `get-*`, `head-*` only |
+| `-admin` | Mutations (Sonnet) | Scoped write access for approved operations |
+| *(base)* | Orchestrator (Opus) | Used for classification only — no direct AWS operations |
+
+**Important:** Profile delegation is defense-in-depth, not a hard security boundary. Sub-agents run in the same process as the orchestrator and could theoretically access other profiles. True environment isolation — where each agent role runs in its own container with its own IAM role — is the Part 4 architecture with AgentCore. Profile delegation is the meaningful first step: the sub-agent would have to actively circumvent the scoped profile, which is a much higher bar than accidentally using the wrong one.
+
+### Creating Scoped Profiles
+
+```bash
+# Create a read-only profile (same account, different IAM role)
+aws configure set role_arn arn:aws:iam::123456789012:role/ACWReadOnly --profile aws-coworker-test-readonly
+aws configure set source_profile aws-coworker-test --profile aws-coworker-test-readonly
+aws configure set region us-east-1 --profile aws-coworker-test-readonly
+
+# Create an admin profile (scoped write access)
+aws configure set role_arn arn:aws:iam::123456789012:role/ACWAdmin --profile aws-coworker-test-admin
+aws configure set source_profile aws-coworker-test --profile aws-coworker-test-admin
+aws configure set region us-east-1 --profile aws-coworker-test-admin
+```
+
+---
+
 ## Version History
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.1.0 | 2026-02-21 | Add profile delegation for sub-agent credential scoping |
 | 1.0.0 | 2026-01-30 | Initial configuration with always-agent mode |
