@@ -61,7 +61,9 @@ Tenet 10 (NEW): "CLI-First, Server-Wraps, Clients-Consume."
 The dependency rule: each layer depends only on the layer below. Never above, never sideways.
 
 THE SERVER:
-- Claude Agent SDK wraps the CLI as an HTTP service
+- Claude Agent SDK used as a library (not a CLI wrapper) to expose capabilities over HTTP
+- Important distinction: SDK authenticates via API key or Bedrock IAM, NOT via Anthropic
+  subscription (Max/Pro). This means the server is genuinely AWS-native when using Bedrock.
 - sdk_client.py: 12 typed SSE events, session management, AgentCore protocol contract
   (GET /ping, POST /invocations) from day one
 - Reference Part 1's sub-agent architecture — the server wraps the same primitives
@@ -300,7 +302,7 @@ is the one that proves your instructions don't work."
 Part 4 teaser: environment isolation and the multi-instance architecture.
 
 The three-layer architecture we built in Part 3B accidentally created the foundation for
-true credential isolation. The server wraps the SDK. The transport abstraction defines how
+true credential isolation. The server uses the SDK as a library. The transport abstraction defines how
 clients talk to servers. If each agent role ran as its own server instance — the orchestrator
 with no direct AWS access, the discovery agent with a read-only IAM role, the mutation
 agent with a scoped write role — each instance would be a full AWS Coworker server with
