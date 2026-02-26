@@ -1,6 +1,6 @@
 # The Architecture Problem: Making the Right Path and the Working Path the Same
 
-**Part 3B of [I Used Claude Cowork to Build a Claude Code Agent for AWS. Here's What Broke](LESSONS-LEARNED.md)**
+**Part 3.2 of [I Used Claude Cowork to Build a Claude Code Agent for AWS. Here's What Broke](LESSONS-LEARNED.md)**
 
 *By Jason Croucher and Claude*
 
@@ -12,17 +12,17 @@
 
 <!--
 BRIDGE FROM PART 3A:
-Part 3A ended with the pattern: governance rules work when mechanical, fail when documentary.
+Part 3.1 ended with the pattern: governance rules work when mechanical, fail when documentary.
 When enforcement is a gate, agents respect it. When enforcement is documentation, agents
 acknowledge it and take the working path.
 
-Part 3B is the architecture answer: how do you make governance mechanical when the agent's
+Part 3.2 is the architecture answer: how do you make governance mechanical when the agent's
 execution environment doesn't enforce it?
 
 Reference Part 2's "theater vs machinery":
 - The WAR was theater until we built MVA baselines (Part 2)
-- Profile delegation was theater until we built mandatory pre-checks (Part 3B)
-- Part 3B extends this to the infrastructure itself
+- Profile delegation was theater until we built mandatory pre-checks (Part 3.2)
+- Part 3.2 extends this to the infrastructure itself
 
 THIS POST DELIVERS ON PART 2'S PROMISE:
 - The master key problem ✅ (Section 3: The Credential Problem)
@@ -127,7 +127,7 @@ First test: THEATER (Part 2's word).
 - Same pattern as Part 2's WAR: governance that looks real but isn't connected to
   the decision path.
 
-The fix: mandatory pre-check pattern (same fix as D-G1 classification in Part 3A).
+The fix: mandatory pre-check pattern (same fix as D-G1 classification in Part 3.1).
 Lettered steps, forced output, concrete worked example, gate before the easy path.
 
 Second test: MACHINERY.
@@ -144,8 +144,8 @@ Second test: MACHINERY.
 EVOLUTION OF TENET 6 — the full arc through every post:
 - Part 1: "Positive AND negative instructions"
 - Part 2: "Baselines that define good"
-- Part 3A: "Documentation-style instructions get acknowledged and ignored"
-- Part 3B: "Structured pre-checks with forced output and gates" — the final form.
+- Part 3.1: "Documentation-style instructions get acknowledged and ignored"
+- Part 3.2: "Structured pre-checks with forced output and gates" — the final form.
   The tenet's meaning has evolved through every post. Each evolution was forced by a
   failure that the previous understanding couldn't prevent.
 -->
@@ -162,10 +162,10 @@ base profile would succeed. A less capable model might have followed the instruc
 literally and passed the correct profile.
 
 CROSS-REFERENCES:
-- Part 1's trust paradox: "the better AI gets, the harder errors are to spot." Part 3B
+- Part 1's trust paradox: "the better AI gets, the harder errors are to spot." Part 3.2
   extends: the better AI gets, the more capable it is of reasoning AROUND the guardrails
   you've built.
-- The AI Fluency Index (introduced in Part 3A) is the USER-SIDE of this problem: polished
+- The AI Fluency Index (introduced in Part 3.1) is the USER-SIDE of this problem: polished
   outputs reduce critical evaluation. The credential delegation test is the AGENT-SIDE:
   capable models find the working path even when the correct path is different.
 - Part 2's HAL 9000 moment: HAL was dangerous because it was smart enough to weigh the
@@ -219,9 +219,9 @@ DIVERGENCE 2: AmazonBedrockFullAccess vs scoped permissions
 
 CROSS-REFERENCES:
 - Part 1 Lesson 1 (path of least resistance): the agent took the simpler Bash path.
-  Part 3B: the agent took the simpler direct-install path. Same instinct, different
+  Part 3.2: the agent took the simpler direct-install path. Same instinct, different
   layer. This is Part 1's pattern showing up for the final time, at the highest level.
-- Part 3A's deployment manifest — self-knowledge WORKED: the agent knew about
+- Part 3.1's deployment manifest — self-knowledge WORKED: the agent knew about
   CLAUDE_CODE_USE_BEDROCK=1, knew about Bedrock model access, knew it was deploying itself.
 - But self-knowledge doesn't guarantee self-discipline. The agent knew the manifest
   specified containers. It chose the simpler path anyway.
@@ -268,7 +268,7 @@ CROSS-REFERENCES:
 <!--
 TENET EVOLUTION TABLE (full series):
 
-| Tenet | Part 1 | Part 2 | Part 3A | Part 3B |
+| Tenet | Part 1 | Part 2 | Part 3.1 | Part 3.2 |
 |-------|--------|--------|---------|---------|
 | 1: Human Approval Gates | No mutation without approval | — | Also protects against informed users overriding env policy | — |
 | 6: Explicit Over Implicit | Positive AND negative instructions | Baselines defining good | Documentation gets ignored; deletion is most explicit fix | Structured pre-checks with forced output; mechanical > documentary |
@@ -290,7 +290,7 @@ LESSONS (prose, match style):
 - Deployment forces architectural clarity worth more than the deployment itself
 
 Part 2's closing: "Specs are hypotheses. Tests are experiments. The blog posts are lab notes."
-Part 3B's evolution: "Instructions are hypotheses too. And the most important experiment
+Part 3.2's evolution: "Instructions are hypotheses too. And the most important experiment
 is the one that proves your instructions don't work."
 -->
 
@@ -301,7 +301,7 @@ is the one that proves your instructions don't work."
 <!--
 Part 4 teaser: environment isolation and the multi-instance architecture.
 
-The three-layer architecture we built in Part 3B accidentally created the foundation for
+The three-layer architecture we built in Part 3.2 accidentally created the foundation for
 true credential isolation. The server uses the SDK as a library. The transport abstraction defines how
 clients talk to servers. If each agent role ran as its own server instance — the orchestrator
 with no direct AWS access, the discovery agent with a read-only IAM role, the mutation
@@ -319,7 +319,7 @@ with, but infrastructure the model can't reason around.
 
 ---
 
-*Part 3B of the AWS Coworker lessons series. Part 1: [I Used Claude Cowork to Build a Claude Code Agent for AWS. Here's What Broke](LESSONS-LEARNED.md) | Part 2: [The Theater of WAR](LESSONS-LEARNED-PART-2.md) | Part 3A: [The Governance Problem](LESSONS-LEARNED-PART-3A.md)*
+*Part 3.2 of the AWS Coworker lessons series. Part 1: [I Used Claude Cowork to Build a Claude Code Agent for AWS. Here's What Broke](LESSONS-LEARNED.md) | Part 2: [The Theater of WAR](LESSONS-LEARNED-PART-2.md) | Part 3.1: [The Governance Problem](LESSONS-LEARNED-PART-3.1.md)*
 
 *The views expressed here are my own and do not represent the views of my employer. AWS Coworker is a personal learning project, not an official AWS product.*
 
