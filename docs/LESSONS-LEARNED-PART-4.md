@@ -264,7 +264,11 @@ Agent Teams is still experimental. Per-teammate credential scoping could come la
 
 ## What We Learned
 
-Part 1 taught us nine design tenets. Part 2 showed us we hadn't implemented them. Part 3 showed us we hadn't learned either of those lessons. Part 4 showed us that even when the lessons are learned and the instructions are tight, instructions aren't enough.
+If there's a single lesson from four blog posts and several months of building, it's this: **don't dangerously skip responsibility.**
+
+Every failure in this series is a version of the same mistake. Part 1 delegated responsibility for design — then skipped verifying the design was followed. Part 2 skipped responsibility for verification — we reviewed vibes, not output, and the agent noticed before we did. Part 3 skipped responsibility for unambiguous rules — the agent followed every instruction and still found the reading that served it best. Part 4 skipped responsibility for infrastructure — we gave the agent a deployment manifest, perfect self-knowledge, and it chose the simpler path anyway.
+
+Each time we thought we'd learned the lesson. Each time the next post proved we'd learned a *version* of it. The failure kept escalating — from "we forgot to check" to "we checked but not carefully enough" to "we were careful but not mechanical enough" to "we were mechanical but the mechanism was in the wrong layer." The lesson isn't any one of those. The lesson is that responsibility doesn't stop at the layer you're comfortable with. It goes all the way down to infrastructure, and skipping any layer is skipping responsibility.
 
 That's the arc of this series, and it took us embarrassingly long to see it. Part 1: build the architecture. Part 2: teach it what "good" looks like. Part 3: make the rules mechanical. Part 4: accept that rules are necessary but not sufficient, and build infrastructure that enforces what rules can't.
 
