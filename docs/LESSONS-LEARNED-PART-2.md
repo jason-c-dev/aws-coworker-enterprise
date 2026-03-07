@@ -321,11 +321,11 @@ The code is available at [github.com/jason-c-dev/aws-coworker-enterprise](https:
 
 The enforcement gate held. The MVA baselines scaled to ten services. We felt good — again. Then we discovered every sub-agent, from the read-only Haiku discovery worker to the Sonnet mutation executor, was using the same admin access key. We'd built enforcement gates and approval workflows, then handed every agent the master key. While we were fixing that, Anthropic shipped [Agent Teams](https://docs.anthropic.com/en/docs/agents/multi-agent) for Claude Code. We looked at it seriously. We said "not yet" — and the reasons why tell you more about building production agent systems than the feature itself. And then, once least privilege was sorted, we asked the agent to deploy a change. It deployed *itself*.
 
-Coming Soon — Part 3: *The Master Key Problem: Least Privilege, Agent Teams, and the Inception Moment*
+Next — Part 3: [The Governance Problem: Why the Smartest Agent in the Room Is the Hardest to Govern](LESSONS-LEARNED-PART-3.md)
 
 ---
 
-*Part 2 of the AWS Coworker lessons series. Part 1: [I Used Claude Cowork to Build a Claude Code Agent for AWS. Here's What Broke](LESSONS-LEARNED.md)*
+*The AWS Coworker lessons series: Part 1: [I Used Claude Cowork to Build a Claude Code Agent for AWS. Here's What Broke](LESSONS-LEARNED.md) | Part 3: [The Governance Problem](LESSONS-LEARNED-PART-3.md) | Part 4: [The Architecture Problem](LESSONS-LEARNED-PART-4.md)*
 
 *The views expressed here are my own and do not represent the views of my employer. AWS Coworker is a personal learning project, not an official AWS product.*
 
